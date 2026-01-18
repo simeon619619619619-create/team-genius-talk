@@ -1,0 +1,117 @@
+import { useState } from "react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { TaskCard } from "@/components/tasks/TaskCard";
+import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
+import { mockTasks, mockTeams, mockMembers } from "@/data/mockData";
+import { Task } from "@/types";
+
+export default function TasksPage() {
+  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+
+  const handleStatusChange = (taskId: string, status: Task["status"]) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, status } : task
+    ));
+  };
+
+  const handleAddTask = (taskData: Omit<Task, "id" | "createdAt">) => {
+    const newTask: Task = {
+      ...taskData,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    setTasks([newTask, ...tasks]);
+  };
+
+  const todoTasks = tasks.filter(t => t.status === "todo");
+  const inProgressTasks = tasks.filter(t => t.status === "in-progress");
+  const doneTasks = tasks.filter(t => t.status === "done");
+
+  return (
+    <MainLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Задачи</h1>
+            <p className="mt-2 text-muted-foreground">
+              Управлявайте задачите на вашия екип
+            </p>
+          </div>
+          <AddTaskDialog 
+            teams={mockTeams} 
+            members={mockMembers} 
+            onAddTask={handleAddTask}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Todo Column */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-semibold text-foreground">
+                За изпълнение
+              </h2>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                {todoTasks.length}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {todoTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* In Progress Column */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-semibold text-foreground">
+                В процес
+              </h2>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
+                {inProgressTasks.length}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {inProgressTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Done Column */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-semibold text-foreground">
+                Завършени
+              </h2>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10 text-success text-xs font-medium">
+                {doneTasks.length}
+              </span>
+            </div>
+            <div className="space-y-3">
+              {doneTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
