@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
+import { AITaskBreakdownDialog } from "@/components/tasks/AITaskBreakdownDialog";
 import { mockTasks, mockTeams, mockMembers } from "@/data/mockData";
 import { Task } from "@/types";
 
@@ -23,6 +24,15 @@ export default function TasksPage() {
     setTasks([newTask, ...tasks]);
   };
 
+  const handleAddMultipleTasks = (tasksData: Omit<Task, "id" | "createdAt">[]) => {
+    const newTasks: Task[] = tasksData.map((taskData, index) => ({
+      ...taskData,
+      id: (Date.now() + index).toString(),
+      createdAt: new Date().toISOString(),
+    }));
+    setTasks([...newTasks, ...tasks]);
+  };
+
   const todoTasks = tasks.filter(t => t.status === "todo");
   const inProgressTasks = tasks.filter(t => t.status === "in-progress");
   const doneTasks = tasks.filter(t => t.status === "done");
@@ -30,18 +40,25 @@ export default function TasksPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground">Задачи</h1>
             <p className="mt-2 text-muted-foreground">
               Управлявайте задачите на вашия екип
             </p>
           </div>
-          <AddTaskDialog 
-            teams={mockTeams} 
-            members={mockMembers} 
-            onAddTask={handleAddTask}
-          />
+          <div className="flex gap-3">
+            <AITaskBreakdownDialog 
+              teams={mockTeams} 
+              members={mockMembers} 
+              onAddTasks={handleAddMultipleTasks}
+            />
+            <AddTaskDialog 
+              teams={mockTeams} 
+              members={mockMembers} 
+              onAddTask={handleAddTask}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
