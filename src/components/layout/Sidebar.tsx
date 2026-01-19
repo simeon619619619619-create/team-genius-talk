@@ -5,7 +5,8 @@ import {
   ListTodo, 
   MessageSquare, 
   Settings,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const navItems = [
   { icon: Users, label: "Екипи", path: "/teams" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
+  { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
