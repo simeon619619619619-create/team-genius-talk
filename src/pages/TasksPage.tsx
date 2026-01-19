@@ -4,7 +4,7 @@ import { TaskCard } from "@/components/tasks/TaskCard";
 import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
 import { AITaskBreakdownDialog } from "@/components/tasks/AITaskBreakdownDialog";
 import { mockTasks, mockTeams, mockMembers } from "@/data/mockData";
-import { Task } from "@/types";
+import { Task, Subtask } from "@/types";
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
@@ -31,6 +31,36 @@ export default function TasksPage() {
       createdAt: new Date().toISOString(),
     }));
     setTasks([...newTasks, ...tasks]);
+  };
+
+  const handleAddSubtask = (taskId: string, subtaskData: Omit<Subtask, "id">) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const newSubtask: Subtask = {
+          ...subtaskData,
+          id: Date.now().toString(),
+        };
+        return {
+          ...task,
+          subtasks: [...(task.subtasks || []), newSubtask],
+        };
+      }
+      return task;
+    }));
+  };
+
+  const handleSubtaskStatusChange = (taskId: string, subtaskId: string, status: Subtask["status"]) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId && task.subtasks) {
+        return {
+          ...task,
+          subtasks: task.subtasks.map(subtask =>
+            subtask.id === subtaskId ? { ...subtask, status } : subtask
+          ),
+        };
+      }
+      return task;
+    }));
   };
 
   const todoTasks = tasks.filter(t => t.status === "todo");
@@ -78,7 +108,10 @@ export default function TasksPage() {
                   key={task.id}
                   task={task}
                   assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  members={mockMembers}
                   onStatusChange={handleStatusChange}
+                  onAddSubtask={handleAddSubtask}
+                  onSubtaskStatusChange={handleSubtaskStatusChange}
                 />
               ))}
             </div>
@@ -100,7 +133,10 @@ export default function TasksPage() {
                   key={task.id}
                   task={task}
                   assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  members={mockMembers}
                   onStatusChange={handleStatusChange}
+                  onAddSubtask={handleAddSubtask}
+                  onSubtaskStatusChange={handleSubtaskStatusChange}
                 />
               ))}
             </div>
@@ -122,7 +158,10 @@ export default function TasksPage() {
                   key={task.id}
                   task={task}
                   assignee={mockMembers.find(m => m.id === task.assigneeId)}
+                  members={mockMembers}
                   onStatusChange={handleStatusChange}
+                  onAddSubtask={handleAddSubtask}
+                  onSubtaskStatusChange={handleSubtaskStatusChange}
                 />
               ))}
             </div>

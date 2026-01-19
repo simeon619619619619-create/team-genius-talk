@@ -16,6 +16,16 @@ export interface Team {
   color: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  description?: string;
+  status: "todo" | "in-progress" | "done";
+  assigneeId: string;
+  dueDate?: string;
+  handoffTo?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -26,4 +36,5 @@ export interface Task {
   teamId: string;
   dueDate?: string;
   createdAt: string;
+  subtasks?: Subtask[];
 }
