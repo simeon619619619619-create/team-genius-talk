@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { QuarterWeeksView } from "@/components/business-plan/QuarterWeeksView";
 
 interface Goal {
   id: string;
@@ -37,10 +38,21 @@ interface PlanItem {
   priority: "high" | "medium" | "low";
 }
 
+interface WeeklyTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+  estimatedHours: number;
+  dayOfWeek: number;
+  isCompleted: boolean;
+}
+
 interface QuarterPlan {
   goals: Goal[];
   items: PlanItem[];
   notes: string;
+  weeklyTasks: Record<number, WeeklyTask[]>;
 }
 
 interface BusinessPlan {
@@ -59,6 +71,7 @@ const emptyQuarter: QuarterPlan = {
   goals: [],
   items: [],
   notes: "",
+  weeklyTasks: {},
 };
 
 const initialPlan: BusinessPlan = {
@@ -875,7 +888,7 @@ export default function BusinessPlanPage() {
           </TabsContent>
 
           {(["Q1", "Q2", "Q3", "Q4"] as const).map((quarter) => (
-            <TabsContent key={quarter} value={quarter} className="mt-6">
+            <TabsContent key={quarter} value={quarter} className="mt-6 space-y-6">
               <PlanSection
                 title={`${quarter} план`}
                 icon={Target}
@@ -887,6 +900,28 @@ export default function BusinessPlanPage() {
                 onAddItem={(item) => handleAddQuarterItem(quarter, item)}
                 onUpdateItem={(item) => handleUpdateQuarterItem(quarter, item)}
                 onDeleteItem={(id) => handleDeleteQuarterItem(quarter, id)}
+              />
+              <QuarterWeeksView
+                quarter={quarter}
+                year={plan.year}
+                goals={plan.quarters[quarter].goals}
+                items={plan.quarters[quarter].items}
+                weeklyTasks={plan.quarters[quarter].weeklyTasks}
+                onWeeklyTasksUpdate={(weekNumber, tasks) => {
+                  setPlan((prev) => ({
+                    ...prev,
+                    quarters: {
+                      ...prev.quarters,
+                      [quarter]: {
+                        ...prev.quarters[quarter],
+                        weeklyTasks: {
+                          ...prev.quarters[quarter].weeklyTasks,
+                          [weekNumber]: tasks,
+                        },
+                      },
+                    },
+                  }));
+                }}
               />
             </TabsContent>
           ))}
