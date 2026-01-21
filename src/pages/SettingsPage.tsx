@@ -1,11 +1,120 @@
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, Bell, Globe, Shield } from "lucide-react";
+import { User, Bell, Globe, Shield, Loader2, Instagram, Phone } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+
+interface ProfileData {
+  full_name: string;
+  email: string;
+  phone: string;
+  instagram: string;
+}
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<ProfileData>({
+    full_name: "",
+    email: "",
+    phone: "",
+    instagram: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, email, phone, instagram")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile({
+          full_name: data.full_name || "",
+          email: data.email || user.email || "",
+          phone: data.phone || "",
+          instagram: data.instagram || "",
+        });
+      } else {
+        setProfile({
+          full_name: "",
+          email: user.email || "",
+          phone: "",
+          instagram: "",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Грешка",
+        description: error.message || "Неуспешно зареждане на профила",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: profile.full_name,
+          phone: profile.phone,
+          instagram: profile.instagram,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Успешно",
+        description: "Профилът е запазен",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Грешка",
+        description: error.message || "Неуспешно запазване",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="max-w-2xl space-y-6">
@@ -28,23 +137,49 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Име</Label>
-                <Input id="firstName" defaultValue="Иван" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Фамилия</Label>
-                <Input id="lastName" defaultValue="Петров" />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Име и фамилия</Label>
+              <Input 
+                id="fullName" 
+                value={profile.full_name}
+                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                placeholder="Въведете вашето име"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Имейл</Label>
-              <Input id="email" type="email" defaultValue="ivan@company.bg" />
+              <Input 
+                id="email" 
+                type="email" 
+                value={profile.email}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">Имейлът не може да бъде променян</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company">Компания</Label>
-              <Input id="company" defaultValue="Моята Компания ООД" />
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                Телефон
+              </Label>
+              <Input 
+                id="phone" 
+                value={profile.phone}
+                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                placeholder="+359..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instagram" className="flex items-center gap-2">
+                <Instagram className="h-4 w-4" />
+                Instagram
+              </Label>
+              <Input 
+                id="instagram" 
+                value={profile.instagram}
+                onChange={(e) => setProfile({ ...profile, instagram: e.target.value })}
+                placeholder="@username"
+              />
             </div>
           </div>
         </div>
@@ -130,8 +265,15 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline">Отказ</Button>
-          <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">Запази промените</Button>
+          <Button variant="outline" onClick={loadProfile}>Отказ</Button>
+          <Button 
+            className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
+            onClick={saveProfile}
+            disabled={saving}
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Запази промените
+          </Button>
         </div>
       </div>
     </MainLayout>
