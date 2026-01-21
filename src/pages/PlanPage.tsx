@@ -3,15 +3,18 @@ import { Check, ChevronRight } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { BotConfigDialog } from "@/components/plan/BotConfigDialog";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
+import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Bot } from "lucide-react";
 
 export default function PlanPage() {
   const { user } = useAuth();
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string>("");
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
 
   // Fetch user's project
@@ -21,13 +24,14 @@ export default function PlanPage() {
       
       const { data, error } = await supabase
         .from('projects')
-        .select('id')
+        .select('id, name')
         .eq('owner_id', user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (!error && data) {
         setProjectId(data.id);
+        setProjectName(data.name);
       }
     };
     
@@ -90,15 +94,22 @@ export default function PlanPage() {
             </p>
           </div>
           
-          {projectId && (
-            <BotConfigDialog
-              bots={bots}
-              projectId={projectId}
-              onCreateBot={createBot}
-              onUpdateBot={updateBot}
-              onDeleteBot={deleteBot}
+          <div className="flex gap-3">
+            <ExportPdfButton 
+              steps={steps} 
+              bots={bots} 
+              projectName={projectName}
             />
-          )}
+            {projectId && (
+              <BotConfigDialog
+                bots={bots}
+                projectId={projectId}
+                onCreateBot={createBot}
+                onUpdateBot={updateBot}
+                onDeleteBot={deleteBot}
+              />
+            )}
+          </div>
         </div>
 
         {/* Progress */}
@@ -123,54 +134,60 @@ export default function PlanPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Steps List */}
           <div className="lg:col-span-1 space-y-3">
-            {steps.map((step, index) => (
-              <button
-                key={step.id}
-                onClick={() => setActiveStepId(step.id)}
-                className={cn(
-                  "w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200",
-                  activeStepId === step.id
-                    ? "glass-card shadow-lg"
-                    : "hover:bg-secondary"
-                )}
-              >
-                <div className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-full shrink-0",
-                  step.completed
-                    ? "bg-success text-success-foreground"
-                    : activeStepId === step.id
-                    ? "gradient-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground"
-                )}>
-                  {step.completed ? (
-                    <Check className="h-5 w-5" />
-                  ) : (
-                    <span className="font-medium">{index + 1}</span>
+            {steps.map((step, index) => {
+              const assignedBot = bots.find(b => b.id === step.assigned_bot_id);
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => setActiveStepId(step.id)}
+                  className={cn(
+                    "w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200",
+                    activeStepId === step.id
+                      ? "glass-card shadow-lg"
+                      : "hover:bg-secondary"
                   )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "font-medium truncate",
-                    step.completed && "text-muted-foreground"
+                >
+                  <div className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden",
+                    step.completed
+                      ? "bg-success text-success-foreground"
+                      : activeStepId === step.id
+                      ? "gradient-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
                   )}>
-                    {step.title}
-                  </p>
-                  {step.assigned_bot_id && (
-                    <p className="text-xs text-primary truncate">
-                      {bots.find(b => b.id === step.assigned_bot_id)?.name}
+                    {step.completed ? (
+                      <Check className="h-5 w-5" />
+                    ) : assignedBot?.avatar_url ? (
+                      <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="font-medium">{index + 1}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "font-medium truncate",
+                      step.completed && "text-muted-foreground"
+                    )}>
+                      {step.title}
                     </p>
-                  )}
-                </div>
-                <ChevronRight className={cn(
-                  "h-5 w-5 shrink-0 transition-colors",
-                  activeStepId === step.id ? "text-primary" : "text-muted-foreground"
-                )} />
-              </button>
-            ))}
+                    {assignedBot && (
+                      <p className="text-xs text-primary truncate flex items-center gap-1">
+                        <Bot className="h-3 w-3" />
+                        {assignedBot.name}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className={cn(
+                    "h-5 w-5 shrink-0 transition-colors",
+                    activeStepId === step.id ? "text-primary" : "text-muted-foreground"
+                  )} />
+                </button>
+              );
+            })}
           </div>
 
           {/* Active Step Details */}
-          {activeStep && (
+          {activeStep && projectId && (
             <PlanStepCard
               step={activeStep}
               stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1}
@@ -179,7 +196,7 @@ export default function PlanPage() {
               onSelect={() => {}}
               onToggleComplete={() => toggleStepComplete(activeStep.id)}
               onAssignBot={(botId) => assignBotToStep(activeStep.id, botId)}
-              onGenerate={() => generateContent(activeStep.id)}
+              onGenerate={() => generateContent(activeStep.id, projectId)}
             />
           )}
         </div>

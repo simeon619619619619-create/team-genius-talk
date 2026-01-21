@@ -58,6 +58,61 @@ export type Database = {
           },
         ]
       }
+      bot_context: {
+        Row: {
+          bot_id: string | null
+          context_key: string
+          context_value: string
+          created_at: string
+          id: string
+          project_id: string | null
+          step_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_id?: string | null
+          context_key: string
+          context_value: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          step_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_id?: string | null
+          context_key?: string
+          context_value?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          step_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_context_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "ai_bots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_context_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_context_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "plan_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plans: {
         Row: {
           annual_goals: Json | null

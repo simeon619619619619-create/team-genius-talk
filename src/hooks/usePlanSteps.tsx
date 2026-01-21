@@ -175,7 +175,7 @@ export function usePlanSteps(projectId: string | null) {
     return true;
   };
 
-  const generateContent = async (stepId: string) => {
+  const generateContent = async (stepId: string, projectId: string) => {
     const step = steps.find(s => s.id === stepId);
     if (!step || !step.assigned_bot_id) {
       toast.error("Моля, първо присвоете бот на тази стъпка");
@@ -188,6 +188,14 @@ export function usePlanSteps(projectId: string | null) {
       return null;
     }
 
+    // Prepare all steps info for context sharing
+    const allStepsInfo = steps.map(s => ({
+      id: s.id,
+      title: s.title,
+      order: s.step_order,
+      generated_content: s.generated_content,
+    }));
+
     try {
       const { data, error } = await supabase.functions.invoke('generate-plan-content', {
         body: {
@@ -198,6 +206,8 @@ export function usePlanSteps(projectId: string | null) {
           botInstructions: bot.instructions,
           botName: bot.name,
           model: bot.model,
+          projectId: projectId,
+          allSteps: allStepsInfo,
         }
       });
 
