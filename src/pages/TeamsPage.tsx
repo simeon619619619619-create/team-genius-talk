@@ -316,7 +316,13 @@ export default function TeamsPage() {
 
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-display font-semibold">Членове на екипа</h2>
-            <Dialog open={newMemberOpen} onOpenChange={handleCloseInviteDialog}>
+            <Dialog open={newMemberOpen} onOpenChange={(open) => {
+              if (open) {
+                setNewMemberOpen(true);
+              } else {
+                handleCloseInviteDialog();
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">
                   <Mail className="h-4 w-4 mr-2" />
