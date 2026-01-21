@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
-import type { PlanStep, AIBot } from "@/hooks/usePlanSteps";
+import type { PlanStep } from "@/hooks/usePlanSteps";
+import type { GlobalBot } from "@/hooks/useGlobalBots";
 
 // Register a font that supports Cyrillic
 Font.register({
@@ -92,9 +93,18 @@ const styles = StyleSheet.create({
   },
 });
 
+// Map step titles to step_keys for matching with global bots
+const stepTitleToKey: Record<string, string> = {
+  "Резюме на бизнеса": "business_summary",
+  "Пазарен анализ": "market_analysis",
+  "Маркетинг стратегия": "marketing_strategy",
+  "Оперативен план": "operational_plan",
+  "Финансови прогнози": "financial_projections",
+};
+
 interface PlanPdfDocumentProps {
   steps: PlanStep[];
-  bots: AIBot[];
+  bots: GlobalBot[];
   projectName?: string;
 }
 
@@ -183,7 +193,8 @@ export function PlanPdfDocument({ steps, bots, projectName }: PlanPdfDocumentPro
         </Text>
 
         {steps.map((step, index) => {
-          const assignedBot = bots.find(b => b.id === step.assigned_bot_id);
+          const stepKey = stepTitleToKey[step.title];
+          const assignedBot = bots.find(b => b.step_key === stepKey);
           
           return (
             <View key={step.id} style={styles.section} wrap={false}>

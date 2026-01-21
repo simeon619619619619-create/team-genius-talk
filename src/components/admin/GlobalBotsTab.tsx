@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bot, Pencil, Plus, Trash2 } from "lucide-react";
-
+import { BotAvatarUpload } from "@/components/plan/BotAvatarUpload";
 interface GlobalBotsTabProps {
   bots: GlobalBot[];
   onUpdateBot: (botId: string, updates: Partial<GlobalBot>) => Promise<boolean>;
@@ -208,11 +208,11 @@ export function GlobalBotsTab({ bots, onUpdateBot, onCreateBot, onDeleteBot }: G
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>URL на аватар</Label>
-                <Input
-                  value={formData.avatar_url || ""}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                  placeholder="https://..."
+                <Label>Аватар</Label>
+                <BotAvatarUpload
+                  currentUrl={formData.avatar_url || null}
+                  onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
+                  botName={formData.name || "Бот"}
                 />
               </div>
             </div>
@@ -293,11 +293,11 @@ export function GlobalBotsTab({ bots, onUpdateBot, onCreateBot, onDeleteBot }: G
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>URL на аватар</Label>
-                <Input
-                  value={formData.avatar_url || ""}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                  placeholder="https://..."
+                <Label>Аватар</Label>
+                <BotAvatarUpload
+                  currentUrl={formData.avatar_url || null}
+                  onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
+                  botName={formData.name || "Бот"}
                 />
               </div>
             </div>
