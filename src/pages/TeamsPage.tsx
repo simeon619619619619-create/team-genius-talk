@@ -62,10 +62,8 @@ export default function TeamsPage() {
     const fetchOrCreateProject = async () => {
       if (!user) return;
 
-      // Get current session to ensure we have the right auth context
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error("No active session");
         return;
       }
 
@@ -82,7 +80,6 @@ export default function TeamsPage() {
         setCurrentProjectId(data.id);
       } else if (!error || error.code === 'PGRST116') {
         // No project found, create a default one
-        console.log("Creating project for user:", session.user.id);
         const { data: newProject, error: createError } = await supabase
           .from("projects")
           .insert({
@@ -95,13 +92,9 @@ export default function TeamsPage() {
 
         if (!createError && newProject) {
           setCurrentProjectId(newProject.id);
-          console.log("Project created:", newProject.id);
-        } else {
-          console.error("Error creating project:", createError);
+        } else if (createError) {
           toast.error("Грешка при създаване на проект");
         }
-      } else {
-        console.error("Error fetching project:", error);
       }
     };
 
