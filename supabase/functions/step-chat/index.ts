@@ -7,21 +7,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Maximum sizes for input validation to prevent resource exhaustion
+const MAX_MESSAGE_LENGTH = 5000;
+const MAX_HISTORY_MESSAGE_LENGTH = 2000;
+const MAX_TITLE_LENGTH = 200;
+const MAX_QUESTION_LENGTH = 500;
+const MAX_ANSWER_LENGTH = 2000;
+
 const InputSchema = z.object({
   stepId: z.string().uuid(),
   projectId: z.string().uuid(),
-  stepTitle: z.string(),
-  userMessage: z.string(),
+  stepTitle: z.string().max(MAX_TITLE_LENGTH, "Step title must be under 200 characters"),
+  userMessage: z.string().max(MAX_MESSAGE_LENGTH, "Message must be under 5000 characters"),
   conversationHistory: z.array(z.object({
     role: z.enum(['user', 'assistant']),
-    content: z.string(),
-  })),
-  collectedAnswers: z.record(z.string()).optional(),
+    content: z.string().max(MAX_HISTORY_MESSAGE_LENGTH, "History message must be under 2000 characters"),
+  })).max(10, "Maximum 10 messages in history"),
+  collectedAnswers: z.record(z.string().max(MAX_ANSWER_LENGTH, "Answer must be under 2000 characters")).optional(),
   questionsToAsk: z.array(z.object({
-    key: z.string(),
-    question: z.string(),
-  })),
-  currentQuestionIndex: z.number(),
+    key: z.string().max(100, "Question key must be under 100 characters"),
+    question: z.string().max(MAX_QUESTION_LENGTH, "Question must be under 500 characters"),
+  })).max(20, "Maximum 20 questions allowed"),
+  currentQuestionIndex: z.number().int().min(0).max(50),
 });
 
 serve(async (req) => {

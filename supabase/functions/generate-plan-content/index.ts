@@ -7,21 +7,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Maximum sizes for input validation to prevent resource exhaustion
+const MAX_TITLE_LENGTH = 200;
+const MAX_DESCRIPTION_LENGTH = 1000;
+const MAX_INSTRUCTIONS_LENGTH = 5000;
+const MAX_CONTENT_LENGTH = 10000;
+const MAX_STEPS = 20;
+
 const InputSchema = z.object({
   stepId: z.string().uuid(),
   botId: z.string().uuid(),
-  stepTitle: z.string(),
-  stepDescription: z.string(),
-  botInstructions: z.string(),
-  botName: z.string(),
-  model: z.string().optional(),
+  stepTitle: z.string().max(MAX_TITLE_LENGTH, "Step title must be under 200 characters"),
+  stepDescription: z.string().max(MAX_DESCRIPTION_LENGTH, "Step description must be under 1000 characters"),
+  botInstructions: z.string().max(MAX_INSTRUCTIONS_LENGTH, "Bot instructions must be under 5000 characters"),
+  botName: z.string().max(100, "Bot name must be under 100 characters"),
+  model: z.string().max(100).optional(),
   projectId: z.string().uuid(),
   allSteps: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    order: z.number(),
-    generated_content: z.string().nullable(),
-  })).optional(),
+    id: z.string().uuid(),
+    title: z.string().max(MAX_TITLE_LENGTH),
+    order: z.number().int().min(0).max(100),
+    generated_content: z.string().max(MAX_CONTENT_LENGTH).nullable(),
+  })).max(MAX_STEPS, "Maximum 20 steps allowed").optional(),
 });
 
 serve(async (req) => {
