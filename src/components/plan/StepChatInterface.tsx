@@ -281,8 +281,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
             </div>
           </ScrollArea>
 
-          {/* Input - always at the very bottom */}
-          <div className="border-t p-3 shrink-0 bg-card">
+          {/* Input - compact at the very bottom */}
+          <div className="border-t p-2 shrink-0 bg-card mt-auto">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
@@ -299,12 +299,12 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 Генерирай съдържание от отговорите
               </Button>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Напишете отговор..."
-                className="min-h-[44px] max-h-[100px] resize-none"
+                className="min-h-[36px] max-h-[36px] resize-none py-2"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -316,7 +316,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="h-[44px] w-[44px] shrink-0"
+                className="h-[36px] w-[36px] shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
