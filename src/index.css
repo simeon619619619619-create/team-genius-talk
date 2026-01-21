@@ -22,7 +22,8 @@
     --secondary-foreground: 222 47% 11%;
 
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* Slightly darker for better readability/contrast on light backgrounds */
+    --muted-foreground: 222 14% 38%;
 
     --accent: 174 72% 46%;
     --accent-foreground: 210 40% 98%;
@@ -55,7 +56,8 @@
     --shadow-glow: 0 0 40px hsl(221 83% 53% / 0.15);
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Improve sidebar legibility (inactive nav uses muted-foreground, but keep sidebar tokens strong too) */
+    --sidebar-foreground: 222 20% 20%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 210 40% 96%;
