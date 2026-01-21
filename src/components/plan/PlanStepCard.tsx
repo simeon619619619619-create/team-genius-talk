@@ -44,7 +44,7 @@ export function PlanStepCard({
     <div className="lg:col-span-2 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
       {/* Main Card - takes all space except button */}
       <Card className="p-3 animate-fade-in flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Header - compact */}
+        {/* Combined Header with Bot Assignment */}
         <div className="flex items-center justify-between mb-2 flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className={cn(
@@ -69,30 +69,27 @@ export function PlanStepCard({
               {step.title}
             </h2>
           </div>
-        </div>
-
-        {/* Bot Assignment - compact */}
-        <div className="mb-2 p-2 rounded-lg bg-secondary/50 flex items-center justify-between gap-4 flex-shrink-0">
+          
+          {/* Bot selector on the right */}
           <div className="flex items-center gap-2">
             <Bot className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">AI Бот:</span>
+            <Select
+              value={step.assigned_bot_id || "none"}
+              onValueChange={(value) => onAssignBot(value === "none" ? null : value)}
+            >
+              <SelectTrigger className="w-[180px] h-8">
+                <SelectValue placeholder="Избери бот..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Без бот</SelectItem>
+                {bots.map((bot) => (
+                  <SelectItem key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select
-            value={step.assigned_bot_id || "none"}
-            onValueChange={(value) => onAssignBot(value === "none" ? null : value)}
-          >
-            <SelectTrigger className="w-[180px] h-8">
-              <SelectValue placeholder="Избери бот..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Без бот</SelectItem>
-              {bots.map((bot) => (
-                <SelectItem key={bot.id} value={bot.id}>
-                  {bot.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Chat Interface - takes ALL remaining space in card */}
