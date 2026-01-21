@@ -7,27 +7,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Input validation schemas
+// Maximum sizes for input validation to prevent resource exhaustion
+const MAX_TITLE_LENGTH = 200;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_GOALS = 10;
+const MAX_ITEMS = 20;
+
+// Input validation schemas with stricter limits
 const GoalSchema = z.object({
-  title: z.string().max(500),
-  description: z.string().max(2000),
-  category: z.string().max(100),
+  title: z.string().max(MAX_TITLE_LENGTH, "Goal title must be under 200 characters"),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH, "Goal description must be under 500 characters"),
+  category: z.string().max(50, "Category must be under 50 characters"),
   priority: z.enum(["high", "medium", "low"]),
 });
 
 const PlanItemSchema = z.object({
   type: z.enum(["project", "strategy", "action"]),
-  title: z.string().max(500),
-  description: z.string().max(2000),
-  owner: z.string().max(200).optional(),
-  deadline: z.string().optional(),
-  expectedResults: z.string().max(2000).optional(),
+  title: z.string().max(MAX_TITLE_LENGTH, "Item title must be under 200 characters"),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH, "Item description must be under 500 characters"),
+  owner: z.string().max(100, "Owner must be under 100 characters").optional(),
+  deadline: z.string().max(50).optional(),
+  expectedResults: z.string().max(MAX_DESCRIPTION_LENGTH, "Expected results must be under 500 characters").optional(),
   priority: z.enum(["high", "medium", "low"]),
 });
 
 const WeeklyTasksInputSchema = z.object({
-  goals: z.array(GoalSchema).max(50, "Maximum 50 goals allowed"),
-  items: z.array(PlanItemSchema).max(100, "Maximum 100 items allowed"),
+  goals: z.array(GoalSchema).max(MAX_GOALS, "Maximum 10 goals allowed"),
+  items: z.array(PlanItemSchema).max(MAX_ITEMS, "Maximum 20 items allowed"),
   weekNumber: z.number().int().min(1).max(53),
   quarter: z.string().max(20),
   year: z.number().int().min(2000).max(2100),

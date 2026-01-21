@@ -7,14 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Maximum sizes for input validation to prevent resource exhaustion
+const MAX_TITLE_LENGTH = 200;
+const MAX_CONTEXT_LENGTH = 10000;
+const MAX_INSTRUCTIONS_LENGTH = 5000;
+
 const InputSchema = z.object({
   stepId: z.string().uuid(),
   projectId: z.string().uuid(),
-  stepTitle: z.string(),
-  answersContext: z.string(),
-  botInstructions: z.string(),
-  botName: z.string(),
-  model: z.string().optional(),
+  stepTitle: z.string().max(MAX_TITLE_LENGTH, "Step title must be under 200 characters"),
+  answersContext: z.string().max(MAX_CONTEXT_LENGTH, "Answers context must be under 10000 characters"),
+  botInstructions: z.string().max(MAX_INSTRUCTIONS_LENGTH, "Bot instructions must be under 5000 characters"),
+  botName: z.string().max(100, "Bot name must be under 100 characters"),
+  model: z.string().max(100).optional(),
 });
 
 serve(async (req) => {
