@@ -11,6 +11,7 @@ interface WeeklyTask {
   priority: "low" | "medium" | "high";
   estimatedHours: number;
   dayOfWeek: number; // 1-7 (Monday-Sunday)
+  taskType: "project" | "strategy" | "action";
 }
 
 interface PlanItem {
@@ -59,6 +60,7 @@ serve(async (req) => {
 3. Групирай свързани задачи близко една до друга
 4. Дай реалистични оценки за време
 5. Задачите трябва да са конкретни и изпълними
+6. Задай taskType според източника: "project" за проект, "strategy" за стратегия, "action" за действие или цел
 
 ЦЕЛИ:
 ${goalsText || "Няма добавени цели"}
@@ -73,7 +75,8 @@ ${itemsText || "Няма добавени елементи"}
     "description": "Организирай среща с екипа за обсъждане на Q1 маркетинг стратегия",
     "priority": "high",
     "estimatedHours": 2,
-    "dayOfWeek": 1
+    "dayOfWeek": 1,
+    "taskType": "project"
   }
 ]
 
