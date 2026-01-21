@@ -228,7 +228,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
         </div>
 
         <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden">
-          {/* Messages */}
+          {/* Messages - takes all available space */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
               {messages.map((message) => (
@@ -279,14 +279,15 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
             </div>
           </ScrollArea>
 
-          {/* Input */}
-          <div className="border-t p-4 space-y-3">
+          {/* Input - fixed at bottom */}
+          <div className="border-t p-3 mt-auto shrink-0">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
                 disabled={isGenerating}
-                className="w-full gap-2"
+                className="w-full gap-2 mb-2"
                 variant="secondary"
+                size="sm"
               >
                 {isGenerating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -301,7 +302,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Напишете отговор..."
-                className="min-h-[60px] resize-none"
+                className="min-h-[44px] max-h-[100px] resize-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -313,9 +314,9 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="h-[60px] w-[60px]"
+                className="h-[44px] w-[44px] shrink-0"
               >
-                <Send className="h-5 w-5" />
+                <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
