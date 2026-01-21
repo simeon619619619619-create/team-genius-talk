@@ -1,72 +1,104 @@
-import { useState } from "react";
-import { Check, Circle, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, ChevronRight } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Button } from "@/components/ui/button";
+import { BotConfigDialog } from "@/components/plan/BotConfigDialog";
+import { PlanStepCard } from "@/components/plan/PlanStepCard";
+import { usePlanSteps } from "@/hooks/usePlanSteps";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-
-interface PlanStep {
-  id: string;
-  title: string;
-  description: string;
-  completed: boolean;
-}
-
-const initialSteps: PlanStep[] = [
-  {
-    id: "1",
-    title: "Резюме на бизнеса",
-    description: "Кратко описание на бизнес идеята, мисията и визията",
-    completed: true,
-  },
-  {
-    id: "2",
-    title: "Пазарен анализ",
-    description: "Анализ на целевия пазар, клиенти и конкуренция",
-    completed: true,
-  },
-  {
-    id: "3",
-    title: "Маркетинг стратегия",
-    description: "Канали за достигане до клиентите и рекламни планове",
-    completed: false,
-  },
-  {
-    id: "4",
-    title: "Оперативен план",
-    description: "Ежедневни операции, доставчици и процеси",
-    completed: false,
-  },
-  {
-    id: "5",
-    title: "Финансови прогнози",
-    description: "Приходи, разходи, рентабилност и инвестиции",
-    completed: false,
-  },
-];
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PlanPage() {
-  const [steps, setSteps] = useState<PlanStep[]>(initialSteps);
-  const [activeStep, setActiveStep] = useState<string>("3");
+  const { user } = useAuth();
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [activeStepId, setActiveStepId] = useState<string | null>(null);
+
+  // Fetch user's project
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .single();
+      
+      if (!error && data) {
+        setProjectId(data.id);
+      }
+    };
+    
+    fetchProject();
+  }, [user]);
+
+  const {
+    steps,
+    bots,
+    loading,
+    toggleStepComplete,
+    assignBotToStep,
+    createBot,
+    updateBot,
+    deleteBot,
+    generateContent,
+  } = usePlanSteps(projectId);
+
+  // Set active step when steps load
+  useEffect(() => {
+    if (steps.length > 0 && !activeStepId) {
+      const firstIncomplete = steps.find(s => !s.completed);
+      setActiveStepId(firstIncomplete?.id || steps[0].id);
+    }
+  }, [steps, activeStepId]);
 
   const completedCount = steps.filter(s => s.completed).length;
-  const progress = (completedCount / steps.length) * 100;
+  const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
+  const activeStep = steps.find(s => s.id === activeStepId);
 
-  const toggleStep = (stepId: string) => {
-    setSteps(steps.map(step =>
-      step.id === stepId ? { ...step, completed: !step.completed } : step
-    ));
-  };
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-24 w-full" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              {[1,2,3,4,5].map(i => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+            <Skeleton className="lg:col-span-2 h-96" />
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Маркетинг план
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Създайте и проследявайте вашия бизнес план стъпка по стъпка
-          </p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">
+              Маркетинг план
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Създайте и проследявайте вашия бизнес план с AI ботове
+            </p>
+          </div>
+          
+          {projectId && (
+            <BotConfigDialog
+              bots={bots}
+              projectId={projectId}
+              onCreateBot={createBot}
+              onUpdateBot={updateBot}
+              onDeleteBot={deleteBot}
+            />
+          )}
         </div>
 
         {/* Progress */}
@@ -94,10 +126,10 @@ export default function PlanPage() {
             {steps.map((step, index) => (
               <button
                 key={step.id}
-                onClick={() => setActiveStep(step.id)}
+                onClick={() => setActiveStepId(step.id)}
                 className={cn(
                   "w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200",
-                  activeStep === step.id
+                  activeStepId === step.id
                     ? "glass-card shadow-lg"
                     : "hover:bg-secondary"
                 )}
@@ -106,7 +138,7 @@ export default function PlanPage() {
                   "flex h-10 w-10 items-center justify-center rounded-full shrink-0",
                   step.completed
                     ? "bg-success text-success-foreground"
-                    : activeStep === step.id
+                    : activeStepId === step.id
                     ? "gradient-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground"
                 )}>
@@ -123,70 +155,33 @@ export default function PlanPage() {
                   )}>
                     {step.title}
                   </p>
+                  {step.assigned_bot_id && (
+                    <p className="text-xs text-primary truncate">
+                      {bots.find(b => b.id === step.assigned_bot_id)?.name}
+                    </p>
+                  )}
                 </div>
                 <ChevronRight className={cn(
                   "h-5 w-5 shrink-0 transition-colors",
-                  activeStep === step.id ? "text-primary" : "text-muted-foreground"
+                  activeStepId === step.id ? "text-primary" : "text-muted-foreground"
                 )} />
               </button>
             ))}
           </div>
 
           {/* Active Step Details */}
-          <div className="lg:col-span-2">
-            {steps.filter(s => s.id === activeStep).map((step) => (
-              <div key={step.id} className="glass-card rounded-xl p-8 animate-fade-in">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium",
-                      step.completed
-                        ? "bg-success/10 text-success"
-                        : "bg-primary/10 text-primary"
-                    )}>
-                      {step.completed ? (
-                        <>
-                          <Check className="h-4 w-4" />
-                          Завършено
-                        </>
-                      ) : (
-                        <>
-                          <Circle className="h-4 w-4" />
-                          В процес
-                        </>
-                      )}
-                    </span>
-                    <h2 className="mt-4 text-2xl font-display font-bold text-foreground">
-                      {step.title}
-                    </h2>
-                    <p className="mt-2 text-muted-foreground">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-8 p-6 rounded-lg bg-secondary/50">
-                  <p className="text-sm text-muted-foreground">
-                    Използвайте AI асистента за да генерирате съдържание за тази секция.
-                    Можете да говорите или пишете на български език.
-                  </p>
-                </div>
-
-                <div className="mt-6 flex gap-3">
-                  <Button
-                    variant={step.completed ? "outline" : "default"}
-                    className={!step.completed ? "gradient-primary" : ""}
-                    onClick={() => toggleStep(step.id)}
-                  >
-                    {step.completed ? "Отбележи като незавършено" : "Маркирай като завършено"}
-                  </Button>
-                  <Button variant="secondary">
-                    Генерирай с AI
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          {activeStep && (
+            <PlanStepCard
+              step={activeStep}
+              stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1}
+              isActive={true}
+              bots={bots}
+              onSelect={() => {}}
+              onToggleComplete={() => toggleStepComplete(activeStep.id)}
+              onAssignBot={(botId) => assignBotToStep(activeStep.id, botId)}
+              onGenerate={() => generateContent(activeStep.id)}
+            />
+          )}
         </div>
       </div>
     </MainLayout>

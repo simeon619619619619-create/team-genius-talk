@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_bots: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          instructions: string
+          model: string
+          name: string
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions: string
+          model?: string
+          name: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions?: string
+          model?: string
+          name?: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_bots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plans: {
         Row: {
           annual_goals: Json | null
@@ -110,6 +154,60 @@ export type Database = {
             columns: ["business_plan_id"]
             isOneToOne: false
             referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_steps: {
+        Row: {
+          assigned_bot_id: string | null
+          completed: boolean
+          created_at: string
+          description: string | null
+          generated_content: string | null
+          id: string
+          project_id: string | null
+          step_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_bot_id?: string | null
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          generated_content?: string | null
+          id?: string
+          project_id?: string | null
+          step_order: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_bot_id?: string | null
+          completed?: boolean
+          created_at?: string
+          description?: string | null
+          generated_content?: string | null
+          id?: string
+          project_id?: string | null
+          step_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_steps_assigned_bot_id_fkey"
+            columns: ["assigned_bot_id"]
+            isOneToOne: false
+            referencedRelation: "ai_bots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_steps_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
