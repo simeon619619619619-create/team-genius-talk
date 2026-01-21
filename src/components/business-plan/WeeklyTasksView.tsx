@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Sparkles, Loader2, Calendar, CheckCircle2, Clock, Briefcase, Target, Zap } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ interface WeeklyTask {
   estimatedHours: number;
   dayOfWeek: number;
   isCompleted: boolean;
+  taskType?: "project" | "strategy" | "action";
 }
 
 interface Goal {
@@ -50,10 +52,32 @@ interface WeeklyTasksViewProps {
 
 const dayNames = ["Понеделник", "Вторник", "Сряда", "Четвъртък", "Петък", "Събота", "Неделя"];
 
-const priorityColors = {
-  high: "bg-destructive/10 text-destructive border-destructive/20",
-  medium: "bg-warning/10 text-warning border-warning/20",
-  low: "bg-muted text-muted-foreground border-muted",
+// Color coding based on task type
+const taskTypeColors = {
+  project: {
+    bg: "bg-primary/10",
+    border: "border-primary/30",
+    text: "text-primary",
+    icon: Briefcase,
+  },
+  strategy: {
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
+    text: "text-emerald-600",
+    icon: Target,
+  },
+  action: {
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/30",
+    text: "text-amber-600",
+    icon: Zap,
+  },
+};
+
+const priorityIndicators = {
+  high: "border-l-4 border-l-destructive",
+  medium: "border-l-4 border-l-warning",
+  low: "border-l-4 border-l-muted-foreground",
 };
 
 export function WeeklyTasksView({
@@ -131,6 +155,33 @@ export function WeeklyTasksView({
     );
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    // Dropped outside a valid droppable
+    if (!destination) return;
+
+    // Dropped in the same position
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    const newDayOfWeek = parseInt(destination.droppableId.replace("day-", ""));
+    
+    const updatedTasks = tasks.map((task) => {
+      if (task.id === draggableId) {
+        return { ...task, dayOfWeek: newDayOfWeek };
+      }
+      return task;
+    });
+
+    onTasksUpdate(updatedTasks);
+    toast.success("Задачата е преместена");
+  };
+
   const tasksByDay = dayNames.map((_, index) =>
     tasks.filter((t) => t.dayOfWeek === index + 1)
   );
@@ -157,20 +208,37 @@ export function WeeklyTasksView({
             </Badge>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerateTasks}
-          disabled={isGenerating}
-          className="gap-2"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {tasks.length > 0 ? "Регенерирай" : "AI Генериране"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Legend */}
+          <div className="hidden md:flex items-center gap-3 mr-4 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-primary/20 border border-primary/30" />
+              <span className="text-muted-foreground">Проект</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/30" />
+              <span className="text-muted-foreground">Стратегия</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-amber-500/20 border border-amber-500/30" />
+              <span className="text-muted-foreground">Действие</span>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateTasks}
+            disabled={isGenerating}
+            className="gap-2"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {tasks.length > 0 ? "Регенерирай" : "AI Генериране"}
+          </Button>
+        </div>
       </div>
 
       {tasks.length === 0 ? (
@@ -186,43 +254,88 @@ export function WeeklyTasksView({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {tasksByDay.slice(0, 5).map((dayTasks, index) => (
-            <Card key={index} className="min-h-[200px]">
-              <CardHeader className="pb-2 pt-3 px-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {dayNames[index]}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 pb-3 space-y-2">
-                {dayTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">
-                    Няма задачи
-                  </p>
-                ) : (
-                  dayTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => toggleTaskComplete(task.id)}
-                      className={cn(
-                        "p-2 rounded-lg border cursor-pointer transition-all hover:shadow-sm",
-                        priorityColors[task.priority],
-                        task.isCompleted && "opacity-50 line-through"
-                      )}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            {tasksByDay.slice(0, 5).map((dayTasks, index) => (
+              <Droppable droppableId={`day-${index + 1}`} key={index}>
+                {(provided, snapshot) => (
+                  <Card 
+                    className={cn(
+                      "min-h-[200px] transition-colors",
+                      snapshot.isDraggingOver && "ring-2 ring-primary/50 bg-primary/5"
+                    )}
+                  >
+                    <CardHeader className="pb-2 pt-3 px-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {dayNames[index]}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent 
+                      className="px-3 pb-3 space-y-2"
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
                     >
-                      <p className="text-xs font-medium">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] opacity-70">
-                          {task.estimatedHours}ч
-                        </span>
-                      </div>
-                    </div>
-                  ))
+                      {dayTasks.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          Няма задачи
+                        </p>
+                      ) : (
+                        dayTasks.map((task, taskIndex) => {
+                          const taskType = task.taskType || "action";
+                          const typeStyle = taskTypeColors[taskType];
+                          const Icon = typeStyle.icon;
+                          
+                          return (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={taskIndex}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => toggleTaskComplete(task.id)}
+                                  className={cn(
+                                    "p-2 rounded-lg border cursor-pointer transition-all",
+                                    typeStyle.bg,
+                                    typeStyle.border,
+                                    priorityIndicators[task.priority],
+                                    task.isCompleted && "opacity-50",
+                                    snapshot.isDragging && "shadow-lg ring-2 ring-primary"
+                                  )}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <Icon className={cn("h-3 w-3 mt-0.5 shrink-0", typeStyle.text)} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn(
+                                        "text-xs font-medium",
+                                        task.isCompleted && "line-through"
+                                      )}>
+                                        {task.title}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] opacity-70">
+                                          {task.estimatedHours}ч
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })
+                      )}
+                      {provided.placeholder}
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </Droppable>
+            ))}
+          </div>
+        </DragDropContext>
       )}
     </div>
   );
