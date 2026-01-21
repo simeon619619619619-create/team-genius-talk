@@ -61,7 +61,6 @@ export default function AcceptInvitationPage() {
         setTeam(teamData);
         setStatus("valid");
       } catch (error) {
-        console.error("Error validating invitation:", error);
         setStatus("error");
       }
     };
@@ -105,7 +104,6 @@ export default function AcceptInvitationPage() {
       toast.success("Успешно се присъединихте към екипа!");
       navigate("/teams");
     } catch (error: any) {
-      console.error("Error accepting invitation:", error);
       toast.error("Грешка при приемане на поканата");
       setStatus("valid");
     }

@@ -67,7 +67,6 @@ export function useTasks() {
 
       setTasks(tasksWithSubtasks);
     } catch (error: any) {
-      console.error("Error fetching tasks:", error);
       toast.error("Грешка при зареждане на задачите");
     } finally {
       setLoading(false);
@@ -120,7 +119,6 @@ export function useTasks() {
       toast.success("Задачата е добавена");
       return newTask;
     } catch (error: any) {
-      console.error("Error adding task:", error);
       toast.error("Грешка при добавяне на задача");
       return null;
     }
@@ -139,7 +137,6 @@ export function useTasks() {
         prev.map((t) => (t.id === taskId ? { ...t, status } : t))
       );
     } catch (error: any) {
-      console.error("Error updating task:", error);
       toast.error("Грешка при обновяване на задача");
     }
   };
@@ -156,7 +153,6 @@ export function useTasks() {
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       toast.success("Задачата е изтрита");
     } catch (error: any) {
-      console.error("Error deleting task:", error);
       toast.error("Грешка при изтриване на задача");
     }
   };
@@ -201,7 +197,6 @@ export function useTasks() {
       );
       toast.success("Подзадачата е добавена");
     } catch (error: any) {
-      console.error("Error adding subtask:", error);
       toast.error("Грешка при добавяне на подзадача");
     }
   };
@@ -232,7 +227,6 @@ export function useTasks() {
         )
       );
     } catch (error: any) {
-      console.error("Error updating subtask:", error);
       toast.error("Грешка при обновяване на подзадача");
     }
   };
@@ -255,7 +249,6 @@ export function useTasks() {
       );
       toast.success("Подзадачата е изтрита");
     } catch (error: any) {
-      console.error("Error deleting subtask:", error);
       toast.error("Грешка при изтриване на подзадача");
     }
   };

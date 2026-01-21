@@ -173,7 +173,6 @@ export function ContentPostsSection({
       .upload(fileName, file);
 
     if (error) {
-      console.error("Upload error:", error);
       toast.error("Грешка при качване на файла");
       return null;
     }
@@ -265,7 +264,6 @@ export function ContentPostsSection({
       setDialogOpen(false);
       resetForm();
     } catch (error: any) {
-      console.error("Save error:", error);
       toast.error("Грешка при запазване");
     } finally {
       setUploading(false);
@@ -284,7 +282,6 @@ export function ContentPostsSection({
       onPostsUpdate(posts.filter((p) => p.id !== postId));
       toast.success("Постът е изтрит");
     } catch (error: any) {
-      console.error("Delete error:", error);
       toast.error("Грешка при изтриване");
     }
   };

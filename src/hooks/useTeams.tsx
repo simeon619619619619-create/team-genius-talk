@@ -65,7 +65,6 @@ export function useTeams(projectId: string | null) {
             .eq("team_id", team.id);
 
           if (membersError) {
-            console.error("Error fetching team members:", membersError);
             return { ...team, members: [] };
           }
 
@@ -91,7 +90,6 @@ export function useTeams(projectId: string | null) {
 
       setTeams(teamsWithMembers);
     } catch (error) {
-      console.error("Error fetching teams:", error);
       toast.error("Грешка при зареждане на екипите");
     } finally {
       setLoading(false);
@@ -124,7 +122,6 @@ export function useTeams(projectId: string | null) {
       toast.success("Екипът е създаден успешно!");
       return data;
     } catch (error: any) {
-      console.error("Error creating team:", error);
       toast.error("Грешка при създаване на екипа");
       return null;
     }
@@ -142,7 +139,6 @@ export function useTeams(projectId: string | null) {
       setTeams(teams.filter((t) => t.id !== teamId));
       toast.success("Екипът е изтрит успешно!");
     } catch (error: any) {
-      console.error("Error deleting team:", error);
       toast.error("Грешка при изтриване на екипа");
     }
   };
@@ -159,7 +155,6 @@ export function useTeams(projectId: string | null) {
       await fetchTeams(); // Refresh teams
       return data;
     } catch (error: any) {
-      console.error("Error inviting member:", error);
       toast.error(`Грешка при изпращане на поканата: ${error.message}`);
       return null;
     }
@@ -182,7 +177,6 @@ export function useTeams(projectId: string | null) {
       
       toast.success("Членът е премахнат от екипа!");
     } catch (error: any) {
-      console.error("Error removing member:", error);
       toast.error("Грешка при премахване на члена");
     }
   };
