@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, Plus, Pencil, Trash2, Sparkles } from "lucide-react";
+import { Bot, Plus, Pencil, Trash2, Sparkles, Copy } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { BotAvatarUpload } from "./BotAvatarUpload";
+import { botTemplates, templateCategories } from "@/data/botTemplates";
 import type { AIBot } from "@/hooks/usePlanSteps";
 
 interface BotConfigDialogProps {
@@ -48,11 +53,13 @@ export function BotConfigDialog({
   const [open, setOpen] = useState(false);
   const [editingBot, setEditingBot] = useState<AIBot | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"bots" | "templates">("bots");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     instructions: "",
     model: "google/gemini-3-flash-preview",
+    avatar_url: "",
   });
 
   const resetForm = () => {
@@ -61,6 +68,7 @@ export function BotConfigDialog({
       description: "",
       instructions: "",
       model: "google/gemini-3-flash-preview",
+      avatar_url: "",
     });
     setEditingBot(null);
     setIsCreating(false);
@@ -75,10 +83,11 @@ export function BotConfigDialog({
       await onCreateBot({
         ...formData,
         project_id: projectId,
-        avatar_url: null,
+        avatar_url: formData.avatar_url || null,
       });
     }
     resetForm();
+    setActiveTab("bots");
   };
 
   const startEdit = (bot: AIBot) => {
@@ -88,12 +97,28 @@ export function BotConfigDialog({
       description: bot.description || "",
       instructions: bot.instructions,
       model: bot.model,
+      avatar_url: bot.avatar_url || "",
     });
     setIsCreating(true);
   };
 
   const handleDelete = async (botId: string) => {
     await onDeleteBot(botId);
+  };
+
+  const applyTemplate = (templateId: string) => {
+    const template = botTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    setFormData({
+      name: template.name,
+      description: template.description,
+      instructions: template.instructions,
+      model: template.suggestedModel,
+      avatar_url: "",
+    });
+    setIsCreating(true);
+    setActiveTab("bots");
   };
 
   return (
@@ -104,7 +129,7 @@ export function BotConfigDialog({
           Управление на ботове ({bots.length})
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -115,132 +140,204 @@ export function BotConfigDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!isCreating ? (
-          <div className="space-y-4">
-            {/* Bot List */}
-            {bots.length > 0 ? (
-              <div className="space-y-3">
-                {bots.map((bot) => (
-                  <Card key={bot.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Bot className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium">{bot.name}</h4>
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {bot.description || "Няма описание"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Модел: {availableModels.find(m => m.value === bot.model)?.label || bot.model}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => startEdit(bot)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(bot.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "bots" | "templates")} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="bots">Моите ботове</TabsTrigger>
+            <TabsTrigger value="templates">Шаблони</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bots" className="flex-1 overflow-hidden">
+            <ScrollArea className="h-[calc(60vh-100px)]">
+              {!isCreating ? (
+                <div className="space-y-4 pr-4">
+                  {/* Bot List */}
+                  {bots.length > 0 ? (
+                    <div className="space-y-3">
+                      {bots.map((bot) => (
+                        <Card key={bot.id} className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                                {bot.avatar_url ? (
+                                  <img src={bot.avatar_url} alt={bot.name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <Bot className="h-6 w-6 text-primary" />
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-medium">{bot.name}</h4>
+                                <p className="text-sm text-muted-foreground line-clamp-1">
+                                  {bot.description || "Няма описание"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Модел: {availableModels.find(m => m.value === bot.model)?.label || bot.model}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => startEdit(bot)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(bot.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
-                  </Card>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>Все още нямате създадени ботове</p>
+                      <p className="text-sm mt-1">Изберете шаблон или създайте собствен</p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => setIsCreating(true)}
+                    className="w-full gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Създай нов бот
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4 pr-4">
+                  <BotAvatarUpload
+                    currentUrl={formData.avatar_url}
+                    onUpload={(url) => setFormData(prev => ({ ...prev, avatar_url: url }))}
+                    botName={formData.name}
+                  />
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bot-name">Име на бота *</Label>
+                    <Input
+                      id="bot-name"
+                      placeholder="напр. Маркетинг Експерт, Финансов Анализатор..."
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bot-description">Описание</Label>
+                    <Input
+                      id="bot-description"
+                      placeholder="Кратко описание на бота"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bot-model">AI Модел</Label>
+                    <Select
+                      value={formData.model}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, model: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableModels.map((model) => (
+                          <SelectItem key={model.value} value={model.value}>
+                            {model.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bot-instructions">Инструкции *</Label>
+                    <Textarea
+                      id="bot-instructions"
+                      placeholder="Опишете какво трябва да прави ботът, какъв стил да използва, какви данни да включва..."
+                      className="min-h-[150px]"
+                      value={formData.instructions}
+                      onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Бъдете конкретни - опишете стил, формат, какви секции да включва, какъв тон да използва.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={resetForm} className="flex-1">
+                      Отказ
+                    </Button>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!formData.name.trim() || !formData.instructions.trim()}
+                      className="flex-1"
+                    >
+                      {editingBot ? "Запази промените" : "Създай бот"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="templates" className="flex-1 overflow-hidden">
+            <ScrollArea className="h-[calc(60vh-100px)]">
+              <div className="space-y-4 pr-4">
+                <p className="text-sm text-muted-foreground">
+                  Изберете готов шаблон за бърз старт
+                </p>
+
+                {templateCategories.map((category) => (
+                  <div key={category}>
+                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">{category}</h4>
+                    <div className="space-y-2">
+                      {botTemplates
+                        .filter((t) => t.category === category)
+                        .map((template) => {
+                          const Icon = template.icon;
+                          return (
+                            <Card
+                              key={template.id}
+                              className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer"
+                              onClick={() => applyTemplate(template.id)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <Icon className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium">{template.name}</h4>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {template.category}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {template.description}
+                                  </p>
+                                </div>
+                                <Button variant="ghost" size="icon">
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </Card>
+                          );
+                        })}
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Все още нямате създадени ботове</p>
-              </div>
-            )}
-
-            <Button
-              onClick={() => setIsCreating(true)}
-              className="w-full gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Създай нов бот
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="bot-name">Име на бота *</Label>
-              <Input
-                id="bot-name"
-                placeholder="напр. Маркетинг Експерт, Финансов Анализатор..."
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bot-description">Описание</Label>
-              <Input
-                id="bot-description"
-                placeholder="Кратко описание на бота"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bot-model">AI Модел</Label>
-              <Select
-                value={formData.model}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, model: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableModels.map((model) => (
-                    <SelectItem key={model.value} value={model.value}>
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bot-instructions">Инструкции *</Label>
-              <Textarea
-                id="bot-instructions"
-                placeholder="Опишете какво трябва да прави ботът, какъв стил да използва, какви данни да включва..."
-                className="min-h-[150px]"
-                value={formData.instructions}
-                onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                Бъдете конкретни - опишете стил, формат, какви секции да включва, какъв тон да използва.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={resetForm} className="flex-1">
-                Отказ
-              </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={!formData.name.trim() || !formData.instructions.trim()}
-                className="flex-1"
-              >
-                {editingBot ? "Запази промените" : "Създай бот"}
-              </Button>
-            </div>
-          </div>
-        )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
