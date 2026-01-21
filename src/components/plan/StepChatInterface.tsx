@@ -225,7 +225,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
+        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0 data-[state=inactive]:hidden">
           {/* Messages area - scrollable, takes remaining space */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
             {messages.map((message) => (
@@ -320,7 +320,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </div>
         </TabsContent>
 
-        <TabsContent value="manual" className="flex-1 flex flex-col m-0 min-h-0">
+        <TabsContent value="manual" className="flex-1 flex flex-col m-0 min-h-0 data-[state=inactive]:hidden">
           <div className="flex-1 p-4 flex flex-col min-h-0">
             <Textarea
               value={manualContent}
