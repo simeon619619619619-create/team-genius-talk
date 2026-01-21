@@ -42,7 +42,8 @@ export function PlanStepCard({
 
   return (
     <div className="lg:col-span-2 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
-      <Card className="p-3 animate-fade-in flex flex-col h-full overflow-hidden">
+      {/* Main Card - takes all space except button */}
+      <Card className="p-3 animate-fade-in flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Header - compact */}
         <div className="flex items-center justify-between mb-2 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -94,8 +95,8 @@ export function PlanStepCard({
           </Select>
         </div>
 
-        {/* Chat Interface - takes ALL remaining space */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Chat Interface - takes ALL remaining space in card */}
+        <div className="flex-1 min-h-0">
           <StepChatInterface
             step={step}
             projectId={projectId}
@@ -103,19 +104,18 @@ export function PlanStepCard({
             onContentUpdate={onContentUpdate}
           />
         </div>
-
-        {/* Footer button - compact */}
-        <div className="pt-2 border-t flex-shrink-0">
-          <Button
-            variant={step.completed ? "outline" : "default"}
-            className={!step.completed ? "gradient-primary" : ""}
-            size="sm"
-            onClick={onToggleComplete}
-          >
-            {step.completed ? "Отбележи като незавършено" : "Маркирай като завършено"}
-          </Button>
-        </div>
       </Card>
+
+      {/* Footer button - OUTSIDE the card */}
+      <div className="pt-3 flex-shrink-0">
+        <Button
+          variant={step.completed ? "outline" : "default"}
+          className={!step.completed ? "gradient-primary" : ""}
+          onClick={onToggleComplete}
+        >
+          {step.completed ? "Отбележи като незавършено" : "Маркирай като завършено"}
+        </Button>
+      </div>
     </div>
   );
 }
