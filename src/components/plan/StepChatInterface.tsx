@@ -212,7 +212,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   };
 
   return (
-    <Card className="flex flex-col h-[600px]">
+    <Card className="flex flex-col h-[calc(100vh-200px)]">
       <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col h-full">
         <div className="border-b px-4 py-2 shrink-0">
           <TabsList className="grid w-full grid-cols-2">
