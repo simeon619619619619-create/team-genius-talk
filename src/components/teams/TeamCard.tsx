@@ -51,12 +51,12 @@ export function TeamCard({ team, onSelect }: TeamCardProps) {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-display font-bold text-primary-foreground">{team.name}</h3>
-            <p className="text-sm text-primary-foreground/80 mt-1">{team.description}</p>
+            <h3 className="text-xl font-display font-bold text-white">{team.name}</h3>
+            <p className="text-sm text-white/80 mt-1">{team.description}</p>
           </div>
-          <div className="flex items-center gap-2 bg-primary-foreground/20 rounded-full px-3 py-1">
-            <Users className="h-4 w-4 text-primary-foreground" />
-            <span className="text-sm font-medium text-primary-foreground">{team.members.length}</span>
+          <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-1">
+            <Users className="h-4 w-4 text-white" />
+            <span className="text-sm font-medium text-white">{team.members.length}</span>
           </div>
         </div>
       </div>
