@@ -212,8 +212,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   };
 
   return (
-    <Card className="flex flex-col h-full">
-      <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col h-full">
+    <Card className="flex flex-col h-full overflow-hidden">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <div className="border-b px-4 py-2 shrink-0">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="chat" className="gap-2">
@@ -227,10 +227,10 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
+        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0 overflow-hidden">
           {/* Messages area - takes all available space, scrollable */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <ScrollArea className="h-full w-full">
               <div className="p-4 space-y-4">
               {messages.map((message) => (
                 <div
@@ -281,8 +281,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
             </ScrollArea>
           </div>
 
-          {/* Input - compact at the very bottom */}
-          <div className="border-t p-2 shrink-0 bg-card mt-auto">
+          {/* Input - fixed at bottom */}
+          <div className="border-t p-2 flex-shrink-0 bg-card">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}

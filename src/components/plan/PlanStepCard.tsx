@@ -41,10 +41,10 @@ export function PlanStepCard({
   const assignedBot = bots.find(b => b.id === step.assigned_bot_id);
 
   return (
-    <div className="lg:col-span-2 flex flex-col h-[calc(100vh-100px)]">
-      <Card className="p-4 animate-fade-in flex flex-col flex-1 min-h-0">
+    <div className="lg:col-span-2 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
+      <Card className="p-3 animate-fade-in flex flex-col h-full overflow-hidden">
         {/* Header - compact */}
-        <div className="flex items-center justify-between mb-3 shrink-0">
+        <div className="flex items-center justify-between mb-2 flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className={cn(
               "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -71,7 +71,7 @@ export function PlanStepCard({
         </div>
 
         {/* Bot Assignment - compact */}
-        <div className="mb-3 p-2 rounded-lg bg-secondary/50 flex items-center justify-between gap-4 shrink-0">
+        <div className="mb-2 p-2 rounded-lg bg-secondary/50 flex items-center justify-between gap-4 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Bot className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">AI Бот:</span>
@@ -94,8 +94,8 @@ export function PlanStepCard({
           </Select>
         </div>
 
-        {/* Chat Interface - takes remaining space */}
-        <div className="flex-1 min-h-0">
+        {/* Chat Interface - takes ALL remaining space */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           <StepChatInterface
             step={step}
             projectId={projectId}
@@ -105,7 +105,7 @@ export function PlanStepCard({
         </div>
 
         {/* Footer button - compact */}
-        <div className="mt-2 pt-2 border-t shrink-0">
+        <div className="pt-2 border-t flex-shrink-0">
           <Button
             variant={step.completed ? "outline" : "default"}
             className={!step.completed ? "gradient-primary" : ""}
