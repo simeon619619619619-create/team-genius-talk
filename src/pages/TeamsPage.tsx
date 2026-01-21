@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil, Copy, Check } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ export default function TeamsPage() {
   const [memberToRemove, setMemberToRemove] = useState<DbTeamMember | null>(null);
   const [inviting, setInviting] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [invitationLink, setInvitationLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // New team form state
   const [newTeamName, setNewTeamName] = useState("");
@@ -133,14 +135,35 @@ export default function TeamsPage() {
 
     setInviting(true);
     try {
-      await inviteMember(selectedTeam.id, newMemberEmail, newMemberName, newMemberRole);
-      setNewMemberOpen(false);
+      const result = await inviteMember(selectedTeam.id, newMemberEmail, newMemberName, newMemberRole);
+      if (result?.invitationUrl) {
+        setInvitationLink(result.invitationUrl);
+        toast.success("Линкът за покана е готов!");
+      }
       setNewMemberName("");
       setNewMemberEmail("");
       setNewMemberRole("");
     } finally {
       setInviting(false);
     }
+  };
+
+  const handleCopyLink = async () => {
+    if (!invitationLink) return;
+    try {
+      await navigator.clipboard.writeText(invitationLink);
+      setCopied(true);
+      toast.success("Линкът е копиран!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Грешка при копиране");
+    }
+  };
+
+  const handleCloseInviteDialog = () => {
+    setNewMemberOpen(false);
+    setInvitationLink(null);
+    setCopied(false);
   };
 
   const handleEditTeam = async (e: React.FormEvent) => {
@@ -293,7 +316,7 @@ export default function TeamsPage() {
 
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-display font-semibold">Членове на екипа</h2>
-            <Dialog open={newMemberOpen} onOpenChange={setNewMemberOpen}>
+            <Dialog open={newMemberOpen} onOpenChange={handleCloseInviteDialog}>
               <DialogTrigger asChild>
                 <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">
                   <Mail className="h-4 w-4 mr-2" />
@@ -304,52 +327,95 @@ export default function TeamsPage() {
                 <DialogHeader>
                   <DialogTitle className="font-display">Покани нов член</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleInviteMember} className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="memberName">Име</Label>
-                    <Input
-                      id="memberName"
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      placeholder="Въведете име..."
-                      required
-                    />
+                
+                {invitationLink ? (
+                  <div className="space-y-4 mt-4">
+                    <div className="rounded-lg bg-success/10 border border-success/20 p-4">
+                      <p className="text-sm text-success font-medium mb-2">✓ Поканата е създадена!</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Копирайте линка и го изпратете на поканения:
+                      </p>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={invitationLink} 
+                          readOnly 
+                          className="text-xs font-mono"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon"
+                          onClick={handleCopyLink}
+                        >
+                          {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setInvitationLink(null)}
+                      >
+                        Покани друг
+                      </Button>
+                      <Button 
+                        type="button" 
+                        className="gradient-primary text-primary-foreground"
+                        onClick={handleCloseInviteDialog}
+                      >
+                        Готово
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="memberEmail">Имейл</Label>
-                    <Input
-                      id="memberEmail"
-                      type="email"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                      placeholder="email@company.bg"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="memberRole">Роля</Label>
-                    <Input
-                      id="memberRole"
-                      value={newMemberRole}
-                      onChange={(e) => setNewMemberRole(e.target.value)}
-                      placeholder="Напр. Дизайнер"
-                      required
-                    />
-                  </div>
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setNewMemberOpen(false)}>
-                      Отказ
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
-                      disabled={inviting}
-                    >
-                      {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Изпрати покана
-                    </Button>
-                  </div>
-                </form>
+                ) : (
+                  <form onSubmit={handleInviteMember} className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="memberName">Име</Label>
+                      <Input
+                        id="memberName"
+                        value={newMemberName}
+                        onChange={(e) => setNewMemberName(e.target.value)}
+                        placeholder="Въведете име..."
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="memberEmail">Имейл</Label>
+                      <Input
+                        id="memberEmail"
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        placeholder="email@company.bg"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="memberRole">Роля</Label>
+                      <Input
+                        id="memberRole"
+                        value={newMemberRole}
+                        onChange={(e) => setNewMemberRole(e.target.value)}
+                        placeholder="Напр. Дизайнер"
+                        required
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                      <Button type="button" variant="outline" onClick={handleCloseInviteDialog}>
+                        Отказ
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
+                        disabled={inviting}
+                      >
+                        {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Създай линк за покана
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </DialogContent>
             </Dialog>
           </div>

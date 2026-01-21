@@ -165,19 +165,18 @@ export function useTeams(projectId: string | null) {
     }
   };
 
-  const inviteMember = async (teamId: string, email: string, name: string, role: string) => {
+  const inviteMember = async (teamId: string, email: string, name: string, role: string): Promise<{ invitationUrl?: string } | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke("send-team-invitation", {
+      const { data, error } = await supabase.functions.invoke("create-invitation-link", {
         body: { teamId, email, name, role },
       });
 
       if (error) throw error;
 
-      toast.success(`Поканата е изпратена на ${email}!`);
       await fetchTeams(); // Refresh teams
       return data;
     } catch (error: any) {
-      toast.error(`Грешка при изпращане на поканата: ${error.message}`);
+      toast.error(`Грешка при създаване на поканата: ${error.message}`);
       return null;
     }
   };
