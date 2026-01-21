@@ -233,12 +233,19 @@ export function usePlanSteps(projectId: string | null) {
     }
   };
 
+  const updateContent = (stepId: string, content: string) => {
+    setSteps(prev => prev.map(s => 
+      s.id === stepId ? { ...s, generated_content: content } : s
+    ));
+  };
+
   return {
     steps,
     bots,
     loading,
     updateStep,
     toggleStepComplete,
+    updateContent,
     assignBotToStep,
     createBot,
     updateBot,
