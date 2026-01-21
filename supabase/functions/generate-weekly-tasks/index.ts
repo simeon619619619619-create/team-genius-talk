@@ -1,10 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schemas
+const GoalSchema = z.object({
+  title: z.string().max(500),
+  description: z.string().max(2000),
+  category: z.string().max(100),
+  priority: z.enum(["high", "medium", "low"]),
+});
+
+const PlanItemSchema = z.object({
+  type: z.enum(["project", "strategy", "action"]),
+  title: z.string().max(500),
+  description: z.string().max(2000),
+  owner: z.string().max(200).optional(),
+  deadline: z.string().optional(),
+  expectedResults: z.string().max(2000).optional(),
+  priority: z.enum(["high", "medium", "low"]),
+});
+
+const WeeklyTasksInputSchema = z.object({
+  goals: z.array(GoalSchema).max(50, "Maximum 50 goals allowed"),
+  items: z.array(PlanItemSchema).max(100, "Maximum 100 items allowed"),
+  weekNumber: z.number().int().min(1).max(53),
+  quarter: z.string().max(20),
+  year: z.number().int().min(2000).max(2100),
+});
 
 interface WeeklyTask {
   title: string;
@@ -62,7 +89,21 @@ serve(async (req) => {
       );
     }
 
-    const { goals, items, weekNumber, quarter, year } = await req.json();
+    // Parse and validate input
+    const rawInput = await req.json();
+    const validationResult = WeeklyTasksInputSchema.safeParse(rawInput);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors.map(e => e.message).join(", ")
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const { goals, items, weekNumber, quarter, year } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
