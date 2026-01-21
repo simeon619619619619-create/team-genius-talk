@@ -195,13 +195,13 @@ export default function TeamsPage() {
             className="rounded-xl p-8"
             style={{ background: `linear-gradient(135deg, ${colors[teams.indexOf(selectedTeam) % colors.length]} 0%, ${colors[teams.indexOf(selectedTeam) % colors.length]}99 100%)` }}
           >
-            <h1 className="text-3xl font-display font-bold text-primary-foreground">
+            <h1 className="text-3xl font-display font-bold text-white">
               {selectedTeam.name}
             </h1>
-            <p className="mt-2 text-primary-foreground/80">{selectedTeam.description}</p>
+            <p className="mt-2 text-white/80">{selectedTeam.description}</p>
             <div className="mt-4 flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary-foreground" />
-              <span className="text-primary-foreground">{teamMembers.length} членове</span>
+              <Users className="h-5 w-5 text-white" />
+              <span className="text-white">{teamMembers.length} членове</span>
             </div>
           </div>
 
