@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Mail, Loader2 } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -32,17 +32,23 @@ import { Team, TeamMember } from "@/types";
 export default function TeamsPage() {
   const { user } = useAuth();
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const { teams, loading, createTeam, inviteMember, removeMember } = useTeams(currentProjectId);
+  const { teams, loading, createTeam, updateTeam, inviteMember, removeMember } = useTeams(currentProjectId);
   
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
   const [newTeamOpen, setNewTeamOpen] = useState(false);
   const [newMemberOpen, setNewMemberOpen] = useState(false);
+  const [editTeamOpen, setEditTeamOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<DbTeamMember | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   // New team form state
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDescription, setNewTeamDescription] = useState("");
+
+  // Edit team form state
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editTeamDescription, setEditTeamDescription] = useState("");
 
   // New member form state
   const [newMemberName, setNewMemberName] = useState("");
@@ -137,6 +143,35 @@ export default function TeamsPage() {
     }
   };
 
+  const handleEditTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTeam) return;
+
+    setUpdating(true);
+    try {
+      const result = await updateTeam(selectedTeam.id, editTeamName, editTeamDescription);
+      if (result) {
+        setEditTeamOpen(false);
+        // Update the selected team locally
+        setSelectedTeam({
+          ...selectedTeam,
+          name: editTeamName,
+          description: editTeamDescription,
+        });
+      }
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const openEditDialog = () => {
+    if (selectedTeam) {
+      setEditTeamName(selectedTeam.name);
+      setEditTeamDescription(selectedTeam.description || "");
+      setEditTeamOpen(true);
+    }
+  };
+
   const handleRemoveMember = async () => {
     if (!memberToRemove) return;
     await removeMember(memberToRemove.id);
@@ -192,9 +227,17 @@ export default function TeamsPage() {
           </Button>
 
           <div 
-            className="rounded-xl p-8"
+            className="rounded-xl p-8 relative"
             style={{ background: `linear-gradient(135deg, ${colors[teams.indexOf(selectedTeam) % colors.length]} 0%, ${colors[teams.indexOf(selectedTeam) % colors.length]}99 100%)` }}
           >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/20"
+              onClick={openEditDialog}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
             <h1 className="text-3xl font-display font-bold text-white">
               {selectedTeam.name}
             </h1>
@@ -204,6 +247,49 @@ export default function TeamsPage() {
               <span className="text-white">{teamMembers.length} членове</span>
             </div>
           </div>
+
+          {/* Edit Team Dialog */}
+          <Dialog open={editTeamOpen} onOpenChange={setEditTeamOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="font-display">Редактиране на екипа</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleEditTeam} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editTeamName">Име на екипа</Label>
+                  <Input
+                    id="editTeamName"
+                    value={editTeamName}
+                    onChange={(e) => setEditTeamName(e.target.value)}
+                    placeholder="Напр. Маркетинг екип"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editTeamDescription">Описание</Label>
+                  <Input
+                    id="editTeamDescription"
+                    value={editTeamDescription}
+                    onChange={(e) => setEditTeamDescription(e.target.value)}
+                    placeholder="Кратко описание на екипа..."
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setEditTeamOpen(false)}>
+                    Отказ
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
+                    disabled={updating}
+                  >
+                    {updating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Запази
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-display font-semibold">Членове на екипа</h2>
