@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import TeamsPage from "./pages/TeamsPage";
 import TasksPage from "./pages/TasksPage";
@@ -25,14 +26,14 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/assistant" element={<AssistantPage />} />
-            <Route path="/teams" element={<TeamsPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/plan" element={<PlanPage />} />
-            <Route path="/business-plan" element={<BusinessPlanPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
+            <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+            <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
+            <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+            <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
