@@ -1,14 +1,26 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Calendar, CheckCircle2, Clock, Briefcase, Target, Zap } from "lucide-react";
+import { Sparkles, Loader2, Calendar, CheckCircle2, Clock, Briefcase, Target, Zap, Edit2, Trash2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ManualTaskDialog } from "./ManualTaskDialog";
 
-interface WeeklyTask {
+export interface WeeklyTask {
   id: string;
   title: string;
   description: string;
@@ -147,12 +159,38 @@ export function WeeklyTasksView({
     }
   };
 
-  const toggleTaskComplete = (taskId: string) => {
+  const toggleTaskComplete = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     onTasksUpdate(
       tasks.map((t) =>
         t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t
       )
     );
+  };
+
+  const handleAddTask = (taskData: Omit<WeeklyTask, "id" | "isCompleted"> & { id?: string }) => {
+    const newTask: WeeklyTask = {
+      id: crypto.randomUUID(),
+      ...taskData,
+      isCompleted: false,
+    };
+    onTasksUpdate([...tasks, newTask]);
+  };
+
+  const handleEditTask = (taskData: Omit<WeeklyTask, "id" | "isCompleted"> & { id?: string }) => {
+    if (!taskData.id) return;
+    onTasksUpdate(
+      tasks.map((t) =>
+        t.id === taskData.id
+          ? { ...t, ...taskData, isCompleted: t.isCompleted }
+          : t
+      )
+    );
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    onTasksUpdate(tasks.filter((t) => t.id !== taskId));
+    toast.success("Задачата е изтрита");
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -224,6 +262,7 @@ export function WeeklyTasksView({
               <span className="text-muted-foreground">Действие</span>
             </div>
           </div>
+          <ManualTaskDialog onSave={handleAddTask} />
           <Button
             variant="outline"
             size="sm"
@@ -246,10 +285,10 @@ export function WeeklyTasksView({
           <CardContent className="py-8 text-center">
             <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">
-              Натиснете "AI Генериране" за автоматично създаване на задачи
+              Добавете задачи ръчно или използвайте "AI Генериране"
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              базирани на вашите цели, проекти, стратегии и действия
+              за автоматично създаване базирано на вашите цели
             </p>
           </CardContent>
         </Card>
@@ -296,18 +335,22 @@ export function WeeklyTasksView({
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  onClick={() => toggleTaskComplete(task.id)}
                                   className={cn(
-                                    "p-2 rounded-lg border cursor-pointer transition-all",
+                                    "p-2 rounded-lg border cursor-grab transition-all group/task",
                                     typeStyle.bg,
                                     typeStyle.border,
                                     priorityIndicators[task.priority],
                                     task.isCompleted && "opacity-50",
-                                    snapshot.isDragging && "shadow-lg ring-2 ring-primary"
+                                    snapshot.isDragging && "shadow-lg ring-2 ring-primary cursor-grabbing"
                                   )}
                                 >
                                   <div className="flex items-start gap-2">
-                                    <Icon className={cn("h-3 w-3 mt-0.5 shrink-0", typeStyle.text)} />
+                                    <button
+                                      onClick={(e) => toggleTaskComplete(task.id, e)}
+                                      className="mt-0.5"
+                                    >
+                                      <Icon className={cn("h-3 w-3 shrink-0", typeStyle.text)} />
+                                    </button>
                                     <div className="flex-1 min-w-0">
                                       <p className={cn(
                                         "text-xs font-medium",
@@ -320,6 +363,47 @@ export function WeeklyTasksView({
                                           {task.estimatedHours}ч
                                         </span>
                                       </div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover/task:opacity-100 transition-opacity">
+                                      <ManualTaskDialog
+                                        task={task}
+                                        onSave={handleEditTask}
+                                        trigger={
+                                          <button
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="p-1 hover:bg-background/50 rounded"
+                                          >
+                                            <Edit2 className="h-3 w-3 text-muted-foreground" />
+                                          </button>
+                                        }
+                                      />
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="p-1 hover:bg-background/50 rounded"
+                                          >
+                                            <Trash2 className="h-3 w-3 text-destructive" />
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Изтриване на задача</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Сигурни ли сте, че искате да изтриете "{task.title}"?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отказ</AlertDialogCancel>
+                                            <AlertDialogAction
+                                              onClick={() => handleDeleteTask(task.id)}
+                                              className="bg-destructive text-destructive-foreground"
+                                            >
+                                              Изтрий
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </div>
                                   </div>
                                 </div>

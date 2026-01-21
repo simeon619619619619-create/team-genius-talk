@@ -922,6 +922,7 @@ export default function BusinessPlanPage() {
                     },
                   }));
                 }}
+                businessPlanId={null}
               />
             </TabsContent>
           ))}

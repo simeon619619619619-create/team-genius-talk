@@ -61,6 +61,59 @@ export type Database = {
           },
         ]
       }
+      content_posts: {
+        Row: {
+          business_plan_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          media_type: string
+          media_url: string
+          platform: string | null
+          post_date: string
+          status: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_plan_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          media_type: string
+          media_url: string
+          platform?: string | null
+          post_date: string
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_plan_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string
+          platform?: string | null
+          post_date?: string
+          status?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_posts_business_plan_id_fkey"
+            columns: ["business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
