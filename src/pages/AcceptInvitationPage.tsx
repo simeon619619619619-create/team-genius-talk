@@ -25,17 +25,20 @@ export default function AcceptInvitationPage() {
       }
 
       try {
-        // Fetch invitation
-        const { data: invitationData, error: inviteError } = await supabase
-          .from("team_invitations")
-          .select("*, team_members(*)")
-          .eq("token", token)
-          .single();
+        // Use secure RPC function to get invitation data (bypasses RLS safely)
+        const { data, error } = await supabase
+          .rpc("get_invitation_by_token", { _token: token });
 
-        if (inviteError || !invitationData) {
+        if (error || !data) {
           setStatus("invalid");
           return;
         }
+
+        // Cast data to any for JSON response
+        const responseData = data as any;
+        const invitationData = responseData.invitation;
+        const teamMemberData = responseData.team_member;
+        const teamData = responseData.team;
 
         // Check if already used
         if (invitationData.used_at) {
@@ -49,15 +52,11 @@ export default function AcceptInvitationPage() {
           return;
         }
 
-        setInvitation(invitationData);
-
-        // Fetch team info
-        const { data: teamData } = await supabase
-          .from("teams")
-          .select("*")
-          .eq("id", invitationData.team_members.team_id)
-          .single();
-
+        // Store invitation with team_members nested for compatibility
+        setInvitation({
+          ...invitationData,
+          team_members: teamMemberData
+        });
         setTeam(teamData);
         setStatus("valid");
       } catch (error) {
