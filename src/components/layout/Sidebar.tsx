@@ -9,6 +9,7 @@ import {
   FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -27,13 +28,16 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
-            <TrendingUp className="h-5 w-5 text-primary-foreground" />
+        <div className="flex h-16 items-center justify-between border-b border-border px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
+              <TrendingUp className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="font-display text-xl font-bold text-foreground">
+              BizPlan<span className="text-primary">AI</span>
+            </span>
           </div>
-          <span className="font-display text-xl font-bold text-foreground">
-            BizPlan<span className="text-primary">AI</span>
-          </span>
+          <ThemeToggle />
         </div>
 
         {/* Navigation */}
