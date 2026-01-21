@@ -6,12 +6,16 @@ import {
   MessageSquare, 
   Settings,
   TrendingUp,
-  FileText
+  FileText,
+  Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-const navItems = [
+const baseNavItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
@@ -23,6 +27,29 @@ const navItems = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdminStatus();
+  }, [user]);
+
+  const navItems = isAdmin 
+    ? [...baseNavItems, { icon: Shield, label: "Админ", path: "/admin" }]
+    : baseNavItems;
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
