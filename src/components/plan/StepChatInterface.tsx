@@ -60,12 +60,12 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
         content: m.content,
       })));
       
-      // If there are no messages, add greeting
+      // If there are no messages, add greeting with guiding questions
       if (data.length === 0 && stepQuestions) {
         const greetingMessage = {
           id: 'greeting',
           role: 'assistant' as const,
-          content: `${stepQuestions.greeting}\n\n**${questions[0]?.question}**`,
+          content: stepQuestions.greeting,
         };
         setMessages([greetingMessage]);
       }

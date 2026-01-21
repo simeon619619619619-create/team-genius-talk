@@ -137,20 +137,31 @@ export default function PlanPage() {
           <div className="lg:col-span-1 space-y-3">
             {steps.map((step, index) => {
               const assignedBot = bots.find(b => b.id === step.assigned_bot_id);
+              // Check if previous steps have content (are unlocked)
+              const previousStepsCompleted = index === 0 || steps
+                .slice(0, index)
+                .every(s => s.generated_content || s.completed);
+              const isLocked = !previousStepsCompleted;
+              
               return (
                 <button
                   key={step.id}
-                  onClick={() => setActiveStepId(step.id)}
+                  onClick={() => !isLocked && setActiveStepId(step.id)}
+                  disabled={isLocked}
                   className={cn(
                     "w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200",
-                    activeStepId === step.id
+                    isLocked
+                      ? "opacity-50 cursor-not-allowed bg-secondary/30"
+                      : activeStepId === step.id
                       ? "glass-card shadow-lg"
                       : "hover:bg-secondary"
                   )}
                 >
                   <div className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden",
-                    step.completed
+                    isLocked
+                      ? "bg-muted text-muted-foreground"
+                      : step.completed
                       ? "bg-success text-success-foreground"
                       : activeStepId === step.id
                       ? "gradient-primary text-primary-foreground"
@@ -158,6 +169,8 @@ export default function PlanPage() {
                   )}>
                     {step.completed ? (
                       <Check className="h-5 w-5" />
+                    ) : isLocked ? (
+                      <span className="text-xs">🔒</span>
                     ) : assignedBot?.avatar_url ? (
                       <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" />
                     ) : (
@@ -167,11 +180,15 @@ export default function PlanPage() {
                   <div className="flex-1 min-w-0">
                     <p className={cn(
                       "font-medium truncate",
-                      step.completed && "text-muted-foreground"
+                      (step.completed || isLocked) && "text-muted-foreground"
                     )}>
                       {step.title}
                     </p>
-                    {assignedBot && (
+                    {isLocked ? (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Завършете предишните стъпки
+                      </p>
+                    ) : assignedBot && (
                       <p className="text-xs text-primary truncate flex items-center gap-1">
                         <Bot className="h-3 w-3" />
                         {assignedBot.name}
@@ -180,7 +197,9 @@ export default function PlanPage() {
                   </div>
                   <ChevronRight className={cn(
                     "h-5 w-5 shrink-0 transition-colors",
-                    activeStepId === step.id ? "text-primary" : "text-muted-foreground"
+                    isLocked
+                      ? "text-muted-foreground/50"
+                      : activeStepId === step.id ? "text-primary" : "text-muted-foreground"
                   )} />
                 </button>
               );
