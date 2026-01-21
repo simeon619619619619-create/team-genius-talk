@@ -227,9 +227,9 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0 overflow-hidden">
-          {/* Messages - takes all available space */}
-          <ScrollArea className="flex-1 p-4">
+        <TabsContent value="chat" className="flex-1 flex flex-col justify-between m-0 overflow-hidden">
+          {/* Messages - takes remaining space, scrollable */}
+          <ScrollArea className="flex-1 min-h-0 p-4">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
@@ -279,8 +279,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
             </div>
           </ScrollArea>
 
-          {/* Input - fixed at bottom */}
-          <div className="border-t p-3 mt-auto shrink-0">
+          {/* Input - always at the very bottom */}
+          <div className="border-t p-3 shrink-0 bg-card">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
