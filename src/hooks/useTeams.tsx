@@ -127,6 +127,28 @@ export function useTeams(projectId: string | null) {
     }
   };
 
+  const updateTeam = async (teamId: string, name: string, description: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("teams")
+        .update({ name, description })
+        .eq("id", teamId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTeams(teams.map((t) => 
+        t.id === teamId ? { ...t, name: data.name, description: data.description } : t
+      ));
+      toast.success("Екипът е обновен успешно!");
+      return data;
+    } catch (error: any) {
+      toast.error("Грешка при обновяване на екипа");
+      return null;
+    }
+  };
+
   const deleteTeam = async (teamId: string) => {
     try {
       const { error } = await supabase
@@ -185,6 +207,7 @@ export function useTeams(projectId: string | null) {
     teams,
     loading,
     createTeam,
+    updateTeam,
     deleteTeam,
     inviteMember,
     removeMember,
