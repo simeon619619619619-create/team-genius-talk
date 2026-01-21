@@ -1,16 +1,17 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User } from "lucide-react";
+import { Loader2, Mail, Lock, User, Sparkles } from "lucide-react";
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { signUp, signIn } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { signUp, signIn, user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -19,6 +20,15 @@ export default function AuthPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupName, setSignupName] = useState("");
+
+  const redirect = searchParams.get("redirect") || "/";
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate(redirect);
+    }
+  }, [user, navigate, redirect]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +45,7 @@ export default function AuthPage() {
       toast.error("Грешка при вход: " + error.message);
     } else {
       toast.success("Успешен вход!");
-      navigate("/");
+      navigate(redirect);
     }
   };
 
@@ -59,104 +69,121 @@ export default function AuthPage() {
       toast.error("Грешка при регистрация: " + error.message);
     } else {
       toast.success("Регистрацията е успешна! Вече сте влезли.");
-      navigate("/");
+      navigate(redirect);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-display">Team Genius</CardTitle>
-          <CardDescription>Влезте в акаунта си или се регистрирайте</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Вход</TabsTrigger>
-              <TabsTrigger value="signup">Регистрация</TabsTrigger>
-            </TabsList>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="w-full max-w-md">
+        {/* Logo/Branding */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary mb-4 shadow-lg">
+            <Sparkles className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Team Genius</h1>
+          <p className="text-muted-foreground mt-2">Управление на екипи и проекти</p>
+        </div>
 
-            <TabsContent value="login" className="mt-4">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="email"
-                      placeholder="Имейл"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="password"
-                      placeholder="Парола"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Вход
-                </Button>
-              </form>
-            </TabsContent>
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-xl font-display">Добре дошли</CardTitle>
+            <CardDescription>Влезте в акаунта си или се регистрирайте</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="login">Вход</TabsTrigger>
+                <TabsTrigger value="signup">Регистрация</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="signup" className="mt-4">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Име (по избор)"
-                      value={signupName}
-                      onChange={(e) => setSignupName(e.target.value)}
-                      className="pl-10"
-                    />
+              <TabsContent value="login" className="mt-0 space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="Имейл адрес"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="pl-10 h-11"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="Парола"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="pl-10 h-11"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="email"
-                      placeholder="Имейл"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      className="pl-10"
-                    />
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 gradient-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all" 
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Влез в профила
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="signup" className="mt-0 space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Вашето име"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
+                        className="pl-10 h-11"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="Имейл адрес"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        className="pl-10 h-11"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="Парола (мин. 6 символа)"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className="pl-10 h-11"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="password"
-                      placeholder="Парола (мин. 6 символа)"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Регистрация
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 gradient-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all" 
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Създай акаунт
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          С регистрацията приемате нашите условия за ползване
+        </p>
+      </div>
     </div>
   );
 }
