@@ -227,11 +227,11 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0 overflow-hidden">
-          {/* Messages area - scrollable */}
-          <ScrollArea className="flex-1">
-            <div className="flex flex-col justify-end min-h-full p-4">
-              <div className="space-y-4">
+        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
+          {/* Messages area - takes all available space, scrollable */}
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -278,8 +278,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
               )}
               <div ref={scrollRef} />
               </div>
-            </div>
-          </ScrollArea>
+            </ScrollArea>
+          </div>
 
           {/* Input - compact at the very bottom */}
           <div className="border-t p-2 shrink-0 bg-card mt-auto">
