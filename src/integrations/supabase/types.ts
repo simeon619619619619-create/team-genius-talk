@@ -213,6 +213,42 @@ export type Database = {
           },
         ]
       }
+      global_bots: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          instructions: string
+          model: string
+          name: string
+          step_key: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions: string
+          model?: string
+          name: string
+          step_key: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instructions?: string
+          model?: string
+          name?: string
+          step_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plan_steps: {
         Row: {
           assigned_bot_id: string | null
@@ -727,6 +763,7 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_project_owner: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
