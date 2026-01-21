@@ -11,26 +11,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TeamMember, Subtask } from "@/types";
-import { toast } from "sonner";
+import { TeamMember } from "@/types";
 
 interface AddSubtaskDialogProps {
   members: TeamMember[];
-  onAddSubtask: (subtask: Omit<Subtask, "id">) => void;
+  onAddSubtask: (subtask: { title: string; assigneeId: string; dueDate?: string; handoffTo?: string }) => void;
 }
 
-export function AddSubtaskDialog({ members, onAddSubtask }: AddSubtaskDialogProps) {
+export function AddSubtaskDialog({ onAddSubtask }: AddSubtaskDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeName, setAssigneeName] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [handoffTo, setHandoffTo] = useState("");
 
@@ -39,9 +31,7 @@ export function AddSubtaskDialog({ members, onAddSubtask }: AddSubtaskDialogProp
 
     onAddSubtask({
       title,
-      description: description || undefined,
-      status: "todo",
-      assigneeId,
+      assigneeId: assigneeName,
       dueDate: dueDate || undefined,
       handoffTo: handoffTo || undefined,
     });
@@ -49,10 +39,9 @@ export function AddSubtaskDialog({ members, onAddSubtask }: AddSubtaskDialogProp
     setOpen(false);
     setTitle("");
     setDescription("");
-    setAssigneeId("");
+    setAssigneeName("");
     setDueDate("");
     setHandoffTo("");
-    toast.success("Подзадачата е добавена!");
   };
 
   return (
@@ -91,19 +80,14 @@ export function AddSubtaskDialog({ members, onAddSubtask }: AddSubtaskDialogProp
           </div>
 
           <div className="space-y-2">
-            <Label>Възложи на</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Изберете член на екипа" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.name} - {member.role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="assigneeName">Възложи на</Label>
+            <Input
+              id="assigneeName"
+              value={assigneeName}
+              onChange={(e) => setAssigneeName(e.target.value)}
+              placeholder="Напр. Мария Иванова"
+              required
+            />
           </div>
 
           <div className="space-y-2">
@@ -117,19 +101,13 @@ export function AddSubtaskDialog({ members, onAddSubtask }: AddSubtaskDialogProp
           </div>
 
           <div className="space-y-2">
-            <Label>Предай на (след завършване)</Label>
-            <Select value={handoffTo} onValueChange={setHandoffTo}>
-              <SelectTrigger>
-                <SelectValue placeholder="Изберете кой да получи резултата" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.name} - {member.role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="handoffTo">Предай на (след завършване)</Label>
+            <Input
+              id="handoffTo"
+              value={handoffTo}
+              onChange={(e) => setHandoffTo(e.target.value)}
+              placeholder="Напр. Георги Димитров"
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

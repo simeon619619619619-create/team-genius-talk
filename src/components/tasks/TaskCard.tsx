@@ -1,17 +1,29 @@
 import { useState } from "react";
-import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight } from "lucide-react";
-import { Task, TeamMember, Subtask } from "@/types";
+import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddSubtaskDialog } from "./AddSubtaskDialog";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { DbTask, DbSubtask } from "@/hooks/useTasks";
 
 interface TaskCardProps {
-  task: Task;
-  assignee?: TeamMember;
-  members: TeamMember[];
-  onStatusChange: (taskId: string, status: Task["status"]) => void;
-  onAddSubtask: (taskId: string, subtask: Omit<Subtask, "id">) => void;
-  onSubtaskStatusChange: (taskId: string, subtaskId: string, status: Subtask["status"]) => void;
+  task: DbTask;
+  onStatusChange: (taskId: string, status: DbTask["status"]) => void;
+  onDelete: (taskId: string) => void;
+  onAddSubtask: (taskId: string, subtask: { title: string; assignee_name?: string; due_date?: string; handoff_to?: string }) => void;
+  onSubtaskStatusChange: (taskId: string, subtaskId: string, status: DbSubtask["status"]) => void;
+  onDeleteSubtask: (taskId: string, subtaskId: string) => void;
 }
 
 const priorityColors = {
@@ -28,11 +40,11 @@ const statusColors = {
 
 export function TaskCard({ 
   task, 
-  assignee, 
-  members,
-  onStatusChange, 
+  onStatusChange,
+  onDelete,
   onAddSubtask,
-  onSubtaskStatusChange 
+  onSubtaskStatusChange,
+  onDeleteSubtask,
 }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false);
   
@@ -40,13 +52,13 @@ export function TaskCard({
   const completedSubtasks = subtasks.filter(s => s.status === "done").length;
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
-  const handleAddSubtask = (subtask: Omit<Subtask, "id">) => {
-    onAddSubtask(task.id, subtask);
-  };
-
-  const getMemberName = (memberId: string) => {
-    const member = members.find(m => m.id === memberId);
-    return member?.name || "Неизвестен";
+  const handleAddSubtask = (subtask: { title: string; assigneeId: string; dueDate?: string; handoffTo?: string }) => {
+    onAddSubtask(task.id, {
+      title: subtask.title,
+      assignee_name: subtask.assigneeId,
+      due_date: subtask.dueDate,
+      handoff_to: subtask.handoffTo,
+    });
   };
 
   return (
@@ -66,13 +78,36 @@ export function TaskCard({
             {task.description}
           </p>
         </div>
-        <span className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
-          priorityColors[task.priority]
-        )}>
-          <Flag className="h-3 w-3" />
-          {task.priority === "high" ? "Високо" : task.priority === "medium" ? "Средно" : "Ниско"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
+            priorityColors[task.priority]
+          )}>
+            <Flag className="h-3 w-3" />
+            {task.priority === "high" ? "Високо" : task.priority === "medium" ? "Средно" : "Ниско"}
+          </span>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Изтриване на задача</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Сигурни ли сте, че искате да изтриете тази задача? Това действие не може да бъде отменено.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отказ</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(task.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Изтрий
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       {/* Subtasks Progress */}
@@ -88,23 +123,23 @@ export function TaskCard({
 
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          {assignee && (
+          {task.assignee_name && (
             <div className="flex items-center gap-1">
               <User className="h-4 w-4" />
-              <span>{assignee.name}</span>
+              <span>{task.assignee_name}</span>
             </div>
           )}
-          {task.dueDate && (
+          {task.due_date && (
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>{new Date(task.dueDate).toLocaleDateString("bg-BG")}</span>
+              <span>{new Date(task.due_date).toLocaleDateString("bg-BG")}</span>
             </div>
           )}
         </div>
 
         <select
           value={task.status}
-          onChange={(e) => onStatusChange(task.id, e.target.value as Task["status"])}
+          onChange={(e) => onStatusChange(task.id, e.target.value as DbTask["status"])}
           className="text-sm bg-transparent border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="todo">За изпълнение</option>
@@ -123,7 +158,7 @@ export function TaskCard({
             {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             {subtasks.length > 0 ? `${subtasks.length} подзадач${subtasks.length === 1 ? 'а' : 'и'}` : 'Няма подзадачи'}
           </button>
-          <AddSubtaskDialog members={members} onAddSubtask={handleAddSubtask} />
+          <AddSubtaskDialog members={[]} onAddSubtask={handleAddSubtask} />
         </div>
 
         {expanded && subtasks.length > 0 && (
@@ -158,24 +193,34 @@ export function TaskCard({
                     {subtask.title}
                   </p>
                   <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {getMemberName(subtask.assigneeId)}
-                    </span>
-                    {subtask.dueDate && (
+                    {subtask.assignee_name && (
                       <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(subtask.dueDate).toLocaleDateString("bg-BG")}
+                        <User className="h-3 w-3" />
+                        {subtask.assignee_name}
                       </span>
                     )}
-                    {subtask.handoffTo && (
+                    {subtask.due_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(subtask.due_date).toLocaleDateString("bg-BG")}
+                      </span>
+                    )}
+                    {subtask.handoff_to && (
                       <span className="flex items-center gap-1 text-primary">
                         <ArrowRight className="h-3 w-3" />
-                        {getMemberName(subtask.handoffTo)}
+                        {subtask.handoff_to}
                       </span>
                     )}
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => onDeleteSubtask(task.id, subtask.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             ))}
           </div>
