@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -17,33 +18,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Team, TeamMember, Task } from "@/types";
 
 interface AddTaskDialogProps {
-  teams: Team[];
-  members: TeamMember[];
-  onAddTask: (task: Omit<Task, "id" | "createdAt">) => void;
+  onAddTask: (task: {
+    title: string;
+    description?: string;
+    priority?: "low" | "medium" | "high";
+    assignee_name?: string;
+    team_name?: string;
+    due_date?: string;
+  }) => void;
 }
 
-export function AddTaskDialog({ teams, members, onAddTask }: AddTaskDialogProps) {
+export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<Task["priority"]>("medium");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [teamId, setTeamId] = useState("");
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  const [assigneeName, setAssigneeName] = useState("");
+  const [teamName, setTeamName] = useState("");
   const [dueDate, setDueDate] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAddTask({
       title,
-      description,
+      description: description || undefined,
       priority,
-      assigneeId,
-      teamId,
-      status: "todo",
-      dueDate: dueDate || undefined,
+      assignee_name: assigneeName || undefined,
+      team_name: teamName || undefined,
+      due_date: dueDate || undefined,
     });
     setOpen(false);
     resetForm();
@@ -53,8 +57,8 @@ export function AddTaskDialog({ teams, members, onAddTask }: AddTaskDialogProps)
     setTitle("");
     setDescription("");
     setPriority("medium");
-    setAssigneeId("");
-    setTeamId("");
+    setAssigneeName("");
+    setTeamName("");
     setDueDate("");
   };
 
@@ -84,52 +88,41 @@ export function AddTaskDialog({ teams, members, onAddTask }: AddTaskDialogProps)
 
           <div className="space-y-2">
             <Label htmlFor="description">Описание</Label>
-            <Input
+            <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Опишете задачата..."
+              rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Екип</Label>
-              <Select value={teamId} onValueChange={setTeamId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Изберете екип" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="teamName">Екип</Label>
+              <Input
+                id="teamName"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Напр. Маркетинг"
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Отговорник</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Изберете член" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="assigneeName">Отговорник</Label>
+              <Input
+                id="assigneeName"
+                value={assigneeName}
+                onChange={(e) => setAssigneeName(e.target.value)}
+                placeholder="Напр. Иван Петров"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Приоритет</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as Task["priority"])}>
+              <Select value={priority} onValueChange={(v) => setPriority(v as "low" | "medium" | "high")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

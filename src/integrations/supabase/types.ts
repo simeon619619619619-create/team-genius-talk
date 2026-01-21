@@ -118,6 +118,92 @@ export type Database = {
         }
         Relationships: []
       }
+      subtasks: {
+        Row: {
+          assignee_name: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          handoff_to: string | null
+          id: string
+          status: string
+          task_id: string
+          title: string
+        }
+        Insert: {
+          assignee_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          handoff_to?: string | null
+          id?: string
+          status?: string
+          task_id: string
+          title: string
+        }
+        Update: {
+          assignee_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          handoff_to?: string | null
+          id?: string
+          status?: string
+          task_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subtasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assignee_name: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          team_name: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          team_name?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          team_name?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

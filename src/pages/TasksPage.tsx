@@ -1,71 +1,71 @@
-import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
-import { AITaskBreakdownDialog } from "@/components/tasks/AITaskBreakdownDialog";
-import { mockTasks, mockTeams, mockMembers } from "@/data/mockData";
-import { Task, Subtask } from "@/types";
+import { useTasks } from "@/hooks/useTasks";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const {
+    tasks,
+    loading,
+    addTask,
+    updateTaskStatus,
+    deleteTask,
+    addSubtask,
+    updateSubtaskStatus,
+    deleteSubtask,
+  } = useTasks();
 
-  const handleStatusChange = (taskId: string, status: Task["status"]) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, status } : task
-    ));
-  };
-
-  const handleAddTask = (taskData: Omit<Task, "id" | "createdAt">) => {
-    const newTask: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    setTasks([newTask, ...tasks]);
-  };
-
-  const handleAddMultipleTasks = (tasksData: Omit<Task, "id" | "createdAt">[]) => {
-    const newTasks: Task[] = tasksData.map((taskData, index) => ({
-      ...taskData,
-      id: (Date.now() + index).toString(),
-      createdAt: new Date().toISOString(),
-    }));
-    setTasks([...newTasks, ...tasks]);
-  };
-
-  const handleAddSubtask = (taskId: string, subtaskData: Omit<Subtask, "id">) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const newSubtask: Subtask = {
-          ...subtaskData,
-          id: Date.now().toString(),
-        };
-        return {
-          ...task,
-          subtasks: [...(task.subtasks || []), newSubtask],
-        };
-      }
-      return task;
-    }));
-  };
-
-  const handleSubtaskStatusChange = (taskId: string, subtaskId: string, status: Subtask["status"]) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId && task.subtasks) {
-        return {
-          ...task,
-          subtasks: task.subtasks.map(subtask =>
-            subtask.id === subtaskId ? { ...subtask, status } : subtask
-          ),
-        };
-      }
-      return task;
-    }));
+  const handleAddTask = async (taskData: {
+    title: string;
+    description?: string;
+    priority?: "low" | "medium" | "high";
+    assignee_name?: string;
+    team_name?: string;
+    due_date?: string;
+  }) => {
+    await addTask({
+      title: taskData.title,
+      description: taskData.description,
+      priority: taskData.priority,
+      assignee_name: taskData.assignee_name,
+      team_name: taskData.team_name,
+      due_date: taskData.due_date,
+    });
   };
 
   const todoTasks = tasks.filter(t => t.status === "todo");
   const inProgressTasks = tasks.filter(t => t.status === "in-progress");
   const doneTasks = tasks.filter(t => t.status === "done");
+
+  if (!user) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <h2 className="text-2xl font-display font-bold text-foreground">Моля, влезте в акаунта си</h2>
+          <p className="text-muted-foreground">За да виждате и управлявате задачите си, трябва да сте влезли.</p>
+          <Button onClick={() => navigate("/auth")} className="gradient-primary text-primary-foreground">
+            Вход / Регистрация
+          </Button>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -78,16 +78,7 @@ export default function TasksPage() {
             </p>
           </div>
           <div className="flex gap-3">
-            <AITaskBreakdownDialog 
-              teams={mockTeams} 
-              members={mockMembers} 
-              onAddTasks={handleAddMultipleTasks}
-            />
-            <AddTaskDialog 
-              teams={mockTeams} 
-              members={mockMembers} 
-              onAddTask={handleAddTask}
-            />
+            <AddTaskDialog onAddTask={handleAddTask} />
           </div>
         </div>
 
@@ -107,13 +98,16 @@ export default function TasksPage() {
                 <TaskCard
                   key={task.id}
                   task={task}
-                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
-                  members={mockMembers}
-                  onStatusChange={handleStatusChange}
-                  onAddSubtask={handleAddSubtask}
-                  onSubtaskStatusChange={handleSubtaskStatusChange}
+                  onStatusChange={updateTaskStatus}
+                  onDelete={deleteTask}
+                  onAddSubtask={addSubtask}
+                  onSubtaskStatusChange={updateSubtaskStatus}
+                  onDeleteSubtask={deleteSubtask}
                 />
               ))}
+              {todoTasks.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Няма задачи за изпълнение</p>
+              )}
             </div>
           </div>
 
@@ -132,13 +126,16 @@ export default function TasksPage() {
                 <TaskCard
                   key={task.id}
                   task={task}
-                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
-                  members={mockMembers}
-                  onStatusChange={handleStatusChange}
-                  onAddSubtask={handleAddSubtask}
-                  onSubtaskStatusChange={handleSubtaskStatusChange}
+                  onStatusChange={updateTaskStatus}
+                  onDelete={deleteTask}
+                  onAddSubtask={addSubtask}
+                  onSubtaskStatusChange={updateSubtaskStatus}
+                  onDeleteSubtask={deleteSubtask}
                 />
               ))}
+              {inProgressTasks.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Няма задачи в процес</p>
+              )}
             </div>
           </div>
 
@@ -157,13 +154,16 @@ export default function TasksPage() {
                 <TaskCard
                   key={task.id}
                   task={task}
-                  assignee={mockMembers.find(m => m.id === task.assigneeId)}
-                  members={mockMembers}
-                  onStatusChange={handleStatusChange}
-                  onAddSubtask={handleAddSubtask}
-                  onSubtaskStatusChange={handleSubtaskStatusChange}
+                  onStatusChange={updateTaskStatus}
+                  onDelete={deleteTask}
+                  onAddSubtask={addSubtask}
+                  onSubtaskStatusChange={updateSubtaskStatus}
+                  onDeleteSubtask={deleteSubtask}
                 />
               ))}
+              {doneTasks.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Няма завършени задачи</p>
+              )}
             </div>
           </div>
         </div>
