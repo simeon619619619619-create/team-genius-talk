@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,62 +227,58 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0 overflow-hidden">
-          {/* Messages area - takes all available space, scrollable */}
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <ScrollArea className="h-full w-full">
-              <div className="p-4 space-y-4">
-              {messages.map((message) => (
+        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
+          {/* Messages area - scrollable, takes remaining space */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex gap-3",
+                  message.role === 'user' ? "justify-end" : "justify-start"
+                )}
+              >
+                {message.role === 'assistant' && (
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    {bot?.avatar_url ? (
+                      <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-full object-cover" />
+                    ) : (
+                      <Bot className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                )}
                 <div
-                  key={message.id}
                   className={cn(
-                    "flex gap-3",
-                    message.role === 'user' ? "justify-end" : "justify-start"
+                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+                    message.role === 'user'
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary"
                   )}
                 >
-                  {message.role === 'assistant' && (
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      {bot?.avatar_url ? (
-                        <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-full object-cover" />
-                      ) : (
-                        <Bot className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
-                      message.role === 'user'
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary"
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                  {message.role === 'user' && (
-                    <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                      <User className="h-4 w-4" />
-                    </div>
-                  )}
+                  <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-primary" />
+                {message.role === 'user' && (
+                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4" />
                   </div>
-                  <div className="bg-secondary rounded-2xl px-4 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </div>
-                </div>
-              )}
-              <div ref={scrollRef} />
+                )}
               </div>
-            </ScrollArea>
+            ))}
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Bot className="h-4 w-4 text-primary" />
+                </div>
+                <div className="bg-secondary rounded-2xl px-4 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              </div>
+            )}
+            <div ref={scrollRef} />
           </div>
 
-          {/* Input - fixed at bottom */}
-          <div className="border-t p-2 flex-shrink-0 bg-card">
+          {/* Input - FIXED at bottom, outside scroll */}
+          <div className="border-t p-2 bg-card" style={{ flexShrink: 0 }}>
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
