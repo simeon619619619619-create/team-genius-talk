@@ -62,19 +62,19 @@ export default function TeamsPage() {
     const fetchOrCreateProject = async () => {
       if (!user) return;
 
-      // Try to fetch existing project
+      // Try to fetch existing project using maybeSingle to avoid errors when no data
       const { data, error } = await supabase
         .from("projects")
         .select("id")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (!error && data) {
+      if (data) {
         setCurrentProjectId(data.id);
-      } else {
-        // Create a default project if none exists
+      } else if (!error || error.code === 'PGRST116') {
+        // No project found, create a default one
         const { data: newProject, error: createError } = await supabase
           .from("projects")
           .insert({
@@ -91,6 +91,8 @@ export default function TeamsPage() {
           console.error("Error creating project:", createError);
           toast.error("Грешка при създаване на проект");
         }
+      } else {
+        console.error("Error fetching project:", error);
       }
     };
 
