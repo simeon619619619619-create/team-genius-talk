@@ -57,11 +57,12 @@ export default function TeamsPage() {
     "hsl(142, 71%, 45%)",
   ];
 
-  // Fetch user's project
+  // Fetch or create user's project
   useEffect(() => {
-    const fetchProject = async () => {
+    const fetchOrCreateProject = async () => {
       if (!user) return;
 
+      // Try to fetch existing project
       const { data, error } = await supabase
         .from("projects")
         .select("id")
@@ -72,10 +73,28 @@ export default function TeamsPage() {
 
       if (!error && data) {
         setCurrentProjectId(data.id);
+      } else {
+        // Create a default project if none exists
+        const { data: newProject, error: createError } = await supabase
+          .from("projects")
+          .insert({
+            name: "Моят проект",
+            owner_id: user.id,
+            description: "Основен проект",
+          })
+          .select("id")
+          .single();
+
+        if (!createError && newProject) {
+          setCurrentProjectId(newProject.id);
+        } else {
+          console.error("Error creating project:", createError);
+          toast.error("Грешка при създаване на проект");
+        }
       }
     };
 
-    fetchProject();
+    fetchOrCreateProject();
   }, [user]);
 
   // Update selected team when teams change
