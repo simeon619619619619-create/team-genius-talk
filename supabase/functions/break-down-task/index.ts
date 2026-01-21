@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const TaskInputSchema = z.object({
+  taskDescription: z.string().min(1, "Task description is required").max(5000, "Task description must be under 5000 characters"),
+  teamContext: z.string().max(2000, "Team context must be under 2000 characters").optional(),
+});
 
 interface Subtask {
   title: string;
@@ -44,15 +51,25 @@ serve(async (req) => {
       );
     }
 
-    const { taskDescription, teamContext } = await req.json();
+    // Parse and validate input
+    const rawInput = await req.json();
+    const validationResult = TaskInputSchema.safeParse(rawInput);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid input", 
+          details: validationResult.error.errors.map(e => e.message).join(", ")
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    const { taskDescription, teamContext } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    if (!taskDescription) {
-      throw new Error("Task description is required");
     }
 
     const systemPrompt = `Ти си експерт по проект мениджмънт и разбиване на задачи. Когато получиш описание на голяма задача, ти трябва да я разбиеш на малки, конкретни действия които могат да бъдат възложени на различни членове на екипа.
