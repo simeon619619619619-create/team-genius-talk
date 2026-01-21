@@ -212,9 +212,9 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   };
 
   return (
-    <Card className="flex flex-col h-[1200px]">
+    <Card className="flex flex-col h-[600px]">
       <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col h-full">
-        <div className="border-b px-4 py-2">
+        <div className="border-b px-4 py-2 shrink-0">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="chat" className="gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -227,9 +227,9 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="flex-1 flex flex-col justify-between m-0 overflow-hidden">
-          {/* Messages - takes remaining space, scrollable */}
-          <ScrollArea className="flex-1 min-h-0 p-4">
+        <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
+          {/* Messages area - scrollable, grows to fill space */}
+          <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
