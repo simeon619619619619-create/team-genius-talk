@@ -8,12 +8,15 @@ import { User, Bell, Globe, Shield, Loader2, Instagram, Phone } from "lucide-rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { AvatarUpload } from "@/components/settings/AvatarUpload";
+import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
 
 interface ProfileData {
   full_name: string;
   email: string;
   phone: string;
   instagram: string;
+  avatar_url: string | null;
 }
 
 export default function SettingsPage() {
@@ -21,11 +24,13 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
     full_name: "",
     email: "",
     phone: "",
     instagram: "",
+    avatar_url: null,
   });
 
   useEffect(() => {
@@ -41,7 +46,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, email, phone, instagram")
+        .select("full_name, email, phone, instagram, avatar_url")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -53,6 +58,7 @@ export default function SettingsPage() {
           email: data.email || user.email || "",
           phone: data.phone || "",
           instagram: data.instagram || "",
+          avatar_url: data.avatar_url || null,
         });
       } else {
         setProfile({
@@ -60,6 +66,7 @@ export default function SettingsPage() {
           email: user.email || "",
           phone: "",
           instagram: "",
+          avatar_url: null,
         });
       }
     } catch (error: any) {
@@ -137,6 +144,14 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="space-y-4">
+            {user && (
+              <AvatarUpload
+                userId={user.id}
+                currentAvatarUrl={profile.avatar_url}
+                fullName={profile.full_name}
+                onAvatarChange={(url) => setProfile({ ...profile, avatar_url: url })}
+              />
+            )}
             <div className="space-y-2">
               <Label htmlFor="fullName">Име и фамилия</Label>
               <Input 
@@ -255,14 +270,23 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="space-y-4">
-            <Button variant="outline" className="w-full justify-start">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => setPasswordDialogOpen(true)}
+            >
               Промяна на парола
             </Button>
-            <Button variant="outline" className="w-full justify-start">
-              Двуфакторна автентикация
+            <Button variant="outline" className="w-full justify-start" disabled>
+              Двуфакторна автентикация (скоро)
             </Button>
           </div>
         </div>
+
+        <ChangePasswordDialog 
+          open={passwordDialogOpen} 
+          onOpenChange={setPasswordDialogOpen} 
+        />
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={loadProfile}>Отказ</Button>
