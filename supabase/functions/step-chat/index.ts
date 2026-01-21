@@ -99,6 +99,42 @@ serve(async (req) => {
         content: userMessage,
       });
 
+    // Fetch context from previous steps (generated content and bot_context)
+    const { data: allSteps } = await supabaseClient
+      .from('plan_steps')
+      .select('id, title, step_order, generated_content')
+      .eq('project_id', projectId)
+      .order('step_order');
+
+    const { data: contextData } = await supabaseClient
+      .from('bot_context')
+      .select('context_key, context_value')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true });
+
+    // Build previous steps context
+    let previousStepsContext = "";
+    if (allSteps && allSteps.length > 0) {
+      const currentStep = allSteps.find(s => s.id === stepId);
+      const currentStepOrder = currentStep?.step_order || 999;
+      const previousSteps = allSteps
+        .filter(s => s.step_order < currentStepOrder && s.generated_content)
+        .sort((a, b) => a.step_order - b.step_order);
+
+      if (previousSteps.length > 0) {
+        previousStepsContext = `\n\nИНФОРМАЦИЯ ОТ ПРЕДИШНИ СТЪПКИ (използвай за контекст):
+${previousSteps.map(s => `=== ${s.title} ===
+${s.generated_content?.substring(0, 800)}${(s.generated_content?.length || 0) > 800 ? '...' : ''}`).join('\n\n')}`;
+      }
+    }
+
+    // Add stored context from other bots
+    let storedContext = "";
+    if (contextData && contextData.length > 0) {
+      storedContext = `\n\nКЛЮЧОВИ ТОЧКИ ОТ ДРУГИ БОТОВЕ:
+${contextData.map(c => `- ${c.context_key}: ${c.context_value}`).join('\n')}`;
+    }
+
     // Build context from collected answers
     const answersContext = Object.entries(collectedAnswers)
       .map(([key, value]) => `${key}: ${value}`)
@@ -110,8 +146,9 @@ serve(async (req) => {
 
     const systemPrompt = `Ти си приятелски AI бизнес консултант, който събира информация за бизнес план.
 Текуща секция: ${stepTitle}
+${previousStepsContext}${storedContext}
 
-СЪБРАНА ИНФОРМАЦИЯ ДОСЕГА:
+СЪБРАНА ИНФОРМАЦИЯ В ТАЗИ СЕКЦИЯ:
 ${answersContext || 'Все още няма събрана информация.'}
 
 ТЕКУЩ ВЪПРОС, НА КОЙТО ПОТРЕБИТЕЛЯТ ОТГОВАРЯ:
@@ -125,6 +162,7 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
   : `Задай следващия въпрос: "${nextQuestion?.question}"`}
 
 ВАЖНО:
+- Използвай информацията от предишните стъпки, ако е релевантна
 - Бъди кратък и приятелски
 - Използвай емотикони умерено
 - Не повтаряй информация, която вече си събрал
