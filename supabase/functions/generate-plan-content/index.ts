@@ -15,6 +15,13 @@ const InputSchema = z.object({
   botInstructions: z.string(),
   botName: z.string(),
   model: z.string().optional(),
+  projectId: z.string().uuid(),
+  allSteps: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    order: z.number(),
+    generated_content: z.string().nullable(),
+  })).optional(),
 });
 
 serve(async (req) => {
@@ -58,23 +65,60 @@ serve(async (req) => {
       );
     }
 
-    const { stepId, stepTitle, stepDescription, botInstructions, botName, model } = validationResult.data;
+    const { stepId, stepTitle, stepDescription, botInstructions, botName, model, projectId, allSteps } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Fetch existing context from previous steps
+    const { data: contextData } = await supabaseClient
+      .from('bot_context')
+      .select('context_key, context_value, step_id')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: true });
+
+    // Build context summary from previous steps
+    let previousStepsContext = "";
+    if (allSteps && allSteps.length > 0) {
+      const currentStepOrder = allSteps.find(s => s.id === stepId)?.order || 999;
+      const previousSteps = allSteps
+        .filter(s => s.order < currentStepOrder && s.generated_content)
+        .sort((a, b) => a.order - b.order);
+
+      if (previousSteps.length > 0) {
+        previousStepsContext = `\n\nИНФОРМАЦИЯ ОТ ПРЕДИШНИ СТЪПКИ (използвай тази информация за контекст):
+${previousSteps.map(s => `
+=== ${s.title} ===
+${s.generated_content?.substring(0, 1500)}${(s.generated_content?.length || 0) > 1500 ? '...' : ''}
+`).join('\n')}`;
+      }
+    }
+
+    // Add any stored context
+    let storedContext = "";
+    if (contextData && contextData.length > 0) {
+      storedContext = `\n\nСЪХРАНЕН КОНТЕКСТ ОТ ДРУГИ БОТОВЕ:
+${contextData.map(c => `- ${c.context_key}: ${c.context_value}`).join('\n')}`;
+    }
+
     const systemPrompt = `Ти си AI бот на име "${botName}". Твоята задача е да изпълняваш инструкциите, които ти са дадени от потребителя.
 
 ТВОИТЕ ИНСТРУКЦИИ:
 ${botInstructions}
+${previousStepsContext}
+${storedContext}
 
 Сега работиш върху следната стъпка от бизнес плана:
 - Заглавие: ${stepTitle}
 - Описание: ${stepDescription}
 
-Създай подробно, структурирано и професионално съдържание за тази секция. Използвай markdown форматиране за по-добра четимост.`;
+ВАЖНО: Използвай информацията от предишните стъпки за да създадеш последователен и свързан бизнес план. Референцирай конкретни решения и данни от предишните секции.
+
+Създай подробно, структурирано и професионално съдържание за тази секция. Използвай markdown форматиране за по-добра четимост.
+
+В края на отговора си, добави секция "## Ключови точки за следващите стъпки:" с 3-5 важни факта, които другите ботове трябва да знаят.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -127,6 +171,25 @@ ${botInstructions}
 
     if (updateError) {
       console.error("Error updating plan step:", updateError);
+    }
+
+    // Extract and store key points for other bots
+    const keyPointsMatch = content.match(/## Ключови точки за следващите стъпки:([\s\S]*?)(?:$|##)/);
+    if (keyPointsMatch) {
+      const keyPoints = keyPointsMatch[1].trim();
+      
+      // Upsert context
+      await supabaseClient
+        .from('bot_context')
+        .upsert({
+          project_id: projectId,
+          bot_id: rawInput.botId,
+          step_id: stepId,
+          context_key: `${stepTitle}_key_points`,
+          context_value: keyPoints,
+        }, {
+          onConflict: 'project_id,step_id,context_key'
+        });
     }
 
     return new Response(
