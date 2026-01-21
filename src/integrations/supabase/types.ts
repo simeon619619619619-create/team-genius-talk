@@ -759,6 +759,7 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      get_invitation_by_token: { Args: { _token: string }; Returns: Json }
       has_project_access: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
