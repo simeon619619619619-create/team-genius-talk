@@ -12,6 +12,7 @@ import PlanPage from "./pages/PlanPage";
 import BusinessPlanPage from "./pages/BusinessPlanPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
+import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/plan" element={<PlanPage />} />
             <Route path="/business-plan" element={<BusinessPlanPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
