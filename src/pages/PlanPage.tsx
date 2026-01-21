@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Check, ChevronRight } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { BotConfigDialog } from "@/components/plan/BotConfigDialog";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
 import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
+import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -40,16 +40,12 @@ export default function PlanPage() {
 
   const {
     steps,
-    bots,
     loading,
     toggleStepComplete,
-    assignBotToStep,
-    createBot,
-    updateBot,
-    deleteBot,
-    generateContent,
     updateContent,
   } = usePlanSteps(projectId);
+
+  const { globalBots, getBotForStep, loading: botsLoading } = useGlobalBots();
 
   // Set active step when steps load
   useEffect(() => {
@@ -63,7 +59,7 @@ export default function PlanPage() {
   const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
   const activeStep = steps.find(s => s.id === activeStepId);
 
-  if (loading) {
+  if (loading || botsLoading) {
     return (
       <MainLayout>
         <div className="space-y-6">
@@ -98,18 +94,9 @@ export default function PlanPage() {
           <div className="flex gap-3">
             <ExportPdfButton 
               steps={steps} 
-              bots={bots} 
+              bots={globalBots} 
               projectName={projectName}
             />
-            {projectId && (
-              <BotConfigDialog
-                bots={bots}
-                projectId={projectId}
-                onCreateBot={createBot}
-                onUpdateBot={updateBot}
-                onDeleteBot={deleteBot}
-              />
-            )}
           </div>
         </div>
 
@@ -136,7 +123,7 @@ export default function PlanPage() {
           {/* Steps List */}
           <div className="lg:col-span-1 space-y-3">
             {steps.map((step, index) => {
-              const assignedBot = bots.find(b => b.id === step.assigned_bot_id);
+              const assignedBot = getBotForStep(step.title);
               // Check if previous steps have content (are unlocked)
               const previousStepsCompleted = index === 0 || steps
                 .slice(0, index)
@@ -212,12 +199,10 @@ export default function PlanPage() {
               step={activeStep}
               stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1}
               isActive={true}
-              bots={bots}
+              bot={getBotForStep(activeStep.title)}
               projectId={projectId}
               onSelect={() => {}}
               onToggleComplete={() => toggleStepComplete(activeStep.id)}
-              onAssignBot={(botId) => assignBotToStep(activeStep.id, botId)}
-              onGenerate={() => generateContent(activeStep.id, projectId)}
               onContentUpdate={(content) => updateContent(activeStep.id, content)}
             />
           )}

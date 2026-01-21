@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { pdf } from "@react-pdf/renderer";
 import { PlanPdfDocument } from "./PlanPdfDocument";
 import { toast } from "sonner";
-import type { PlanStep, AIBot } from "@/hooks/usePlanSteps";
+import type { PlanStep } from "@/hooks/usePlanSteps";
+import type { GlobalBot } from "@/hooks/useGlobalBots";
 
 interface ExportPdfButtonProps {
   steps: PlanStep[];
-  bots: AIBot[];
+  bots: GlobalBot[];
   projectName?: string;
 }
 

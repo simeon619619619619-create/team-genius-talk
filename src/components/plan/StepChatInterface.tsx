@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getQuestionsForStep } from "@/data/stepQuestions";
 import { cn } from "@/lib/utils";
-import type { PlanStep, AIBot } from "@/hooks/usePlanSteps";
+import type { PlanStep } from "@/hooks/usePlanSteps";
+import type { GlobalBot } from "@/hooks/useGlobalBots";
 
 interface Message {
   id: string;
@@ -18,7 +19,7 @@ interface Message {
 interface StepChatInterfaceProps {
   step: PlanStep;
   projectId: string;
-  bot: AIBot | null;
+  bot: GlobalBot | null;
   onContentUpdate: (content: string) => void;
 }
 
