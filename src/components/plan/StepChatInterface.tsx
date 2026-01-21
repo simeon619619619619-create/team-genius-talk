@@ -232,42 +232,44 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-3",
+                  "flex gap-3 items-start",
                   message.role === 'user' ? "justify-end" : "justify-start"
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     {bot?.avatar_url ? (
-                      <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-full object-cover" />
+                      <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-lg object-cover" />
                     ) : (
                       <Bot className="h-4 w-4 text-primary" />
                     )}
                   </div>
                 )}
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
-                    message.role === 'user'
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary"
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
                 {message.role === 'user' && (
-                  <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                  <div
+                    className="rounded-full px-4 py-1.5 text-sm font-medium bg-[#0891b2] text-white"
+                  >
+                    {message.content}
+                  </div>
+                )}
+                {message.role === 'assistant' && (
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-secondary/80">
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                )}
+                {message.role === 'user' && (
+                  <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                     <User className="h-4 w-4" />
                   </div>
                 )}
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="flex gap-3 items-start">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
-                <div className="bg-secondary rounded-2xl px-4 py-2">
+                <div className="bg-secondary/80 rounded-2xl px-4 py-3">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               </div>
