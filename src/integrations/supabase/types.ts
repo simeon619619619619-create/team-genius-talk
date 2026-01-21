@@ -330,6 +330,96 @@ export type Database = {
         }
         Relationships: []
       }
+      step_answers: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          project_id: string | null
+          question_key: string
+          question_text: string
+          step_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          question_key: string
+          question_text: string
+          step_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          question_key?: string
+          question_text?: string
+          step_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_answers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "step_answers_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "plan_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      step_conversations: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          project_id: string | null
+          role: string
+          step_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          role: string
+          step_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          role?: string
+          step_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "step_conversations_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "plan_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subtasks: {
         Row: {
           assignee_name: string | null

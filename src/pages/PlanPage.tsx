@@ -48,6 +48,7 @@ export default function PlanPage() {
     updateBot,
     deleteBot,
     generateContent,
+    updateContent,
   } = usePlanSteps(projectId);
 
   // Set active step when steps load
@@ -193,10 +194,12 @@ export default function PlanPage() {
               stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1}
               isActive={true}
               bots={bots}
+              projectId={projectId}
               onSelect={() => {}}
               onToggleComplete={() => toggleStepComplete(activeStep.id)}
               onAssignBot={(botId) => assignBotToStep(activeStep.id, botId)}
               onGenerate={() => generateContent(activeStep.id, projectId)}
+              onContentUpdate={(content) => updateContent(activeStep.id, content)}
             />
           )}
         </div>
