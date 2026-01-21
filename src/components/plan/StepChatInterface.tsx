@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -212,9 +210,9 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   };
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden">
-      <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="border-b px-4 py-2 shrink-0">
+    <div className="flex flex-col h-full">
+      <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col h-full">
+        <div className="border-b px-4 py-2 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="chat" className="gap-2">
               <MessageSquare className="h-4 w-4" />
@@ -229,7 +227,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
 
         <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0">
           {/* Messages area - scrollable, takes remaining space */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -277,8 +275,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
             <div ref={scrollRef} />
           </div>
 
-          {/* Input - FIXED at bottom, outside scroll */}
-          <div className="border-t p-2 bg-card" style={{ flexShrink: 0 }}>
+          {/* Input - FIXED at bottom */}
+          <div className="border-t p-3 bg-background flex-shrink-0">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
@@ -300,7 +298,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Напишете отговор..."
-                className="min-h-[36px] max-h-[36px] resize-none py-2"
+                className="min-h-[40px] max-h-[40px] resize-none py-2"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -312,7 +310,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
                 size="icon"
-                className="h-[36px] w-[36px] shrink-0"
+                className="h-[40px] w-[40px] shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -320,22 +318,22 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           </div>
         </TabsContent>
 
-        <TabsContent value="manual" className="flex-1 flex flex-col m-0 overflow-hidden">
-          <div className="flex-1 p-4 flex flex-col">
+        <TabsContent value="manual" className="flex-1 flex flex-col m-0 min-h-0">
+          <div className="flex-1 p-4 flex flex-col min-h-0">
             <Textarea
               value={manualContent}
               onChange={(e) => setManualContent(e.target.value)}
               placeholder="Напишете съдържанието за тази секция..."
-              className="flex-1 resize-none min-h-[300px]"
+              className="flex-1 resize-none min-h-[200px]"
             />
           </div>
-          <div className="border-t p-4">
+          <div className="border-t p-3 flex-shrink-0">
             <Button onClick={handleSaveManual} className="w-full">
               Запази съдържанието
             </Button>
           </div>
         </TabsContent>
       </Tabs>
-    </Card>
+    </div>
   );
 }
