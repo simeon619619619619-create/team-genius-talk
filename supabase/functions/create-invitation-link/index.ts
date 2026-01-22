@@ -19,23 +19,40 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+      console.error("Missing environment variables");
+      throw new Error("Server configuration error");
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error("No authorization header provided");
       throw new Error("No authorization header");
     }
 
+    // Extract the token from the Authorization header
+    const authToken = authHeader.replace("Bearer ", "");
+    
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authToken);
+    if (userError) {
+      console.error("Auth error:", userError.message);
+      throw new Error("Unauthorized: " + userError.message);
+    }
+    if (!user) {
+      console.error("No user found");
       throw new Error("Unauthorized");
     }
+    
+    console.log("Authenticated user:", user.email);
 
     const { teamId, email, name, role }: InvitationRequest = await req.json();
 
