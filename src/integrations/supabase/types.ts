@@ -504,6 +504,7 @@ export type Database = {
         Row: {
           assignee_name: string | null
           created_at: string
+          day_of_week: number | null
           description: string | null
           due_date: string | null
           id: string
@@ -517,6 +518,7 @@ export type Database = {
         Insert: {
           assignee_name?: string | null
           created_at?: string
+          day_of_week?: number | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -530,6 +532,7 @@ export type Database = {
         Update: {
           assignee_name?: string | null
           created_at?: string
+          day_of_week?: number | null
           description?: string | null
           due_date?: string | null
           id?: string
