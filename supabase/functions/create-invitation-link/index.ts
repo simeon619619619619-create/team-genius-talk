@@ -28,14 +28,25 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Server configuration error");
     }
 
-    const authHeader = req.headers.get("Authorization");
+    // Note: header names are case-insensitive; Deno keeps original casing.
+    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
     if (!authHeader) {
       console.error("No authorization header provided");
-      throw new Error("No authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
     }
 
-    // Extract the token from the Authorization header
-    const authToken = authHeader.replace("Bearer ", "");
+    // Extract token from: "Bearer <jwt>"
+    const authToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!authToken) {
+      console.error("Authorization header present but token missing");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -54,20 +65,35 @@ serve(async (req: Request): Promise<Response> => {
 
     // Create a client with the user's context for RLS-protected queries
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { headers: { authorization: `Bearer ${authToken}` } },
     });
 
     const { teamId, email, name, role }: InvitationRequest = await req.json();
 
-    // Get team and verify user has access
-    const { data: team, error: teamError } = await supabaseClient
+    // Get team (service role) and verify user has access (RLS-safe RPC)
+    const { data: team, error: teamError } = await supabaseAdmin
       .from("teams")
-      .select("*, projects!inner(owner_id)")
+      .select("id, name, project_id")
       .eq("id", teamId)
       .single();
 
     if (teamError || !team) {
-      throw new Error("Team not found or access denied");
+      return new Response(
+        JSON.stringify({ error: "Team not found" }),
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    const { data: hasAccess, error: accessError } = await supabaseClient.rpc(
+      "has_project_access",
+      { _user_id: user.id, _project_id: team.project_id },
+    );
+
+    if (accessError || !hasAccess) {
+      return new Response(
+        JSON.stringify({ error: "Access denied" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
     }
 
     // Create team member record
