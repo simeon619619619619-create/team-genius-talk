@@ -12,6 +12,7 @@ export interface DbTask {
   assignee_name: string | null;
   team_name: string | null;
   due_date: string | null;
+  day_of_week: number | null;
   created_at: string;
   subtasks?: DbSubtask[];
 }
@@ -85,6 +86,7 @@ export function useTasks() {
     assignee_name?: string;
     team_name?: string;
     due_date?: string;
+    day_of_week?: number;
   }) => {
     if (!user) {
       toast.error("Моля, влезте в акаунта си");
@@ -103,6 +105,7 @@ export function useTasks() {
           assignee_name: taskData.assignee_name || null,
           team_name: taskData.team_name || null,
           due_date: taskData.due_date || null,
+          day_of_week: taskData.day_of_week || null,
         })
         .select()
         .single();
@@ -135,6 +138,23 @@ export function useTasks() {
 
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      );
+    } catch (error: any) {
+      toast.error("Грешка при обновяване на задача");
+    }
+  };
+
+  const updateTaskDayOfWeek = async (taskId: string, dayOfWeek: number | null) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ day_of_week: dayOfWeek })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, day_of_week: dayOfWeek } : t))
       );
     } catch (error: any) {
       toast.error("Грешка при обновяване на задача");
@@ -258,6 +278,7 @@ export function useTasks() {
     loading,
     addTask,
     updateTaskStatus,
+    updateTaskDayOfWeek,
     deleteTask,
     addSubtask,
     updateSubtaskStatus,
