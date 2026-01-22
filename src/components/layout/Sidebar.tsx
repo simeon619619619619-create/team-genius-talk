@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Users, 
@@ -7,13 +7,26 @@ import {
   Settings,
   TrendingUp,
   FileText,
-  Shield
+  Shield,
+  LogOut,
+  LogIn,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const baseNavItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -27,8 +40,10 @@ const baseNavItems = [
 
 export function Sidebar() {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -47,9 +62,46 @@ export function Sidebar() {
     checkAdminStatus();
   }, [user]);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setProfile(data);
+    };
+    fetchProfile();
+  }, [user]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Успешно излязохте от профила");
+    navigate("/auth");
+  };
+
   const navItems = isAdmin 
     ? [...baseNavItems, { icon: Shield, label: "Админ", path: "/admin" }]
     : baseNavItems;
+
+  const getUserInitials = () => {
+    if (profile?.full_name) {
+      return profile.full_name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email[0].toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
@@ -89,13 +141,57 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
+        {/* User Section */}
         <div className="border-t border-border p-4">
-          <div className="rounded-lg bg-secondary p-4">
-            <p className="text-xs text-muted-foreground">
-              Създай бизнес план с AI помощ
-            </p>
-          </div>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex w-full items-center gap-3 rounded-lg p-3 hover:bg-secondary transition-colors">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {getUserInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {profile?.full_name || 'Потребител'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  <User className="mr-2 h-4 w-4" />
+                  Профил
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Настройки
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleSignOut}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Изход
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-3"
+              onClick={() => navigate("/auth")}
+            >
+              <LogIn className="h-4 w-4" />
+              Вход / Регистрация
+            </Button>
+          )}
         </div>
       </div>
     </aside>
