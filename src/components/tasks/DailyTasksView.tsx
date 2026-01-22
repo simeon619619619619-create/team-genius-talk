@@ -92,7 +92,7 @@ export function DailyTasksView({
     description: "",
     priority: "medium" as "low" | "medium" | "high",
     assignee_name: "",
-    day_of_week: 1,
+    days_of_week: [1] as number[],
   });
 
   const toggleDay = (day: number) => {
@@ -114,22 +114,40 @@ export function DailyTasksView({
   };
 
   const handleSubmit = () => {
-    if (!newTask.title.trim()) return;
-    onAddTask({
-      title: newTask.title,
-      description: newTask.description || undefined,
-      priority: newTask.priority,
-      assignee_name: newTask.assignee_name || undefined,
-      day_of_week: newTask.day_of_week,
+    if (!newTask.title.trim() || newTask.days_of_week.length === 0) return;
+    
+    // Create a task for each selected day
+    newTask.days_of_week.forEach((day) => {
+      onAddTask({
+        title: newTask.title,
+        description: newTask.description || undefined,
+        priority: newTask.priority,
+        assignee_name: newTask.assignee_name || undefined,
+        day_of_week: day,
+      });
     });
+    
     setNewTask({
       title: "",
       description: "",
       priority: "medium",
       assignee_name: "",
-      day_of_week: 1,
+      days_of_week: [1],
     });
     setDialogOpen(false);
+  };
+
+  const toggleDaySelection = (day: number) => {
+    setNewTask((prev) => {
+      const isSelected = prev.days_of_week.includes(day);
+      if (isSelected) {
+        // Don't allow deselecting if it's the last one
+        if (prev.days_of_week.length === 1) return prev;
+        return { ...prev, days_of_week: prev.days_of_week.filter((d) => d !== day) };
+      } else {
+        return { ...prev, days_of_week: [...prev.days_of_week, day].sort((a, b) => a - b) };
+      }
+    });
   };
 
   const unassignedTasks = getUnassignedTasks();
@@ -182,30 +200,28 @@ export function DailyTasksView({
                   rows={2}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ден</Label>
-                  <Select
-                    value={String(newTask.day_of_week)}
-                    onValueChange={(v) =>
-                      setNewTask((prev) => ({
-                        ...prev,
-                        day_of_week: parseInt(v),
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dayNames.map((name, idx) => (
-                        <SelectItem key={idx + 1} value={String(idx + 1)}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label>Дни (изберете един или повече)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {dayNames.map((name, idx) => {
+                    const day = idx + 1;
+                    const isSelected = newTask.days_of_week.includes(day);
+                    return (
+                      <Button
+                        key={day}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className={isSelected ? "gradient-primary text-primary-foreground" : ""}
+                        onClick={() => toggleDaySelection(day)}
+                      >
+                        {name.substring(0, 3)}
+                      </Button>
+                    );
+                  })}
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Приоритет</Label>
                   <Select
@@ -251,9 +267,9 @@ export function DailyTasksView({
                 <Button
                   className="gradient-primary text-primary-foreground"
                   onClick={handleSubmit}
-                  disabled={!newTask.title.trim()}
+                  disabled={!newTask.title.trim() || newTask.days_of_week.length === 0}
                 >
-                  Добави
+                  Добави {newTask.days_of_week.length > 1 ? `(${newTask.days_of_week.length} дни)` : ""}
                 </Button>
               </div>
             </div>
