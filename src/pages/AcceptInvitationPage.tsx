@@ -77,6 +77,15 @@ export default function AcceptInvitationPage() {
       return;
     }
 
+    // Check if logged in user email matches invitation email
+    const invitedEmail = invitation?.team_members?.email?.toLowerCase();
+    const userEmail = user.email?.toLowerCase();
+    
+    if (invitedEmail && userEmail && invitedEmail !== userEmail) {
+      toast.error(`Поканата е за ${invitation.team_members.email}. Моля, влезте с правилния акаунт.`);
+      return;
+    }
+
     try {
       setStatus("loading");
 
