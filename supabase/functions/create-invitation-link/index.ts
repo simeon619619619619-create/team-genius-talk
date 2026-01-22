@@ -38,11 +38,9 @@ serve(async (req: Request): Promise<Response> => {
     const authToken = authHeader.replace("Bearer ", "");
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authToken);
+    // Verify user with admin client using the token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
     if (userError) {
       console.error("Auth error:", userError.message);
       throw new Error("Unauthorized: " + userError.message);
@@ -53,6 +51,11 @@ serve(async (req: Request): Promise<Response> => {
     }
     
     console.log("Authenticated user:", user.email);
+
+    // Create a client with the user's context for RLS-protected queries
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const { teamId, email, name, role }: InvitationRequest = await req.json();
 
