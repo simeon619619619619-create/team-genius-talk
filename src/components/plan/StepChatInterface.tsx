@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { getQuestionsForStep } from "@/data/stepQuestions";
 import { cn } from "@/lib/utils";
 import type { PlanStep } from "@/hooks/usePlanSteps";
 import type { GlobalBot } from "@/hooks/useGlobalBots";
+import { Badge } from "@/components/ui/badge";
 
 interface Message {
   id: string;
@@ -21,9 +22,10 @@ interface StepChatInterfaceProps {
   projectId: string;
   bot: GlobalBot | null;
   onContentUpdate: (content: string) => void;
+  onStepComplete?: () => void;
 }
 
-export function StepChatInterface({ step, projectId, bot, onContentUpdate }: StepChatInterfaceProps) {
+export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete }: StepChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,10 +34,17 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   const [mode, setMode] = useState<'chat' | 'manual'>('chat');
   const [manualContent, setManualContent] = useState(step.generated_content || "");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [stepComplete, setStepComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const stepQuestions = getQuestionsForStep(step.title);
   const questions = stepQuestions?.questions || [];
+  const requiredFields = stepQuestions?.requiredFields || [];
+  const exitCriteria = stepQuestions?.exitCriteria || "";
+  const completionMessage = stepQuestions?.completionMessage || "";
+  const contextKeys = stepQuestions?.contextKeys || [];
+  const botRole = stepQuestions?.botRole || "AI Асистент";
 
   // Load existing conversation and answers
   useEffect(() => {
@@ -46,6 +55,21 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
   useEffect(() => {
     setManualContent(step.generated_content || "");
   }, [step.generated_content]);
+
+  // Check completion status when answers change
+  useEffect(() => {
+    if (requiredFields.length > 0) {
+      const missing = requiredFields.filter(field => {
+        const answer = collectedAnswers[field];
+        return !answer || 
+               answer.trim().length === 0 || 
+               answer.toLowerCase().includes('не знам') ||
+               answer.toLowerCase().includes('не съм решил');
+      });
+      setMissingFields(missing);
+      setStepComplete(missing.length === 0);
+    }
+  }, [collectedAnswers, requiredFields]);
 
   const loadConversation = async () => {
     const { data, error } = await supabase
@@ -116,10 +140,19 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
           projectId,
           stepTitle: step.title,
           userMessage: userMessage.content,
-          conversationHistory: messages.slice(-10),
+          conversationHistory: messages.slice(-15),
           collectedAnswers,
-          questionsToAsk: questions.map(q => ({ key: q.key, question: q.question })),
+          questionsToAsk: questions.map(q => ({ 
+            key: q.key, 
+            question: q.question,
+            required: q.required 
+          })),
           currentQuestionIndex,
+          botRole,
+          requiredFields,
+          exitCriteria,
+          completionMessage,
+          contextKeys,
         }
       });
 
@@ -143,6 +176,17 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
 
       if (data.nextQuestionIndex >= 0) {
         setCurrentQuestionIndex(data.nextQuestionIndex);
+      }
+
+      // Update missing fields and completion status
+      if (data.missingFields) {
+        setMissingFields(data.missingFields);
+      }
+      
+      if (data.canProceedToNext) {
+        setStepComplete(true);
+        toast.success("Стъпката е завършена! Можете да преминете към следващата.");
+        onStepComplete?.();
       }
 
       scrollToBottom();

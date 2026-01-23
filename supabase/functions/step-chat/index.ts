@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Maximum sizes for input validation to prevent resource exhaustion
+// Maximum sizes for input validation
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_HISTORY_MESSAGE_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 200;
@@ -17,19 +17,92 @@ const MAX_ANSWER_LENGTH = 2000;
 const InputSchema = z.object({
   stepId: z.string().uuid(),
   projectId: z.string().uuid(),
-  stepTitle: z.string().max(MAX_TITLE_LENGTH, "Step title must be under 200 characters"),
-  userMessage: z.string().max(MAX_MESSAGE_LENGTH, "Message must be under 5000 characters"),
+  stepTitle: z.string().max(MAX_TITLE_LENGTH),
+  userMessage: z.string().max(MAX_MESSAGE_LENGTH),
   conversationHistory: z.array(z.object({
     role: z.enum(['user', 'assistant']),
-    content: z.string().max(MAX_HISTORY_MESSAGE_LENGTH, "History message must be under 2000 characters"),
-  })).max(10, "Maximum 10 messages in history"),
-  collectedAnswers: z.record(z.string().max(MAX_ANSWER_LENGTH, "Answer must be under 2000 characters")).optional(),
+    content: z.string().max(MAX_HISTORY_MESSAGE_LENGTH),
+  })).max(20),
+  collectedAnswers: z.record(z.string().max(MAX_ANSWER_LENGTH)).optional(),
   questionsToAsk: z.array(z.object({
-    key: z.string().max(100, "Question key must be under 100 characters"),
-    question: z.string().max(MAX_QUESTION_LENGTH, "Question must be under 500 characters"),
-  })).max(20, "Maximum 20 questions allowed"),
+    key: z.string().max(100),
+    question: z.string().max(MAX_QUESTION_LENGTH),
+    required: z.boolean().optional(),
+  })).max(20),
   currentQuestionIndex: z.number().int().min(0).max(50),
+  botRole: z.string().optional(),
+  requiredFields: z.array(z.string()).optional(),
+  exitCriteria: z.string().optional(),
+  completionMessage: z.string().optional(),
+  contextKeys: z.array(z.string()).optional(),
 });
+
+// Bot configuration by step
+const botConfigs: Record<string, {
+  role: string;
+  systemPromptAddition: string;
+}> = {
+  "Резюме на бизнеса": {
+    role: "Бизнес Анализатор",
+    systemPromptAddition: `Твоята роля е да разбереш какъв е бизнесът и каква е крайната цел, БЕЗ да навлизаш в стратегия.
+ЗАДЪЛЖИТЕЛНИ ПОЛЕТА (не продължавай без тях):
+1. Какъв е бизнесът (продукт / услуга / SaaS / обучение)
+2. За кого е (основна аудитория)
+3. Какъв проблем решава
+4. Как печели пари (модел)
+5. Основна цел (растеж, продажби, мащабиране)
+
+Ако потребителят каже "не знам" или "още не съм решил", помогни му да уточни.`
+  },
+  "Пазарен анализ": {
+    role: "Пазарен Анализатор",
+    systemPromptAddition: `Твоята роля е да определиш дали пазарът си струва и къде е възможността.
+ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
+1. Основни конкуренти (минимум 3)
+2. Как клиентите купуват в момента
+3. Какви са алтернативите (вкл. "нищо не правя")
+4. Приблизителни цени на пазара
+5. Основни бариери за влизане
+
+EXIT CRITERIA: Ясно е кой печели, кой губи, къде има празно място.`
+  },
+  "Маркетинг стратегия": {
+    role: "Маркетинг Стратег",
+    systemPromptAddition: `Твоята роля е да отговориш: как ще влизаме на пазара и с какво послание.
+ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
+1. Основно позициониране (защо теб, а не друг)
+2. Канали (IG, TikTok, Ads, Email и т.н.)
+3. Основно послание
+4. Lead механизъм (как хващаме вниманието)
+5. CTA (каква е следващата стъпка)
+
+EXIT CRITERIA: Има 1 ясно позициониране и поне 3 маркетинг канала с роля.`
+  },
+  "Оперативен план": {
+    role: "Оперативен Мениджър",
+    systemPromptAddition: `Твоята роля е да превърнеш стратегията в реални действия.
+ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
+1. Какво се прави дневно / седмично
+2. Кой го прави (човек / AI / автоматизация)
+3. Какви ресурси трябват
+4. Приоритети (кое първо)
+5. Първи 14–30 дни план
+
+EXIT CRITERIA: Има ясен action plan без "някой ден".`
+  },
+  "Финансови прогнози": {
+    role: "Финансов Анализатор",
+    systemPromptAddition: `Твоята роля е да покажеш дали бизнесът има смисъл икономически.
+ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
+1. Основни разходи
+2. Основни приходи
+3. Цена на придобиване (CAC – ориентир)
+4. Break-even логика
+5. Сценарии (оптимистичен / реален / песимистичен)
+
+EXIT CRITERIA: Има числова логика и е ясно дали бизнесът е устойчив.`
+  }
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -80,11 +153,14 @@ serve(async (req) => {
       conversationHistory, 
       collectedAnswers = {},
       questionsToAsk,
-      currentQuestionIndex 
+      currentQuestionIndex,
+      requiredFields = [],
+      exitCriteria = "",
+      completionMessage = "",
+      contextKeys = []
     } = validationResult.data;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
@@ -99,78 +175,135 @@ serve(async (req) => {
         content: userMessage,
       });
 
-    // Fetch context from previous steps (generated content and bot_context)
+    // Fetch ALL context from previous steps
     const { data: allSteps } = await supabaseClient
       .from('plan_steps')
       .select('id, title, step_order, generated_content')
       .eq('project_id', projectId)
       .order('step_order');
 
+    // Fetch all answers from previous steps
+    const { data: allAnswers } = await supabaseClient
+      .from('step_answers')
+      .select('step_id, question_key, answer')
+      .eq('project_id', projectId);
+
+    // Fetch stored context from bot_context
     const { data: contextData } = await supabaseClient
       .from('bot_context')
-      .select('context_key, context_value')
+      .select('context_key, context_value, step_id')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
-    // Build previous steps context
+    // Build comprehensive context from previous steps
     let previousStepsContext = "";
+    let previousAnswersContext = "";
+    
     if (allSteps && allSteps.length > 0) {
       const currentStep = allSteps.find(s => s.id === stepId);
       const currentStepOrder = currentStep?.step_order || 999;
       const previousSteps = allSteps
-        .filter(s => s.step_order < currentStepOrder && s.generated_content)
+        .filter(s => s.step_order < currentStepOrder)
         .sort((a, b) => a.step_order - b.step_order);
 
       if (previousSteps.length > 0) {
-        previousStepsContext = `\n\nИНФОРМАЦИЯ ОТ ПРЕДИШНИ СТЪПКИ (използвай за контекст):
-${previousSteps.map(s => `=== ${s.title} ===
-${s.generated_content?.substring(0, 800)}${(s.generated_content?.length || 0) > 800 ? '...' : ''}`).join('\n\n')}`;
+        // Build context from generated content
+        const stepsWithContent = previousSteps.filter(s => s.generated_content);
+        if (stepsWithContent.length > 0) {
+          previousStepsContext = `\n\n📋 ГЕНЕРИРАНО СЪДЪРЖАНИЕ ОТ ПРЕДИШНИ СТЪПКИ:
+${stepsWithContent.map(s => `=== ${s.title} ===
+${s.generated_content?.substring(0, 1000)}${(s.generated_content?.length || 0) > 1000 ? '...' : ''}`).join('\n\n')}`;
+        }
+
+        // Build context from answers
+        if (allAnswers && allAnswers.length > 0) {
+          const previousStepIds = previousSteps.map(s => s.id);
+          const prevAnswers = allAnswers.filter(a => previousStepIds.includes(a.step_id));
+          
+          if (prevAnswers.length > 0) {
+            const answersByStep: Record<string, string[]> = {};
+            prevAnswers.forEach(a => {
+              const step = previousSteps.find(s => s.id === a.step_id);
+              if (step) {
+                if (!answersByStep[step.title]) answersByStep[step.title] = [];
+                answersByStep[step.title].push(`• ${a.question_key}: ${a.answer}`);
+              }
+            });
+            
+            previousAnswersContext = `\n\n📝 ОТГОВОРИ ОТ ПРЕДИШНИ СТЪПКИ:
+${Object.entries(answersByStep).map(([title, answers]) => `=== ${title} ===\n${answers.join('\n')}`).join('\n\n')}`;
+          }
+        }
       }
     }
 
-    // Add stored context from other bots
+    // Build stored context from other bots
     let storedContext = "";
     if (contextData && contextData.length > 0) {
-      storedContext = `\n\nКЛЮЧОВИ ТОЧКИ ОТ ДРУГИ БОТОВЕ:
-${contextData.map(c => `- ${c.context_key}: ${c.context_value}`).join('\n')}`;
+      const relevantContext = contextData.filter(c => c.step_id !== stepId);
+      if (relevantContext.length > 0) {
+        storedContext = `\n\n🔑 КЛЮЧОВИ ТОЧКИ ОТ ДРУГИ БОТОВЕ:
+${relevantContext.map(c => `• ${c.context_key}: ${c.context_value}`).join('\n')}`;
+      }
     }
 
-    // Build context from collected answers
-    const answersContext = Object.entries(collectedAnswers)
-      .map(([key, value]) => `${key}: ${value}`)
+    // Build context from currently collected answers
+    const currentAnswersContext = Object.entries(collectedAnswers)
+      .map(([key, value]) => `• ${key}: ${value}`)
       .join('\n');
+
+    // Check required fields completion
+    const missingFields = requiredFields.filter(field => {
+      const answer = collectedAnswers[field];
+      return !answer || 
+             answer.trim().length === 0 || 
+             answer.toLowerCase().includes('не знам') ||
+             answer.toLowerCase().includes('не съм решил');
+    });
+
+    const allRequiredComplete = missingFields.length === 0 && requiredFields.length > 0;
 
     const currentQuestion = questionsToAsk[currentQuestionIndex];
     const nextQuestion = questionsToAsk[currentQuestionIndex + 1];
     const isLastQuestion = currentQuestionIndex >= questionsToAsk.length - 1;
 
-    const systemPrompt = `Ти си приятелски AI бизнес консултант, който събира информация за бизнес план.
+    // Get bot-specific configuration
+    const botConfig = botConfigs[stepTitle] || { role: "AI Асистент", systemPromptAddition: "" };
+
+    const systemPrompt = `Ти си ${botConfig.role} – приятелски AI бизнес консултант.
 Текуща секция: ${stepTitle}
-${previousStepsContext}${storedContext}
 
-СЪБРАНА ИНФОРМАЦИЯ В ТАЗИ СЕКЦИЯ:
-${answersContext || 'Все още няма събрана информация.'}
+${botConfig.systemPromptAddition}
 
-ТЕКУЩ ВЪПРОС, НА КОЙТО ПОТРЕБИТЕЛЯТ ОТГОВАРЯ:
+${previousStepsContext}${previousAnswersContext}${storedContext}
+
+📊 СЪБРАНА ИНФОРМАЦИЯ В ТАЗИ СЕКЦИЯ:
+${currentAnswersContext || 'Все още няма събрана информация.'}
+
+${missingFields.length > 0 ? `⚠️ ОЩЕ ЛИПСВАЩИ ЗАДЪЛЖИТЕЛНИ ПОЛЕТА: ${missingFields.join(', ')}` : '✅ Всички задължителни полета са попълнени!'}
+
+ТЕКУЩ ВЪПРОС:
 ${currentQuestion?.question || 'Няма текущ въпрос'}
 
 ТВОИТЕ ЗАДАЧИ:
-1. Приеми отговора на потребителя любезно и потвърди, че си го разбрал
-2. Ако отговорът е неясен или непълен, помоли за уточнение
-3. ${isLastQuestion 
-  ? 'Това беше последният въпрос - благодари на потребителя и обобщи накратко събраната информация' 
-  : `Задай следващия въпрос: "${nextQuestion?.question}"`}
+1. Приеми отговора любезно и потвърди, че си го разбрал
+2. Ако отговорът е неясен, непълен или съдържа "не знам" – помогни да уточни
+3. ${isLastQuestion && allRequiredComplete
+    ? `Всички въпроси са зададени. Благодари и кажи: "${completionMessage}"`
+    : isLastQuestion && !allRequiredComplete
+    ? `Последният въпрос е зададен, но липсват данни за: ${missingFields.join(', ')}. Помоли потребителя да уточни.`
+    : `Задай следващия въпрос: "${nextQuestion?.question}"`}
 
-ВАЖНО:
-- Използвай информацията от предишните стъпки, ако е релевантна
+ГЛОБАЛНИ ПРАВИЛА:
+- Задавай максимум 3 въпроса наведнъж
+- НЕ преминавай напред по предположение
+- Използвай информацията от предишните стъпки за контекст
 - Бъди кратък и приятелски
-- Използвай емотикони умерено
-- Не повтаряй информация, която вече си събрал
-- Ако потребителят иска да напише сам (не чрез въпроси), уважи това и го насочи да напише свободно`;
+- Използвай емотикони умерено`;
 
     const messages = [
       { role: "system", content: systemPrompt },
-      ...conversationHistory.slice(-10).map(m => ({ role: m.role, content: m.content })),
+      ...conversationHistory.slice(-15).map(m => ({ role: m.role, content: m.content })),
       { role: "user", content: userMessage },
     ];
 
@@ -234,11 +367,48 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
         });
     }
 
+    // Update collected answers with new answer
+    const updatedAnswers = { ...collectedAnswers };
+    if (currentQuestion) {
+      updatedAnswers[currentQuestion.key] = userMessage;
+    }
+
+    // Check if step is complete now
+    const nowMissingFields = requiredFields.filter(field => {
+      const answer = updatedAnswers[field];
+      return !answer || 
+             answer.trim().length === 0 || 
+             answer.toLowerCase().includes('не знам') ||
+             answer.toLowerCase().includes('не съм решил');
+    });
+
+    const stepComplete = nowMissingFields.length === 0 && requiredFields.length > 0 && isLastQuestion;
+
+    // If step is complete, save context for other bots
+    if (stepComplete && contextKeys.length > 0) {
+      for (const key of contextKeys) {
+        if (updatedAnswers[key]) {
+          await supabaseClient
+            .from('bot_context')
+            .upsert({
+              project_id: projectId,
+              step_id: stepId,
+              context_key: key,
+              context_value: updatedAnswers[key],
+            }, {
+              onConflict: 'project_id,step_id,context_key'
+            });
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         message: assistantMessage,
         nextQuestionIndex: isLastQuestion ? -1 : currentQuestionIndex + 1,
-        isComplete: isLastQuestion,
+        isComplete: stepComplete,
+        missingFields: nowMissingFields,
+        canProceedToNext: stepComplete,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
