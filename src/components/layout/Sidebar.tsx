@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
+import logoIcon from "@/assets/logo-icon.png";
 
 const baseNavItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -138,11 +139,11 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           )}>
             <div className="flex items-center gap-3">
               <img 
-                src={logo} 
+                src={collapsed ? logoIcon : logo} 
                 alt="Симора" 
                 className={cn(
-                  "h-10 object-contain transition-all duration-300 dark:invert dark:brightness-200",
-                  collapsed ? "w-10" : "w-auto max-w-[140px]"
+                  "object-contain transition-all duration-300 dark:invert dark:brightness-200",
+                  collapsed ? "h-8 w-8" : "h-10 w-auto max-w-[140px]"
                 )}
               />
             </div>
