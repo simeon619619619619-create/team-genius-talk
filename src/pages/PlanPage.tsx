@@ -62,6 +62,15 @@ export default function PlanPage() {
     }
   }, [toggleStepComplete, triggerConfetti]);
 
+  const handleGoToNextStep = useCallback(() => {
+    if (!activeStepId) return;
+    const currentIndex = steps.findIndex(s => s.id === activeStepId);
+    const nextStep = steps[currentIndex + 1];
+    if (nextStep) {
+      setActiveStepId(nextStep.id);
+    }
+  }, [activeStepId, steps]);
+
   // Set active step when steps load
   useEffect(() => {
     if (steps.length > 0 && !activeStepId) {
@@ -186,7 +195,7 @@ export default function PlanPage() {
           </div>
 
           {/* Active Step Details */}
-          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} />}
+          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} />}
         </div>
       </div>
     </MainLayout>;
