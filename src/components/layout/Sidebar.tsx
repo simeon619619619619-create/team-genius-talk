@@ -10,7 +10,9 @@ import {
   Shield,
   LogOut,
   LogIn,
-  User
+  User,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const baseNavItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -38,7 +41,12 @@ const baseNavItems = [
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -104,63 +112,112 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
+    <aside className={cn(
+      "fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-300",
+      collapsed ? "w-16" : "w-64"
+    )}>
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between border-b border-border px-6">
+        <div className={cn(
+          "flex h-16 items-center border-b border-border",
+          collapsed ? "justify-center px-2" : "justify-between px-6"
+        )}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary flex-shrink-0">
               <TrendingUp className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display text-xl font-bold text-foreground">
-              BizPlan<span className="text-primary">AI</span>
-            </span>
+            {!collapsed && (
+              <span className="font-display text-xl font-bold text-foreground">
+                BizPlan<span className="text-primary">AI</span>
+              </span>
+            )}
           </div>
-          <ThemeToggle />
+          {!collapsed && <ThemeToggle />}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className={cn("flex-1 space-y-1", collapsed ? "p-2" : "p-4")}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
-            return (
+            const linkContent = (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200",
+                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
+                  collapsed ? "justify-center p-3" : "gap-3 px-4 py-3",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
-                <item.icon className="h-5 w-5" />
-                {item.label}
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && item.label}
               </Link>
             );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.path} delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    {linkContent}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="ml-2">
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return linkContent;
           })}
         </nav>
 
+        {/* Collapse Toggle */}
+        <div className={cn("border-t border-border", collapsed ? "p-2" : "p-4")}>
+          <button
+            onClick={onToggle}
+            className={cn(
+              "flex w-full items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
+              collapsed ? "justify-center p-3" : "gap-3 px-4 py-3"
+            )}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <>
+                <ChevronLeft className="h-5 w-5" />
+                <span className="text-sm font-medium">Свий</span>
+              </>
+            )}
+          </button>
+        </div>
+
         {/* User Section */}
-        <div className="border-t border-border p-4">
+        <div className={cn("border-t border-border", collapsed ? "p-2" : "p-4")}>
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex w-full items-center gap-3 rounded-lg p-3 hover:bg-secondary transition-colors">
-                  <Avatar className="h-10 w-10">
+                <button className={cn(
+                  "flex w-full items-center rounded-lg hover:bg-secondary transition-colors",
+                  collapsed ? "justify-center p-2" : "gap-3 p-3"
+                )}>
+                  <Avatar className={cn(collapsed ? "h-8 w-8" : "h-10 w-10")}>
                     <AvatarImage src={profile?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
                       {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {profile?.full_name || 'Потребител'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user.email}
-                    </p>
-                  </div>
+                  {!collapsed && (
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {profile?.full_name || 'Потребител'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -183,14 +240,32 @@ export function Sidebar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3"
-              onClick={() => navigate("/auth")}
-            >
-              <LogIn className="h-4 w-4" />
-              Вход / Регистрация
-            </Button>
+            collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="w-full"
+                    onClick={() => navigate("/auth")}
+                  >
+                    <LogIn className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="ml-2">
+                  Вход / Регистрация
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-3"
+                onClick={() => navigate("/auth")}
+              >
+                <LogIn className="h-4 w-4" />
+                Вход / Регистрация
+              </Button>
+            )
           )}
         </div>
       </div>
