@@ -24,9 +24,10 @@ interface StepChatInterfaceProps {
   bot: GlobalBot | null;
   onContentUpdate: (content: string) => void;
   onStepComplete?: () => void;
+  onCompletionStatusChange?: (canComplete: boolean, missingFields: string[]) => void;
 }
 
-export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete }: StepChatInterfaceProps) {
+export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange }: StepChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +58,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
     setManualContent(step.generated_content || "");
   }, [step.generated_content]);
 
-  // Check completion status when answers change
+  // Check completion status when answers change and notify parent
   useEffect(() => {
     if (requiredFields.length > 0) {
       const missing = requiredFields.filter(field => {
@@ -65,12 +66,17 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
         return !answer || 
                answer.trim().length === 0 || 
                answer.toLowerCase().includes('не знам') ||
-               answer.toLowerCase().includes('не съм решил');
+               answer.toLowerCase().includes('не съм решил') ||
+               answer.toLowerCase().includes('не съм сигурен');
       });
       setMissingFields(missing);
-      setStepComplete(missing.length === 0);
+      const canComplete = missing.length === 0;
+      setStepComplete(canComplete);
+      
+      // Notify parent component about completion status
+      onCompletionStatusChange?.(canComplete, missing);
     }
-  }, [collectedAnswers, requiredFields]);
+  }, [collectedAnswers, requiredFields, onCompletionStatusChange]);
 
   const loadConversation = async () => {
     const { data, error } = await supabase
