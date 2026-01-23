@@ -531,7 +531,7 @@ function PlanSection({
   return (
     <div className="space-y-6">
       {/* Goals Section */}
-      <Card>
+      <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/90 dark:from-card/90 dark:to-card/60 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -542,7 +542,7 @@ function PlanSection({
               variant="outline"
               size="sm"
               onClick={() => setShowGoalForm(true)}
-              className="gap-1"
+              className="gap-1 dark:border-border/50 dark:hover:bg-accent/50"
             >
               <Plus className="h-4 w-4" />
               Добави цел
@@ -560,7 +560,7 @@ function PlanSection({
             />
           )}
           {goals.length === 0 && !showGoalForm && (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-8">
               Няма добавени цели
             </p>
           )}
@@ -576,7 +576,7 @@ function PlanSection({
       </Card>
 
       {/* Projects/Strategies/Actions Section */}
-      <Card>
+      <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/90 dark:from-card/90 dark:to-card/60 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -587,7 +587,7 @@ function PlanSection({
               variant="outline"
               size="sm"
               onClick={() => setShowItemForm(true)}
-              className="gap-1"
+              className="gap-1 dark:border-border/50 dark:hover:bg-accent/50"
             >
               <Plus className="h-4 w-4" />
               Добави
@@ -605,7 +605,7 @@ function PlanSection({
             />
           )}
           {items.length === 0 && !showItemForm && (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-8">
               Няма добавени елементи
             </p>
           )}
@@ -796,27 +796,27 @@ export default function BusinessPlanPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
+          <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/80 dark:from-card/80 dark:to-card/40 shadow-sm hover:shadow-md transition-shadow duration-300">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
+                <div className="p-2.5 rounded-xl bg-primary/15 dark:bg-primary/20 ring-1 ring-primary/20">
                   <Target className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{totalGoals}</p>
+                  <p className="text-2xl font-bold text-foreground">{totalGoals}</p>
                   <p className="text-xs text-muted-foreground">Общо цели</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/80 dark:from-card/80 dark:to-card/40 shadow-sm hover:shadow-md transition-shadow duration-300">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-success/10">
+                <div className="p-2.5 rounded-xl bg-success/15 dark:bg-success/20 ring-1 ring-success/20">
                   <Briefcase className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-foreground">
                     {plan.annualItems.filter((i) => i.type === "project").length +
                       plan.quarters.Q1.items.filter((i) => i.type === "project").length +
                       plan.quarters.Q2.items.filter((i) => i.type === "project").length +
@@ -828,14 +828,14 @@ export default function BusinessPlanPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/80 dark:from-card/80 dark:to-card/40 shadow-sm hover:shadow-md transition-shadow duration-300">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-warning/10">
+                <div className="p-2.5 rounded-xl bg-warning/15 dark:bg-warning/20 ring-1 ring-warning/20">
                   <Zap className="h-5 w-5 text-warning" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-foreground">
                     {plan.annualItems.filter((i) => i.type === "action").length +
                       plan.quarters.Q1.items.filter((i) => i.type === "action").length +
                       plan.quarters.Q2.items.filter((i) => i.type === "action").length +
@@ -847,14 +847,14 @@ export default function BusinessPlanPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/80 dark:from-card/80 dark:to-card/40 shadow-sm hover:shadow-md transition-shadow duration-300">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-secondary">
+                <div className="p-2.5 rounded-xl bg-muted dark:bg-muted/50 ring-1 ring-border/50">
                   <BarChart3 className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{totalItems}</p>
+                  <p className="text-2xl font-bold text-foreground">{totalItems}</p>
                   <p className="text-xs text-muted-foreground">Общо елементи</p>
                 </div>
               </div>
