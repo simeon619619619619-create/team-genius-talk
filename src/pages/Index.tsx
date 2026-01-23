@@ -6,6 +6,7 @@ import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { QuickCreateButton } from "@/components/dashboard/QuickCreateButton";
 
 const Index = () => {
   const { user } = useAuth();
@@ -32,13 +33,16 @@ const Index = () => {
     <MainLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="animate-slide-up">
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Добре дошли, <span className="text-gradient">{displayName}</span>
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Вашият AI асистент за бизнес планиране и маркетинг
-          </p>
+        <div className="flex items-start justify-between animate-slide-up">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">
+              Добре дошли, <span className="text-gradient">{displayName}</span>
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Вашият AI асистент за бизнес планиране и маркетинг
+            </p>
+          </div>
+          <QuickCreateButton />
         </div>
 
         {/* Stats */}
