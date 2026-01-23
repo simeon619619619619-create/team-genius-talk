@@ -36,7 +36,7 @@ const Index = () => {
         <div className="flex items-center justify-between gap-4 animate-slide-up">
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl font-display font-bold text-foreground">
-              Добре дошли, <span className="text-gradient truncate">{displayName}</span>
+              Добре дошли, <span className="font-bold truncate">{displayName}</span>
             </h1>
             <p className="mt-2 text-muted-foreground">
               Вашият AI асистент за бизнес планиране и маркетинг
