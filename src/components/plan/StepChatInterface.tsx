@@ -264,13 +264,19 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   return (
     <div className="flex flex-col h-full">
       <Tabs value={mode} onValueChange={(v) => setMode(v as 'chat' | 'manual')} className="flex flex-col h-full">
-        <div className="border-b px-4 py-2 flex-shrink-0">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat" className="gap-2">
+        <div className="border-b border-border/50 px-4 py-2.5 flex-shrink-0">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-secondary/50 p-1">
+            <TabsTrigger 
+              value="chat" 
+              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <MessageSquare className="h-4 w-4" />
               Чат с бот
             </TabsTrigger>
-            <TabsTrigger value="manual" className="gap-2">
+            <TabsTrigger 
+              value="manual" 
+              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
               <PenLine className="h-4 w-4" />
               Пиша сам
             </TabsTrigger>
@@ -280,49 +286,52 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
         <TabsContent value="chat" className="flex-1 flex flex-col m-0 min-h-0 data-[state=inactive]:hidden">
           {/* Messages area - scrollable, takes remaining space */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-3 items-start",
+                  "flex gap-3 items-start animate-fade-in",
                   message.role === 'user' ? "justify-end" : "justify-start"
                 )}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 {message.role === 'assistant' && (
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 shadow-sm transition-transform duration-200 hover:scale-105">
                     {bot?.avatar_url ? (
-                      <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-lg object-cover" />
+                      <img src={bot.avatar_url} alt={bot.name} className="h-full w-full rounded-xl object-cover" />
                     ) : (
                       <Bot className="h-4 w-4 text-primary" />
                     )}
                   </div>
                 )}
                 {message.role === 'user' && (
-                  <div
-                    className="rounded-full px-4 py-1.5 text-sm font-medium bg-[#0891b2] text-white"
-                  >
+                  <div className="rounded-2xl px-4 py-2 text-sm font-medium bg-primary text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md">
                     {message.content}
                   </div>
                 )}
                 {message.role === 'assistant' && (
-                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-secondary/80 prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:text-foreground max-w-none">
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-secondary/60 shadow-sm prose prose-sm dark:prose-invert prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:text-foreground max-w-none transition-all duration-200 hover:bg-secondary/80">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 )}
                 {message.role === 'user' && (
-                  <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4" />
+                  <div className="h-9 w-9 rounded-xl bg-secondary/80 flex items-center justify-center shrink-0 shadow-sm">
+                    <User className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-3 items-start">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="flex gap-3 items-start animate-fade-in">
+                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 shadow-sm">
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
-                <div className="bg-secondary/80 rounded-2xl px-4 py-3">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="bg-secondary/60 rounded-2xl px-4 py-3 shadow-sm">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
                 </div>
               </div>
             )}
@@ -330,12 +339,12 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
           </div>
 
           {/* Input - FIXED at bottom */}
-          <div className="border-t p-3 bg-background flex-shrink-0">
+          <div className="border-t border-border/50 p-3 bg-background/80 backdrop-blur-sm flex-shrink-0">
             {Object.keys(collectedAnswers).length >= questions.length && (
               <Button
                 onClick={handleGenerateFromAnswers}
                 disabled={isGenerating}
-                className="w-full gap-2 mb-2"
+                className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 variant="secondary"
                 size="sm"
               >
@@ -347,8 +356,11 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 Генерирай съдържание от отговорите
               </Button>
             )}
-            <div className="flex items-center gap-4 bg-secondary/60 rounded-full px-5 py-3">
-              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+            <div className="flex items-center gap-4 bg-secondary/40 hover:bg-secondary/60 rounded-2xl px-5 py-3.5 transition-all duration-200 border border-border/30 focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/10">
+              <button 
+                type="button" 
+                className="text-muted-foreground hover:text-foreground transition-all duration-200 hover:scale-110 active:scale-95"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -359,8 +371,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Съобщение"
-                className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground"
+                placeholder="Напишете съобщение..."
+                className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -372,9 +384,14 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 type="button"
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                className={cn(
+                  "p-2 rounded-xl transition-all duration-200",
+                  input.trim() 
+                    ? "bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:scale-105 active:scale-95" 
+                    : "text-muted-foreground/40 cursor-not-allowed"
+                )}
               >
-                <Send className="h-5 w-5" />
+                <Send className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -386,11 +403,14 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               value={manualContent}
               onChange={(e) => setManualContent(e.target.value)}
               placeholder="Напишете съдържанието за тази секция..."
-              className="flex-1 resize-none min-h-[200px]"
+              className="flex-1 resize-none min-h-[200px] rounded-2xl border-border/50 focus:border-primary/30 transition-all duration-200"
             />
           </div>
-          <div className="border-t p-3 flex-shrink-0">
-            <Button onClick={handleSaveManual} className="w-full">
+          <div className="border-t border-border/50 p-3 flex-shrink-0">
+            <Button 
+              onClick={handleSaveManual} 
+              className="w-full rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
               Запази съдържанието
             </Button>
           </div>

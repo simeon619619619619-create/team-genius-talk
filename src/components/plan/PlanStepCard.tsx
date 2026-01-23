@@ -86,26 +86,27 @@ export function PlanStepCard({
   };
 
   return (
-    <div className="lg:col-span-2 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
+    <div className="lg:col-span-2 flex flex-col animate-fade-in" style={{ height: 'calc(100vh - 80px)' }}>
       {/* Main Card - takes all space except button */}
-      <Card className="p-3 animate-fade-in flex flex-col flex-1 min-h-0 overflow-hidden">
+      <Card className="p-4 flex flex-col flex-1 min-h-0 overflow-hidden rounded-3xl border-border/50 shadow-xl shadow-black/5 transition-shadow duration-300">
         {/* Combined Header with Mark Complete Button */}
-        <div className="flex items-center justify-between mb-2 flex-shrink-0">
+        <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium",
+              "transition-all duration-300 ease-out",
               step.completed
-                ? "bg-success/10 text-success"
+                ? "bg-success/15 text-success"
                 : "bg-primary/10 text-primary"
             )}>
               {step.completed ? (
                 <>
-                  <Check className="h-3 w-3" />
+                  <Check className="h-3.5 w-3.5" />
                   Завършено
                 </>
               ) : (
                 <>
-                  <Circle className="h-3 w-3" />
+                  <Circle className="h-3.5 w-3.5" />
                   В процес
                 </>
               )}
@@ -117,33 +118,34 @@ export function PlanStepCard({
           
           {/* Mark Complete Button - with intelligent protection */}
           <TooltipProvider>
-            <Tooltip>
+            <Tooltip delayDuration={200}>
               <TooltipTrigger asChild>
                 <div>
                   <Button
                     size="sm"
                     variant={step.completed ? "outline" : "default"}
                     className={cn(
-                      "shrink-0",
-                      !step.completed && canComplete && "gradient-primary",
-                      !step.completed && !canComplete && "opacity-50"
+                      "shrink-0 rounded-xl transition-all duration-300 ease-out",
+                      !step.completed && canComplete && "gradient-primary shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95",
+                      !step.completed && !canComplete && "opacity-40 cursor-not-allowed",
+                      step.completed && "hover:bg-secondary/80"
                     )}
                     onClick={handleToggleComplete}
                     disabled={!step.completed && !canComplete}
                   >
                     {step.completed ? (
                       <>
-                        <Circle className="h-4 w-4 mr-1" />
+                        <Circle className="h-4 w-4 mr-1.5" />
                         Върни
                       </>
                     ) : !canComplete ? (
                       <>
-                        <Lock className="h-4 w-4 mr-1" />
+                        <Lock className="h-4 w-4 mr-1.5" />
                         Завърши
                       </>
                     ) : (
                       <>
-                        <Check className="h-4 w-4 mr-1" />
+                        <Check className="h-4 w-4 mr-1.5" />
                         Завърши
                       </>
                     )}
@@ -151,7 +153,7 @@ export function PlanStepCard({
                 </div>
               </TooltipTrigger>
               {!step.completed && !canComplete && missingFields.length > 0 && (
-                <TooltipContent side="bottom" className="max-w-xs">
+                <TooltipContent side="bottom" className="max-w-xs rounded-xl p-3">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                     <div className="text-sm">
@@ -167,7 +169,11 @@ export function PlanStepCard({
 
         {/* Progress indicator for missing fields */}
         {!step.completed && missingFields.length > 0 && (
-          <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-warning/10 rounded-lg text-xs text-warning">
+          <div className={cn(
+            "flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs",
+            "bg-warning/10 text-warning border border-warning/20",
+            "animate-fade-in transition-all duration-300"
+          )}>
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>
               Отговорете на {missingFields.length} {missingFields.length === 1 ? 'въпрос' : 'въпроса'} за да завършите стъпката
@@ -176,7 +182,7 @@ export function PlanStepCard({
         )}
 
         {/* Chat Interface - takes ALL remaining space in card */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 rounded-2xl overflow-hidden">
           <StepChatInterface
             step={step}
             projectId={projectId}
