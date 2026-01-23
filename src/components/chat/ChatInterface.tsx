@@ -224,22 +224,22 @@ export function ChatInterface({
           {/* Suggestions above input */}
           {suggestions.length > 0 && messages.length <= 1}
 
-          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-2 transition-colors focus-within:border-border">
+          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-3 py-1.5 transition-colors focus-within:border-border">
             {/* Voice Button */}
             <button 
               onClick={isListening ? stopListening : startListening} 
               className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
                 isListening 
                   ? "bg-foreground text-background" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {isListening ? <StopIcon className="h-4 w-4" /> : <MicIcon className="h-5 w-5" />}
+              {isListening ? <StopIcon className="h-3.5 w-3.5" /> : <MicIcon className="h-4 w-4" />}
             </button>
 
             {/* Text Input */}
-            <div className="relative flex-1 px-2">
+            <div className="relative flex-1 flex items-center min-h-[36px]">
               <textarea 
                 ref={textareaRef} 
                 value={displayValue} 
@@ -258,7 +258,7 @@ export function ChatInterface({
                 placeholder={isListening ? "Слушам..." : "Съобщение"} 
                 rows={1} 
                 className={cn(
-                  "w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-muted-foreground/60 focus:outline-none",
+                  "w-full resize-none bg-transparent px-3 py-2 text-[15px] leading-5 placeholder:text-muted-foreground/60 focus:outline-none",
                   isListening && "text-foreground/80"
                 )} 
                 style={{ maxHeight: "120px" }} 
