@@ -219,8 +219,8 @@ export function ChatInterface({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border/50 bg-background">
-        <div className="mx-auto max-w-2xl px-4 py-4">
+      <div className="border-t border-border/50 bg-background pb-0">
+        <div className="mx-auto max-w-2xl px-4 py-3">
           {/* Suggestions above input */}
           {suggestions.length > 0 && messages.length <= 1}
 
