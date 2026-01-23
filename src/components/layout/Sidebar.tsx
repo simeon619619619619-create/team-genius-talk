@@ -157,15 +157,18 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                  collapsed ? "justify-center p-3" : "gap-3 px-4 py-3",
+                  "flex items-center text-sm font-medium transition-all duration-300 ease-out",
+                  collapsed ? "justify-center rounded-2xl p-3" : "gap-3 rounded-full px-4 py-3",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-secondary text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
                 )}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && item.label}
+                <item.icon className={cn(
+                  "flex-shrink-0 transition-transform duration-200",
+                  isActive && "scale-110"
+                )} style={{ width: 20, height: 20 }} />
+                {!collapsed && <span className="transition-opacity duration-200">{item.label}</span>}
               </Link>
             );
 
