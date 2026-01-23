@@ -23,6 +23,10 @@ export default function AssistantPage() {
   return (
     <MainLayout>
       <div className="h-[calc(100vh-3rem)] flex flex-col">
+        {/* Header */}
+        <div className="border-b border-border/50 px-4 py-3">
+          <h1 className="text-lg font-semibold text-foreground text-center">Simora AI</h1>
+        </div>
         <ChatInterface suggestions={suggestions} />
       </div>
     </MainLayout>
