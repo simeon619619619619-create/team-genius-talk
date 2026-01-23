@@ -54,7 +54,7 @@ export default function TasksPage() {
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <h2 className="text-2xl font-display font-bold text-foreground">Моля, влезте в акаунта си</h2>
           <p className="text-muted-foreground">За да виждате и управлявате задачите си, трябва да сте влезли.</p>
-          <Button onClick={() => navigate("/auth")} className="gradient-primary text-primary-foreground">
+          <Button onClick={() => navigate("/auth")} className="gradient-primary text-primary-foreground rounded-xl font-medium">
             Вход / Регистрация
           </Button>
         </div>

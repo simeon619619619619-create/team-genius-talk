@@ -65,7 +65,7 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl hover:opacity-90 active:scale-[0.98]">
+        <Button className="gradient-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 active:scale-[0.98] transition-all duration-200">
           <Plus className="h-4 w-4 mr-2" />
           Нова задача
         </Button>
@@ -146,10 +146,10 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-xl dark:border-border/50 dark:hover:bg-accent/50">
               Отказ
             </Button>
-            <Button type="submit" className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl hover:opacity-90 active:scale-[0.98]">
+            <Button type="submit" className="gradient-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 active:scale-[0.98] transition-all duration-200">
               Добави задача
             </Button>
           </div>
