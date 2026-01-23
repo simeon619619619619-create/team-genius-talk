@@ -224,42 +224,71 @@ export function ChatInterface({
           {/* Suggestions above input */}
           {suggestions.length > 0 && messages.length <= 1}
 
-          <div className="flex items-end gap-3">
+          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-2 transition-colors focus-within:border-border">
             {/* Voice Button */}
-            <button onClick={isListening ? stopListening : startListening} className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all", isListening ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:text-foreground")}>
+            <button 
+              onClick={isListening ? stopListening : startListening} 
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all",
+                isListening 
+                  ? "bg-foreground text-background" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              )}
+            >
               {isListening ? <StopIcon className="h-4 w-4" /> : <MicIcon className="h-5 w-5" />}
             </button>
 
             {/* Text Input */}
-            <div className="relative flex-1">
-              <textarea ref={textareaRef} value={displayValue} onChange={e => {
-              if (!isListening) {
-                setInput(e.target.value);
-              }
-            }} onKeyDown={e => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (isListening) stopListening();
-                handleSend(displayValue);
-              }
-            }} placeholder={isListening ? "Слушам..." : "Съобщение"} rows={1} className={cn("w-full resize-none rounded-[22px] border border-border/50 bg-secondary/50 px-4 py-2.5 pr-12 text-[15px] placeholder:text-muted-foreground/60 focus:outline-none focus:border-border transition-colors", isListening && "border-foreground/30 bg-foreground/5")} style={{
-              maxHeight: "120px"
-            }} />
+            <div className="relative flex-1 px-2">
+              <textarea 
+                ref={textareaRef} 
+                value={displayValue} 
+                onChange={e => {
+                  if (!isListening) {
+                    setInput(e.target.value);
+                  }
+                }} 
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (isListening) stopListening();
+                    handleSend(displayValue);
+                  }
+                }} 
+                placeholder={isListening ? "Слушам..." : "Съобщение"} 
+                rows={1} 
+                className={cn(
+                  "w-full resize-none bg-transparent py-2.5 text-[15px] placeholder:text-muted-foreground/60 focus:outline-none",
+                  isListening && "text-foreground/80"
+                )} 
+                style={{ maxHeight: "120px" }} 
+              />
               
               {/* Recording indicator */}
-              {isListening && <div className="absolute right-14 top-1/2 -translate-y-1/2">
-                  <span className="relative flex h-2.5 w-2.5">
+              {isListening && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                  <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-foreground" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground" />
                   </span>
-                </div>}
+                </div>
+              )}
             </div>
 
             {/* Send Button */}
-            <button onClick={() => {
-            if (isListening) stopListening();
-            handleSend(displayValue);
-          }} disabled={!canSend} className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all", canSend ? "bg-foreground text-background hover:bg-foreground/90" : "bg-secondary text-muted-foreground/40")}>
+            <button 
+              onClick={() => {
+                if (isListening) stopListening();
+                handleSend(displayValue);
+              }} 
+              disabled={!canSend} 
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all",
+                canSend 
+                  ? "bg-foreground text-background hover:bg-foreground/90" 
+                  : "text-muted-foreground/40"
+              )}
+            >
               <SendIcon className="h-4 w-4" />
             </button>
           </div>
