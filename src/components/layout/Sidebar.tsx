@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import logo from "@/assets/logo.png";
 
 const baseNavItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -136,14 +137,14 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             collapsed ? "justify-center px-2" : "justify-between px-6"
           )}>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary flex-shrink-0">
-                <TrendingUp className="h-5 w-5 text-primary-foreground" />
-              </div>
-              {!collapsed && (
-                <span className="font-display text-xl font-bold text-foreground">
-                  BizPlan<span className="text-primary">AI</span>
-                </span>
-              )}
+              <img 
+                src={logo} 
+                alt="Симора" 
+                className={cn(
+                  "h-10 object-contain transition-all duration-300 dark:invert dark:brightness-200",
+                  collapsed ? "w-10" : "w-auto max-w-[140px]"
+                )}
+              />
             </div>
             {!collapsed && <ThemeToggle />}
           </div>
