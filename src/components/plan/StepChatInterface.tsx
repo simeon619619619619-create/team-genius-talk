@@ -296,12 +296,20 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                 Генерирай съдържание от отговорите
               </Button>
             )}
-            <div className="flex gap-2 items-center">
-              <Textarea
+            <div className="flex items-center gap-3 bg-secondary/60 rounded-full px-4 py-2">
+              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+              </button>
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Напишете отговор..."
-                className="min-h-[40px] max-h-[40px] resize-none py-2"
+                placeholder="Съобщение"
+                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -309,14 +317,14 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate }: Ste
                   }
                 }}
               />
-              <Button
+              <button
+                type="button"
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                size="icon"
-                className="h-[40px] w-[40px] shrink-0"
+                className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                <Send className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </TabsContent>
