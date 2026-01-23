@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { PlanStep } from "@/hooks/usePlanSteps";
 import type { GlobalBot } from "@/hooks/useGlobalBots";
 import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -298,8 +299,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   </div>
                 )}
                 {message.role === 'assistant' && (
-                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-secondary/80">
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-secondary/80 prose prose-sm dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:text-foreground max-w-none">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 )}
                 {message.role === 'user' && (
