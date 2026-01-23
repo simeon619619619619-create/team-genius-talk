@@ -157,8 +157,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center text-sm font-medium transition-all duration-300 ease-out",
-                  collapsed ? "justify-center rounded-2xl p-3" : "gap-3 rounded-full px-4 py-3",
+                  "flex items-center font-medium transition-all duration-300 ease-out",
+                  collapsed ? "justify-center rounded-2xl p-3" : "gap-3 rounded-full px-4 py-3.5",
                   isActive
                     ? "bg-secondary text-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
@@ -167,8 +167,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 <item.icon className={cn(
                   "flex-shrink-0 transition-transform duration-200",
                   isActive && "scale-110"
-                )} style={{ width: 20, height: 20 }} />
-                {!collapsed && <span className="transition-opacity duration-200">{item.label}</span>}
+                )} style={{ width: 22, height: 22 }} />
+                {!collapsed && <span className="text-[15px] transition-opacity duration-200">{item.label}</span>}
               </Link>
             );
 
