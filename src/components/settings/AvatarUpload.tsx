@@ -99,21 +99,32 @@ export function AvatarUpload({ userId, currentAvatarUrl, fullName, onAvatarChang
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative">
-        <Avatar className="h-20 w-20 border-2 border-primary/20">
-          <AvatarImage src={currentAvatarUrl || undefined} alt={fullName} />
-          <AvatarFallback className="bg-primary/10 text-primary text-lg">
-            {fullName ? getInitials(fullName) : <User className="h-8 w-8" />}
+    <div className="flex items-center gap-6 p-4 rounded-xl bg-secondary/30 border border-border/50">
+      <div className="relative group">
+        <Avatar className="h-24 w-24 border-4 border-background shadow-lg ring-2 ring-primary/20">
+          <AvatarImage src={currentAvatarUrl || undefined} alt={fullName} className="object-cover" />
+          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-2xl font-semibold">
+            {fullName ? getInitials(fullName) : <User className="h-10 w-10" />}
           </AvatarFallback>
         </Avatar>
         {uploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full backdrop-blur-sm">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Camera className="h-6 w-6 text-white" />
+        </div>
       </div>
-      <div>
+      <div className="flex-1 space-y-3">
+        <div>
+          <h3 className="font-medium text-foreground">Профилна снимка</h3>
+          <p className="text-sm text-muted-foreground">
+            Качете снимка за вашия профил
+          </p>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -122,18 +133,21 @@ export function AvatarUpload({ userId, currentAvatarUrl, fullName, onAvatarChang
           onChange={handleFileSelect}
           disabled={uploading}
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          <Camera className="h-4 w-4 mr-2" />
-          {uploading ? "Качване..." : "Смени снимка"}
-        </Button>
-        <p className="text-xs text-muted-foreground mt-1">
-          JPG, PNG или GIF. Макс. 5MB
-        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg border-border/60 hover:bg-secondary"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            {uploading ? "Качване..." : "Смени снимка"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            JPG, PNG или GIF • Макс. 5MB
+          </span>
+        </div>
       </div>
     </div>
   );

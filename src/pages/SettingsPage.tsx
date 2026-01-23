@@ -124,162 +124,208 @@ export default function SettingsPage() {
 
   return (
     <MainLayout>
-      <div className="max-w-2xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">Настройки</h1>
-          <p className="mt-2 text-muted-foreground">
+      <div className="max-w-3xl mx-auto space-y-8 pb-12">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-4xl font-display font-bold tracking-tight text-foreground">
+            Настройки
+          </h1>
+          <p className="text-lg text-muted-foreground">
             Управлявайте настройките на вашия акаунт
           </p>
         </div>
 
         {/* Profile Section */}
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <User className="h-5 w-5 text-primary" />
+        <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                <User className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-semibold text-foreground">Профил</h2>
+                <p className="text-sm text-muted-foreground">Вашата лична информация</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-display font-semibold">Профил</h2>
-              <p className="text-sm text-muted-foreground">Вашата лична информация</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {user && (
-              <AvatarUpload
-                userId={user.id}
-                currentAvatarUrl={profile.avatar_url}
-                fullName={profile.full_name}
-                onAvatarChange={(url) => setProfile({ ...profile, avatar_url: url })}
-              />
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Име и фамилия</Label>
-              <Input 
-                id="fullName" 
-                value={profile.full_name}
-                onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                placeholder="Въведете вашето име"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Имейл</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={profile.email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">Имейлът не може да бъде променян</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Телефон
-              </Label>
-              <Input 
-                id="phone" 
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                placeholder="+359..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="instagram" className="flex items-center gap-2">
-                <Instagram className="h-4 w-4" />
-                Instagram
-              </Label>
-              <Input 
-                id="instagram" 
-                value={profile.instagram}
-                onChange={(e) => setProfile({ ...profile, instagram: e.target.value })}
-                placeholder="@username"
-              />
+            <div className="space-y-6">
+              {user && (
+                <AvatarUpload
+                  userId={user.id}
+                  currentAvatarUrl={profile.avatar_url}
+                  fullName={profile.full_name}
+                  onAvatarChange={(url) => setProfile({ ...profile, avatar_url: url })}
+                />
+              )}
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-sm font-medium text-foreground">
+                    Име и фамилия
+                  </Label>
+                  <Input 
+                    id="fullName" 
+                    value={profile.full_name}
+                    onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                    placeholder="Въведете вашето име"
+                    className="h-11 rounded-xl border-border/60 bg-background/50 focus:border-primary focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-foreground">Имейл</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    value={profile.email}
+                    disabled
+                    className="h-11 rounded-xl bg-muted/50 text-muted-foreground cursor-not-allowed"
+                  />
+                  <p className="text-xs text-muted-foreground">Имейлът не може да бъде променян</p>
+                </div>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    Телефон
+                  </Label>
+                  <Input 
+                    id="phone" 
+                    value={profile.phone}
+                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                    placeholder="+359..."
+                    className="h-11 rounded-xl border-border/60 bg-background/50 focus:border-primary focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram" className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Instagram className="h-4 w-4 text-muted-foreground" />
+                    Instagram
+                  </Label>
+                  <Input 
+                    id="instagram" 
+                    value={profile.instagram}
+                    onChange={(e) => setProfile({ ...profile, instagram: e.target.value })}
+                    placeholder="@username"
+                    className="h-11 rounded-xl border-border/60 bg-background/50 focus:border-primary focus:ring-primary/20"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Notifications Section */}
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Bell className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="font-display font-semibold">Известия</h2>
-              <p className="text-sm text-muted-foreground">Настройки за известия</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Имейл известия</p>
-                <p className="text-sm text-muted-foreground">Получавайте актуализации по имейл</p>
+        <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                <Bell className="h-6 w-6 text-primary" />
               </div>
-              <Switch defaultChecked />
-            </div>
-            <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Известия за задачи</p>
-                <p className="text-sm text-muted-foreground">Известия за нови и променени задачи</p>
+                <h2 className="text-xl font-display font-semibold text-foreground">Известия</h2>
+                <p className="text-sm text-muted-foreground">Настройки за известия</p>
               </div>
-              <Switch defaultChecked />
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Седмични отчети</p>
-                <p className="text-sm text-muted-foreground">Получавайте седмични обобщения</p>
+            <div className="space-y-1 divide-y divide-border/50">
+              <div className="flex items-center justify-between py-4 first:pt-0">
+                <div className="space-y-0.5">
+                  <p className="font-medium text-foreground">Имейл известия</p>
+                  <p className="text-sm text-muted-foreground">Получавайте актуализации по имейл</p>
+                </div>
+                <Switch defaultChecked className="data-[state=checked]:bg-primary" />
               </div>
-              <Switch />
+              <div className="flex items-center justify-between py-4">
+                <div className="space-y-0.5">
+                  <p className="font-medium text-foreground">Известия за задачи</p>
+                  <p className="text-sm text-muted-foreground">Известия за нови и променени задачи</p>
+                </div>
+                <Switch defaultChecked className="data-[state=checked]:bg-primary" />
+              </div>
+              <div className="flex items-center justify-between py-4 last:pb-0">
+                <div className="space-y-0.5">
+                  <p className="font-medium text-foreground">Седмични отчети</p>
+                  <p className="text-sm text-muted-foreground">Получавайте седмични обобщения</p>
+                </div>
+                <Switch className="data-[state=checked]:bg-primary" />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Language Section */}
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Globe className="h-5 w-5 text-primary" />
+        <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                <Globe className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-semibold text-foreground">Език</h2>
+                <p className="text-sm text-muted-foreground">Изберете език на интерфейса</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-display font-semibold">Език</h2>
-              <p className="text-sm text-muted-foreground">Изберете език на интерфейса</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border-2 border-primary cursor-pointer">
-              <span className="text-2xl">🇧🇬</span>
-              <span className="font-medium">Български</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary hover:bg-secondary/80 cursor-pointer transition-colors">
-              <span className="text-2xl">🇬🇧</span>
-              <span className="font-medium">English</span>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border-2 border-primary cursor-pointer transition-all duration-200 hover:bg-primary/15">
+                <span className="text-3xl">🇧🇬</span>
+                <div>
+                  <span className="font-semibold text-foreground">Български</span>
+                  <p className="text-xs text-muted-foreground">Избран</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 border-2 border-transparent hover:border-border hover:bg-secondary cursor-pointer transition-all duration-200">
+                <span className="text-3xl">🇬🇧</span>
+                <div>
+                  <span className="font-semibold text-foreground">English</span>
+                  <p className="text-xs text-muted-foreground">Скоро</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Security Section */}
-        <div className="glass-card rounded-xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Shield className="h-5 w-5 text-primary" />
+        <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-semibold text-foreground">Сигурност</h2>
+                <p className="text-sm text-muted-foreground">Настройки за сигурност</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-display font-semibold">Сигурност</h2>
-              <p className="text-sm text-muted-foreground">Настройки за сигурност</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Button 
+                variant="outline" 
+                className="h-14 justify-start gap-3 rounded-xl border-border/60 bg-background/50 hover:bg-secondary hover:border-border text-left"
+                onClick={() => setPasswordDialogOpen(true)}
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                  <Shield className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-foreground">Промяна на парола</span>
+                  <span className="text-xs text-muted-foreground">Актуализирайте паролата си</span>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-14 justify-start gap-3 rounded-xl border-border/60 bg-background/50 text-left opacity-60 cursor-not-allowed"
+                disabled
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-foreground">2FA</span>
+                  <span className="text-xs text-muted-foreground">Скоро</span>
+                </div>
+              </Button>
             </div>
-          </div>
-          <div className="space-y-4">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start"
-              onClick={() => setPasswordDialogOpen(true)}
-            >
-              Промяна на парола
-            </Button>
-            <Button variant="outline" className="w-full justify-start" disabled>
-              Двуфакторна автентикация (скоро)
-            </Button>
           </div>
         </div>
 
@@ -288,12 +334,19 @@ export default function SettingsPage() {
           onOpenChange={setPasswordDialogOpen} 
         />
 
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={loadProfile}>Отказ</Button>
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-4 pt-4">
           <Button 
-            className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
+            variant="outline" 
+            onClick={loadProfile}
+            className="h-11 px-6 rounded-xl border-border/60 hover:bg-secondary"
+          >
+            Отказ
+          </Button>
+          <Button 
             onClick={saveProfile}
             disabled={saving}
+            className="h-11 px-8 rounded-xl bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:shadow-xl transition-all duration-200"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Запази промените
