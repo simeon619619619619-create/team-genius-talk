@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { Bot, User } from "lucide-react";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -7,30 +6,20 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ role, content }: ChatMessageProps) {
-  const isAssistant = role === "assistant";
+  const isUser = role === "user";
 
   return (
     <div className={cn(
-      "flex gap-3 animate-slide-up",
-      isAssistant ? "flex-row" : "flex-row-reverse"
+      "flex animate-fade-in",
+      isUser ? "justify-end" : "justify-start"
     )}>
       <div className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-        isAssistant ? "gradient-primary" : "bg-secondary"
+        "max-w-[75%] px-4 py-2.5 text-[15px] leading-relaxed",
+        isUser 
+          ? "bg-primary text-primary-foreground rounded-[20px] rounded-br-[4px]" 
+          : "bg-secondary text-secondary-foreground rounded-[20px] rounded-bl-[4px]"
       )}>
-        {isAssistant ? (
-          <Bot className="h-5 w-5 text-primary-foreground" />
-        ) : (
-          <User className="h-5 w-5 text-secondary-foreground" />
-        )}
-      </div>
-      <div className={cn(
-        "max-w-[80%] rounded-2xl px-4 py-3",
-        isAssistant 
-          ? "bg-secondary text-secondary-foreground rounded-tl-sm" 
-          : "gradient-primary text-primary-foreground rounded-tr-sm"
-      )}>
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+        <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
   );
