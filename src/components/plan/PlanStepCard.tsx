@@ -123,12 +123,12 @@ export function PlanStepCard({
                 <div>
                   <Button
                     size="sm"
-                    variant={step.completed ? "outline" : "default"}
+                    variant={step.completed ? "outline" : "secondary"}
                     className={cn(
-                      "shrink-0 rounded-xl transition-all duration-300 ease-out",
-                      !step.completed && canComplete && "gradient-primary shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95",
-                      !step.completed && !canComplete && "opacity-40 cursor-not-allowed",
-                      step.completed && "hover:bg-secondary/80"
+                      "shrink-0 rounded-xl transition-all duration-300 ease-out font-medium",
+                      !step.completed && canComplete && "gradient-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95",
+                      !step.completed && !canComplete && "bg-muted/80 text-muted-foreground/70 dark:bg-muted/50 dark:text-muted-foreground/60 cursor-not-allowed border border-border/50",
+                      step.completed && "hover:bg-secondary/80 dark:hover:bg-secondary/60"
                     )}
                     onClick={handleToggleComplete}
                     disabled={!step.completed && !canComplete}
