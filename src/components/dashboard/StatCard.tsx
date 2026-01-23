@@ -15,24 +15,24 @@ interface StatCardProps {
 export function StatCard({ title, value, icon: Icon, trend, className }: StatCardProps) {
   return (
     <div className={cn(
-      "glass-card rounded-xl p-6 animate-fade-in",
+      "rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:bg-secondary/50",
       className
     )}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold font-display text-foreground">{value}</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="text-2xl font-semibold text-foreground">{value}</p>
           {trend && (
             <p className={cn(
-              "mt-2 text-sm font-medium",
-              trend.positive ? "text-success" : "text-destructive"
+              "text-xs",
+              trend.positive ? "text-muted-foreground" : "text-destructive"
             )}>
-              {trend.positive ? "+" : "-"}{Math.abs(trend.value)}% от миналия месец
+              {trend.positive ? "+" : "-"}{Math.abs(trend.value)}%
             </p>
           )}
         </div>
-        <div className="rounded-lg bg-primary/10 p-3">
-          <Icon className="h-6 w-6 text-primary" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+          <Icon className="h-5 w-5 text-foreground" />
         </div>
       </div>
     </div>
