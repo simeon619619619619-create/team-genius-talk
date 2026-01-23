@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Check, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Check, ChevronRight, Lock, Bot } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
 import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bot } from "lucide-react";
+import confetti from "canvas-confetti";
 export default function PlanPage() {
   const {
     user
@@ -44,6 +44,23 @@ export default function PlanPage() {
     getBotForStep,
     loading: botsLoading
   } = useGlobalBots();
+
+  const triggerConfetti = useCallback(() => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0']
+    });
+  }, []);
+
+  const handleToggleComplete = useCallback((stepId: string, currentlyCompleted: boolean) => {
+    toggleStepComplete(stepId);
+    // Trigger confetti when marking as complete (not when unmarking)
+    if (!currentlyCompleted) {
+      triggerConfetti();
+    }
+  }, [toggleStepComplete, triggerConfetti]);
 
   // Set active step when steps load
   useEffect(() => {
@@ -99,8 +116,8 @@ export default function PlanPage() {
             const previousStepsCompleted = index === 0 || steps.slice(0, index).every(s => s.generated_content || s.completed);
             const isLocked = !previousStepsCompleted;
             return <button key={step.id} onClick={() => !isLocked && setActiveStepId(step.id)} disabled={isLocked} className={cn("w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200", isLocked ? "opacity-50 cursor-not-allowed bg-secondary/30" : activeStepId === step.id ? "glass-card shadow-lg" : "hover:bg-secondary")}>
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden", isLocked ? "bg-muted text-muted-foreground" : step.completed ? "bg-success text-success-foreground" : activeStepId === step.id ? "gradient-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
-                    {step.completed ? <Check className="h-5 w-5" /> : isLocked ? <span className="text-xs">🔒</span> : assignedBot?.avatar_url ? <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" /> : <span className="font-medium">{index + 1}</span>}
+                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden", isLocked ? "bg-muted/50 border border-muted-foreground/20" : step.completed ? "bg-success text-success-foreground" : activeStepId === step.id ? "gradient-primary text-primary-foreground" : "bg-secondary border border-border")}>
+                    {step.completed ? <Check className="h-5 w-5" /> : isLocked ? <Lock className="h-4 w-4 text-muted-foreground" /> : assignedBot?.avatar_url ? <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" /> : <span className="font-medium text-foreground">{index + 1}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("font-medium truncate", (step.completed || isLocked) && "text-muted-foreground")}>
@@ -119,7 +136,7 @@ export default function PlanPage() {
           </div>
 
           {/* Active Step Details */}
-          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => toggleStepComplete(activeStep.id)} onContentUpdate={content => updateContent(activeStep.id, content)} />}
+          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} />}
         </div>
       </div>
     </MainLayout>;

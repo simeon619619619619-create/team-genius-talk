@@ -32,7 +32,7 @@ export function PlanStepCard({
     <div className="lg:col-span-2 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
       {/* Main Card - takes all space except button */}
       <Card className="p-3 animate-fade-in flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Combined Header */}
+        {/* Combined Header with Mark Complete Button */}
         <div className="flex items-center justify-between mb-2 flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className={cn(
@@ -57,6 +57,29 @@ export function PlanStepCard({
               {step.title}
             </h2>
           </div>
+          
+          {/* Mark Complete Button - Easy to access in header */}
+          <Button
+            size="sm"
+            variant={step.completed ? "outline" : "default"}
+            className={cn(
+              "shrink-0",
+              !step.completed && "gradient-primary"
+            )}
+            onClick={onToggleComplete}
+          >
+            {step.completed ? (
+              <>
+                <Circle className="h-4 w-4 mr-1" />
+                Върни
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                Завърши
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Chat Interface - takes ALL remaining space in card */}
@@ -69,17 +92,6 @@ export function PlanStepCard({
           />
         </div>
       </Card>
-
-      {/* Footer button - OUTSIDE the card */}
-      <div className="pt-3 flex-shrink-0">
-        <Button
-          variant={step.completed ? "outline" : "default"}
-          className={!step.completed ? "gradient-primary" : ""}
-          onClick={onToggleComplete}
-        >
-          {step.completed ? "Отбележи като незавършено" : "Маркирай като завършено"}
-        </Button>
-      </div>
     </div>
   );
 }
