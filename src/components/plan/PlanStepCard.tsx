@@ -17,6 +17,7 @@ interface PlanStepCardProps {
   onSelect: () => void;
   onToggleComplete: () => void;
   onContentUpdate: (content: string) => void;
+  onGoToNextStep?: () => void;
 }
 
 // Map field keys to human-readable Bulgarian labels
@@ -57,6 +58,7 @@ export function PlanStepCard({
   onSelect,
   onToggleComplete,
   onContentUpdate,
+  onGoToNextStep,
 }: PlanStepCardProps) {
   const [canComplete, setCanComplete] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
@@ -76,6 +78,12 @@ export function PlanStepCard({
     // Only allow completing if all required fields are answered
     if (canComplete) {
       onToggleComplete();
+      // Navigate to the next step after completing
+      if (onGoToNextStep) {
+        setTimeout(() => {
+          onGoToNextStep();
+        }, 500); // Small delay for confetti animation
+      }
     }
   };
 
@@ -126,9 +134,9 @@ export function PlanStepCard({
                     variant={step.completed ? "outline" : "secondary"}
                     className={cn(
                       "shrink-0 rounded-xl transition-all duration-300 ease-out font-medium",
-                      !step.completed && canComplete && "gradient-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95",
-                      !step.completed && !canComplete && "bg-muted/80 text-muted-foreground/70 dark:bg-muted/50 dark:text-muted-foreground/60 cursor-not-allowed border border-border/50",
-                      step.completed && "hover:bg-secondary/80 dark:hover:bg-secondary/60"
+                      !step.completed && canComplete && "bg-success hover:bg-success/90 text-success-foreground shadow-md shadow-success/25 hover:shadow-lg hover:shadow-success/30 hover:scale-105 active:scale-95",
+                      !step.completed && !canComplete && "bg-muted/60 text-muted-foreground/60 dark:bg-muted/40 dark:text-muted-foreground/50 cursor-not-allowed border border-border/30 dark:border-border/20",
+                      step.completed && "border-success/30 text-success hover:bg-success/10 dark:border-success/20 dark:hover:bg-success/15"
                     )}
                     onClick={handleToggleComplete}
                     disabled={!step.completed && !canComplete}
