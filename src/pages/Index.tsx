@@ -3,10 +3,30 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const { user } = useAuth();
+  const [userName, setUserName] = useState<string | null>(null);
   const completedTasks = mockTasks.filter(t => t.status === "done").length;
   const inProgressTasks = mockTasks.filter(t => t.status === "in-progress").length;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setUserName(data?.full_name || null);
+    };
+    fetchProfile();
+  }, [user]);
+
+  const displayName = userName || user?.email?.split('@')[0] || 'BizPlanAI';
 
   return (
     <MainLayout>
@@ -14,7 +34,7 @@ const Index = () => {
         {/* Header */}
         <div className="animate-slide-up">
           <h1 className="text-3xl font-display font-bold text-foreground">
-            Добре дошли в <span className="text-gradient">BizPlanAI</span>
+            Добре дошли, <span className="text-gradient">{displayName}</span>
           </h1>
           <p className="mt-2 text-muted-foreground">
             Вашият AI асистент за бизнес планиране и маркетинг
