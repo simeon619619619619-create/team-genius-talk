@@ -109,29 +109,79 @@ export default function PlanPage() {
         {/* Steps */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Steps List */}
-          <div className="lg:col-span-1 space-y-3">
+          <div className="lg:col-span-1 space-y-2">
             {steps.map((step, index) => {
             const assignedBot = getBotForStep(step.title);
             // Check if previous steps have content (are unlocked)
             const previousStepsCompleted = index === 0 || steps.slice(0, index).every(s => s.generated_content || s.completed);
             const isLocked = !previousStepsCompleted;
-            return <button key={step.id} onClick={() => !isLocked && setActiveStepId(step.id)} disabled={isLocked} className={cn("w-full flex items-center gap-4 rounded-xl p-4 text-left transition-all duration-200", isLocked ? "opacity-50 cursor-not-allowed bg-secondary/30" : activeStepId === step.id ? "glass-card shadow-lg" : "hover:bg-secondary")}>
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden", isLocked ? "bg-muted/50 border border-muted-foreground/20" : step.completed ? "bg-success text-success-foreground" : activeStepId === step.id ? "gradient-primary text-primary-foreground" : "bg-secondary border border-border")}>
-                    {step.completed ? <Check className="h-5 w-5" /> : isLocked ? <Lock className="h-4 w-4 text-muted-foreground" /> : assignedBot?.avatar_url ? <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" /> : <span className="font-medium text-foreground">{index + 1}</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn("font-medium truncate", (step.completed || isLocked) && "text-muted-foreground")}>
-                      {step.title}
+            const isActive = activeStepId === step.id;
+            
+            return (
+              <button 
+                key={step.id} 
+                onClick={() => !isLocked && setActiveStepId(step.id)} 
+                disabled={isLocked} 
+                className={cn(
+                  "w-full flex items-center gap-4 rounded-2xl p-4 text-left",
+                  "transition-all duration-300 ease-out",
+                  "border border-transparent",
+                  isLocked 
+                    ? "opacity-50 cursor-not-allowed bg-secondary/20" 
+                    : isActive 
+                      ? "bg-card shadow-lg shadow-primary/5 border-primary/20 scale-[1.02]" 
+                      : "hover:bg-secondary/60 hover:scale-[1.01] active:scale-[0.99]"
+                )}
+              >
+                <div className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-xl shrink-0 overflow-hidden",
+                  "transition-all duration-300 ease-out",
+                  isLocked 
+                    ? "bg-muted/30 border border-muted-foreground/10" 
+                    : step.completed 
+                      ? "bg-success text-success-foreground shadow-md shadow-success/20" 
+                      : isActive 
+                        ? "gradient-primary text-primary-foreground shadow-md shadow-primary/20" 
+                        : "bg-secondary/80 border border-border/50"
+                )}>
+                  {step.completed ? (
+                    <Check className="h-5 w-5 animate-scale-in" />
+                  ) : isLocked ? (
+                    <Lock className="h-4 w-4 text-muted-foreground/60" />
+                  ) : assignedBot?.avatar_url ? (
+                    <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="font-semibold text-foreground">{index + 1}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn(
+                    "font-medium truncate transition-colors duration-200",
+                    isLocked ? "text-muted-foreground/60" : step.completed ? "text-muted-foreground" : "text-foreground"
+                  )}>
+                    {step.title}
+                  </p>
+                  {isLocked ? (
+                    <p className="text-xs text-muted-foreground/50 truncate mt-0.5">
+                      Завършете предишните стъпки
                     </p>
-                    {isLocked ? <p className="text-xs text-muted-foreground truncate">
-                        Завършете предишните стъпки
-                      </p> : assignedBot && <p className="text-xs text-primary truncate flex items-center gap-1">
-                        <Bot className="h-3 w-3" />
-                        {assignedBot.name}
-                      </p>}
-                  </div>
-                  <ChevronRight className={cn("h-5 w-5 shrink-0 transition-colors", isLocked ? "text-muted-foreground/50" : activeStepId === step.id ? "text-primary" : "text-muted-foreground")} />
-                </button>;
+                  ) : assignedBot && (
+                    <p className="text-xs text-primary/80 truncate flex items-center gap-1.5 mt-0.5">
+                      <Bot className="h-3 w-3" />
+                      {assignedBot.name}
+                    </p>
+                  )}
+                </div>
+                <ChevronRight className={cn(
+                  "h-5 w-5 shrink-0 transition-all duration-300",
+                  isLocked 
+                    ? "text-muted-foreground/30" 
+                    : isActive 
+                      ? "text-primary translate-x-0.5" 
+                      : "text-muted-foreground/50 group-hover:translate-x-0.5"
+                )} />
+              </button>
+            );
           })}
           </div>
 
