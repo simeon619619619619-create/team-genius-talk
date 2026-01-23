@@ -112,28 +112,41 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   };
 
   return (
-    <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
-      <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className={cn(
-          "flex h-16 items-center border-b border-border",
-          collapsed ? "justify-center px-2" : "justify-between px-6"
-        )}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary flex-shrink-0">
-              <TrendingUp className="h-5 w-5 text-primary-foreground" />
+    <>
+      <aside className={cn(
+        "fixed left-0 top-0 z-40 h-screen border-r border-border bg-card transition-all duration-300",
+        collapsed ? "w-16" : "w-64"
+      )}>
+        {/* Collapse Toggle - positioned on border */}
+        <button
+          onClick={onToggle}
+          className="absolute -right-3 top-20 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </button>
+
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className={cn(
+            "flex h-16 items-center border-b border-border",
+            collapsed ? "justify-center px-2" : "justify-between px-6"
+          )}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-primary-foreground" />
+              </div>
+              {!collapsed && (
+                <span className="font-display text-xl font-bold text-foreground">
+                  BizPlan<span className="text-primary">AI</span>
+                </span>
+              )}
             </div>
-            {!collapsed && (
-              <span className="font-display text-xl font-bold text-foreground">
-                BizPlan<span className="text-primary">AI</span>
-              </span>
-            )}
+            {!collapsed && <ThemeToggle />}
           </div>
-          {!collapsed && <ThemeToggle />}
-        </div>
 
         {/* Navigation */}
         <nav className={cn("flex-1 space-y-1", collapsed ? "p-2" : "p-4")}>
@@ -172,26 +185,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             return linkContent;
           })}
         </nav>
-
-        {/* Collapse Toggle */}
-        <div className={cn("border-t border-border", collapsed ? "p-2" : "p-4")}>
-          <button
-            onClick={onToggle}
-            className={cn(
-              "flex w-full items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
-              collapsed ? "justify-center p-3" : "gap-3 px-4 py-3"
-            )}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <>
-                <ChevronLeft className="h-5 w-5" />
-                <span className="text-sm font-medium">Свий</span>
-              </>
-            )}
-          </button>
-        </div>
 
         {/* User Section */}
         <div className={cn("border-t border-border", collapsed ? "p-2" : "p-4")}>
@@ -270,5 +263,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         </div>
       </div>
     </aside>
+    </>
   );
 }
