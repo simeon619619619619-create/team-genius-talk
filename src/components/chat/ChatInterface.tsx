@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Mic, Square } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ChatMessage } from "./ChatMessage";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +6,16 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+}
+
+interface Suggestion {
+  icon: string;
+  title: string;
+  prompt: string;
+}
+
+interface ChatInterfaceProps {
+  suggestions?: Suggestion[];
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -67,7 +75,29 @@ const mockResponses: Record<string, string> = {
   екип: "За управление на екипа препоръчвам да:\n\n1. Дефинирате ясни роли\n2. Поставите измерими цели\n3. Провеждате седмични срещи\n4. Използвате инструменти за комуникация\n\nОтидете в раздел 'Екипи' за да организирате вашия екип!",
 };
 
-export function ChatInterface() {
+// SVG Icons as components
+const MicIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" x2="12" y1="19" y2="22" />
+  </svg>
+);
+
+const StopIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+);
+
+const SendIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </svg>
+);
+
+export function ChatInterface({ suggestions = [] }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -85,7 +115,6 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -125,6 +154,10 @@ export function ChatInterface() {
       setMessages(prev => [...prev, assistantMessage]);
       setIsTyping(false);
     }, 1000);
+  };
+
+  const handleSuggestionClick = (prompt: string) => {
+    handleSend(prompt);
   };
 
   const startListening = useCallback(() => {
@@ -192,8 +225,8 @@ export function ChatInterface() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="mx-auto max-w-2xl space-y-3">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-2xl px-4 py-8 space-y-4">
           {messages.map((message) => (
             <ChatMessage key={message.id} {...message} />
           ))}
@@ -201,9 +234,9 @@ export function ChatInterface() {
             <div className="flex justify-start">
               <div className="bg-secondary rounded-[20px] rounded-bl-[4px] px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             </div>
@@ -213,23 +246,39 @@ export function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border bg-background px-4 py-3">
-        <div className="mx-auto max-w-2xl">
-          <div className="flex items-end gap-2">
+      <div className="border-t border-border/50 bg-background">
+        <div className="mx-auto max-w-2xl px-4 py-4">
+          {/* Suggestions above input */}
+          {suggestions.length > 0 && messages.length <= 1 && (
+            <div className="flex gap-2 flex-wrap mb-3 justify-center">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.title}
+                  onClick={() => handleSuggestionClick(suggestion.prompt)}
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+                >
+                  <span>{suggestion.icon}</span>
+                  <span>{suggestion.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-end gap-3">
             {/* Voice Button */}
             <button
               onClick={isListening ? stopListening : startListening}
               className={cn(
                 "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all",
                 isListening 
-                  ? "bg-destructive text-destructive-foreground" 
+                  ? "bg-foreground text-background" 
                   : "bg-secondary text-muted-foreground hover:text-foreground"
               )}
             >
               {isListening ? (
-                <Square className="h-4 w-4 fill-current" />
+                <StopIcon className="h-4 w-4" />
               ) : (
-                <Mic className="h-5 w-5" />
+                <MicIcon className="h-5 w-5" />
               )}
             </button>
 
@@ -253,8 +302,8 @@ export function ChatInterface() {
                 placeholder={isListening ? "Слушам..." : "Съобщение"}
                 rows={1}
                 className={cn(
-                  "w-full resize-none rounded-[20px] border bg-secondary px-4 py-2.5 pr-12 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring",
-                  isListening && "border-destructive/50 bg-destructive/5"
+                  "w-full resize-none rounded-[22px] border border-border/50 bg-secondary/50 px-4 py-2.5 pr-12 text-[15px] placeholder:text-muted-foreground/60 focus:outline-none focus:border-border transition-colors",
+                  isListening && "border-foreground/30 bg-foreground/5"
                 )}
                 style={{ maxHeight: "120px" }}
               />
@@ -262,26 +311,30 @@ export function ChatInterface() {
               {/* Recording indicator */}
               {isListening && (
                 <div className="absolute right-14 top-1/2 -translate-y-1/2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-destructive" />
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-foreground" />
                   </span>
                 </div>
               )}
             </div>
 
             {/* Send Button */}
-            <Button
+            <button
               onClick={() => {
                 if (isListening) stopListening();
                 handleSend(displayValue);
               }}
               disabled={!canSend}
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-full"
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all",
+                canSend
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "bg-secondary text-muted-foreground/40"
+              )}
             >
-              <Send className="h-4 w-4" />
-            </Button>
+              <SendIcon className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
