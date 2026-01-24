@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, Bell, Globe, Shield, Loader2, Instagram, Phone } from "lucide-react";
+import { User, Bell, Globe, Shield, Loader2, Instagram, Phone, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AvatarUpload } from "@/components/settings/AvatarUpload";
 import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
+import { PricingPlans } from "@/components/subscription/PricingPlans";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface ProfileData {
   full_name: string;
@@ -22,6 +24,7 @@ interface ProfileData {
 export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkSubscription, planType, subscribed } = useSubscription();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -211,6 +214,28 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Subscription Section */}
+        <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
+                <CreditCard className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-display font-semibold text-foreground">Абонамент</h2>
+                <p className="text-sm text-muted-foreground">
+                  {subscribed 
+                    ? `Текущ план: ${planType === "lifetime" ? "Lifetime" : planType === "yearly" ? "Годишен" : planType === "monthly" ? "Месечен" : "Безплатен"}`
+                    : "Изберете план за достъп до всички функции"
+                  }
+                </p>
+              </div>
+            </div>
+            <PricingPlans onUpgrade={checkSubscription} />
           </div>
         </div>
 
