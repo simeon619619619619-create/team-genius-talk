@@ -2,6 +2,7 @@ import { Users, ListTodo, TrendingUp, Target } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { DailyPlanWidget } from "@/components/dashboard/DailyPlanWidget";
 import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -71,10 +72,15 @@ const Index = () => {
           />
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Main Content - Reorganized */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Daily Plan Widget - Takes prominence */}
+          <div className="lg:col-span-1">
+            <DailyPlanWidget />
+          </div>
+
           {/* AI Chat */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden">
             <div className="border-b border-border px-5 py-4">
               <h2 className="text-base font-semibold text-foreground">
                 AI Асистент
@@ -87,66 +93,66 @@ const Index = () => {
               <ChatInterface />
             </div>
           </div>
+        </div>
 
-          {/* Quick Actions & Recent Activity */}
-          <div className="space-y-6">
-            {/* Recent Tasks */}
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h2 className="text-base font-semibold text-foreground mb-4">
-                Последни задачи
-              </h2>
-              <div className="space-y-2">
-                {mockTasks.slice(0, 4).map((task) => {
-                  const assignee = mockMembers.find(m => m.id === task.assigneeId);
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors"
-                    >
-                      <div className={`h-2 w-2 rounded-full ${
-                        task.status === "done" ? "bg-foreground" :
-                        task.status === "in-progress" ? "bg-foreground/60" : "bg-muted-foreground/40"
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{task.title}</p>
-                        <p className="text-xs text-muted-foreground">{assignee?.name}</p>
-                      </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full ${
-                        task.priority === "high" ? "bg-secondary text-foreground" :
-                        task.priority === "medium" ? "bg-secondary text-muted-foreground" :
-                        "bg-secondary/50 text-muted-foreground"
-                      }`}>
-                        {task.priority === "high" ? "Високо" : task.priority === "medium" ? "Средно" : "Ниско"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Teams Overview */}
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h2 className="text-base font-semibold text-foreground mb-4">
-                Екипи
-              </h2>
-              <div className="space-y-2">
-                {mockTeams.map((team) => (
+        {/* Secondary Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Tasks */}
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <h2 className="text-base font-semibold text-foreground mb-4">
+              Последни задачи
+            </h2>
+            <div className="space-y-2">
+              {mockTasks.slice(0, 4).map((task) => {
+                const assignee = mockMembers.find(m => m.id === task.assigneeId);
+                return (
                   <div
-                    key={team.id}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer"
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors"
                   >
-                    <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
-                      <Users className="h-5 w-5 text-foreground" />
+                    <div className={`h-2 w-2 rounded-full ${
+                      task.status === "done" ? "bg-foreground" :
+                      task.status === "in-progress" ? "bg-foreground/60" : "bg-muted-foreground/40"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{task.title}</p>
+                      <p className="text-xs text-muted-foreground">{assignee?.name}</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{team.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {team.members.length} членове
-                      </p>
-                    </div>
+                    <span className={`text-xs px-2.5 py-1 rounded-full ${
+                      task.priority === "high" ? "bg-secondary text-foreground" :
+                      task.priority === "medium" ? "bg-secondary text-muted-foreground" :
+                      "bg-secondary/50 text-muted-foreground"
+                    }`}>
+                      {task.priority === "high" ? "Високо" : task.priority === "medium" ? "Средно" : "Ниско"}
+                    </span>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Teams Overview */}
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <h2 className="text-base font-semibold text-foreground mb-4">
+              Екипи
+            </h2>
+            <div className="space-y-2">
+              {mockTeams.map((team) => (
+                <div
+                  key={team.id}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center">
+                    <Users className="h-5 w-5 text-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{team.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {team.members.length} членове
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
