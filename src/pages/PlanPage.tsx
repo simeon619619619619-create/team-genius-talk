@@ -3,6 +3,7 @@ import { Check, ChevronRight, Lock, Bot } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
 import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
+import { GenerateScheduleDialog } from "@/components/plan/GenerateScheduleDialog";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,6 +80,7 @@ export default function PlanPage() {
     }
   }, [steps, activeStepId]);
   const completedCount = steps.filter(s => s.completed).length;
+  const allStepsCompleted = completedCount === steps.length && steps.length > 0;
   const progress = steps.length > 0 ? completedCount / steps.length * 100 : 0;
   const activeStep = steps.find(s => s.id === activeStepId);
   if (loading || botsLoading) {
@@ -108,6 +110,7 @@ export default function PlanPage() {
           </div>
           
           <div className="flex gap-3">
+            <GenerateScheduleDialog projectId={projectId || ""} allStepsCompleted={allStepsCompleted} />
             <ExportPdfButton steps={steps} bots={globalBots} projectName={projectName} />
           </div>
         </div>
