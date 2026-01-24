@@ -17,6 +17,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/install" element={<InstallPage />} />
               <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
               <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
               <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
