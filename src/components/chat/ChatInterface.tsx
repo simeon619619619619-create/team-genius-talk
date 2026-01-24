@@ -212,26 +212,26 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Input Area - ChatGPT style */}
-      <div className="shrink-0 pb-4 px-4">
+      {/* Input Area - Compact ChatGPT style */}
+      <div className="shrink-0 pb-3 px-3">
         <div className="mx-auto max-w-3xl">
-          <div className="relative flex items-center gap-2 rounded-2xl border border-border bg-secondary/30 px-4 py-3 transition-colors focus-within:border-primary/50 focus-within:bg-secondary/50">
+          <div className="relative flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-2 transition-colors focus-within:border-primary/50 focus-within:bg-secondary/50">
             {/* Voice Button */}
             <button 
               onClick={isListening ? stopListening : startListening} 
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all",
                 isListening 
                   ? "bg-foreground text-background" 
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               )}
             >
-              {isListening ? <StopIcon className="h-3.5 w-3.5" /> : <MicIcon className="h-5 w-5" />}
+              {isListening ? <StopIcon className="h-3 w-3" /> : <MicIcon className="h-4 w-4" />}
             </button>
 
             {/* Text Input */}
-            <textarea 
-              ref={textareaRef} 
+            <input 
+              type="text"
               value={displayValue} 
               onChange={e => {
                 if (!isListening) {
@@ -246,19 +246,17 @@ export function ChatInterface({
                 }
               }} 
               placeholder={isListening ? "Слушам..." : "Напишете съобщение..."} 
-              rows={1} 
               className={cn(
-                "flex-1 resize-none bg-transparent text-[15px] leading-6 placeholder:text-muted-foreground/50 focus:outline-none",
+                "flex-1 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none",
                 isListening && "text-foreground/80"
               )} 
-              style={{ maxHeight: "120px" }} 
             />
             
             {/* Recording indicator */}
             {isListening && (
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-foreground" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground" />
               </span>
             )}
 
@@ -270,16 +268,16 @@ export function ChatInterface({
               }} 
               disabled={!canSend} 
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all",
                 canSend 
                   ? "bg-foreground text-background hover:bg-foreground/90" 
                   : "text-muted-foreground/30"
               )}
             >
-              <SendIcon className="h-4 w-4" />
+              <SendIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          <p className="text-center text-xs text-muted-foreground/60 mt-2">
+          <p className="text-center text-[10px] text-muted-foreground/50 mt-1.5">
             Симора може да прави грешки. Проверявайте важната информация.
           </p>
         </div>
