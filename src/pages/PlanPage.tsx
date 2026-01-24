@@ -98,33 +98,30 @@ export default function PlanPage() {
       </MainLayout>;
   }
   return <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="space-y-4 md:space-y-6">
+        {/* Header - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
               Маркетинг план
             </h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-1 text-sm md:text-base text-muted-foreground hidden sm:block">
               Създайте и проследявайте вашия бизнес план с AI ботове
             </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             <GenerateScheduleDialog projectId={projectId || ""} allStepsCompleted={allStepsCompleted} />
             <ExportPdfButton steps={steps} bots={globalBots} projectName={projectName} />
           </div>
         </div>
 
-        {/* Progress */}
-        
-
         {/* Steps */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Steps List */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          {/* Steps List - Scrollable on mobile */}
           <div className="lg:col-span-1 space-y-2">
             {steps.map((step, index) => {
             const assignedBot = getBotForStep(step.title);
-            // Check if previous steps have content (are unlocked)
             const previousStepsCompleted = index === 0 || steps.slice(0, index).every(s => s.generated_content || s.completed);
             const isLocked = !previousStepsCompleted;
             const isActive = activeStepId === step.id;
@@ -135,18 +132,18 @@ export default function PlanPage() {
                 onClick={() => !isLocked && setActiveStepId(step.id)} 
                 disabled={isLocked} 
                 className={cn(
-                  "w-full flex items-center gap-4 rounded-2xl p-4 text-left",
+                  "w-full flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-4 text-left",
                   "transition-all duration-300 ease-out",
-                  "border border-transparent",
+                  "border border-transparent active:scale-[0.98]",
                   isLocked 
                     ? "opacity-50 cursor-not-allowed bg-secondary/20" 
                     : isActive 
-                      ? "bg-card shadow-lg shadow-primary/5 border-primary/20 scale-[1.02]" 
-                      : "hover:bg-secondary/60 hover:scale-[1.01] active:scale-[0.99]"
+                      ? "bg-card shadow-lg shadow-primary/5 border-primary/20" 
+                      : "hover:bg-secondary/60"
                 )}
               >
                 <div className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-xl shrink-0 overflow-hidden",
+                  "flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-xl shrink-0 overflow-hidden",
                   "transition-all duration-300 ease-out",
                   isLocked 
                     ? "bg-muted/30 border border-muted-foreground/10" 
@@ -168,17 +165,17 @@ export default function PlanPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={cn(
-                    "font-medium truncate transition-colors duration-200",
+                    "font-medium truncate transition-colors duration-200 text-sm md:text-base",
                     isLocked ? "text-muted-foreground/60" : step.completed ? "text-muted-foreground" : "text-foreground"
                   )}>
                     {step.title}
                   </p>
                   {isLocked ? (
-                    <p className="text-xs text-muted-foreground/50 truncate mt-0.5">
+                    <p className="text-[11px] md:text-xs text-muted-foreground/50 truncate mt-0.5">
                       Завършете предишните стъпки
                     </p>
                   ) : assignedBot && (
-                    <p className="text-xs text-primary/80 truncate flex items-center gap-1.5 mt-0.5">
+                    <p className="text-[11px] md:text-xs text-primary/80 truncate flex items-center gap-1 mt-0.5">
                       <Bot className="h-3 w-3" />
                       {assignedBot.name}
                     </p>
@@ -189,8 +186,8 @@ export default function PlanPage() {
                   isLocked 
                     ? "text-muted-foreground/30" 
                     : isActive 
-                      ? "text-primary translate-x-0.5" 
-                      : "text-muted-foreground/50 group-hover:translate-x-0.5"
+                      ? "text-primary" 
+                      : "text-muted-foreground/50"
                 )} />
               </button>
             );
