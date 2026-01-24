@@ -194,23 +194,17 @@ export function ChatInterface({
   }, []);
   const displayValue = input + (interimTranscript ? (input ? " " : "") + interimTranscript : "");
   const canSend = input.trim().length > 0 || interimTranscript.length > 0;
-  return <div className="flex h-full flex-col bg-background">
+  return <div className="flex h-full flex-col">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-3 md:px-4 py-4 md:py-8 space-y-3 md:space-y-4">
+        <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
           {messages.map(message => <ChatMessage key={message.id} {...message} />)}
           {isTyping && <div className="flex justify-start">
-              <div className="bg-secondary rounded-[20px] rounded-bl-[4px] px-4 py-3">
+              <div className="bg-secondary rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{
-                animationDelay: "0ms"
-              }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{
-                animationDelay: "150ms"
-              }} />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{
-                animationDelay: "300ms"
-              }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             </div>}
@@ -218,61 +212,57 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Input Area - Fixed at bottom on mobile */}
-      <div className="border-t border-border/50 bg-card/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-2xl px-3 md:px-4 py-2 md:py-3">
-          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-2 md:px-3 py-1 md:py-1.5 transition-colors focus-within:border-border">
+      {/* Input Area - ChatGPT style */}
+      <div className="shrink-0 pb-4 px-4">
+        <div className="mx-auto max-w-3xl">
+          <div className="relative flex items-center gap-2 rounded-2xl border border-border bg-secondary/30 px-4 py-3 transition-colors focus-within:border-primary/50 focus-within:bg-secondary/50">
             {/* Voice Button */}
             <button 
               onClick={isListening ? stopListening : startListening} 
               className={cn(
-                "flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-full transition-all touch-manipulation",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
                 isListening 
                   ? "bg-foreground text-background" 
-                  : "text-muted-foreground hover:text-foreground active:scale-95"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               )}
             >
-              {isListening ? <StopIcon className="h-3.5 w-3.5" /> : <MicIcon className="h-4 w-4" />}
+              {isListening ? <StopIcon className="h-3.5 w-3.5" /> : <MicIcon className="h-5 w-5" />}
             </button>
 
             {/* Text Input */}
-            <div className="relative flex-1 flex items-center min-h-[40px] md:min-h-[36px]">
-              <textarea 
-                ref={textareaRef} 
-                value={displayValue} 
-                onChange={e => {
-                  if (!isListening) {
-                    setInput(e.target.value);
-                  }
-                }} 
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (isListening) stopListening();
-                    handleSend(displayValue);
-                  }
-                }} 
-                placeholder={isListening ? "Слушам..." : "Напишете съобщение..."} 
-                rows={1} 
-                className={cn(
-                  "w-full resize-none bg-transparent px-2 md:px-3 py-2 text-base md:text-[15px] leading-5 placeholder:text-muted-foreground/60 focus:outline-none",
-                  isListening && "text-foreground/80"
-                )} 
-                style={{ maxHeight: "100px" }} 
-              />
-              
-              {/* Recording indicator */}
-              {isListening && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground" />
-                  </span>
-                </div>
-              )}
-            </div>
+            <textarea 
+              ref={textareaRef} 
+              value={displayValue} 
+              onChange={e => {
+                if (!isListening) {
+                  setInput(e.target.value);
+                }
+              }} 
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (isListening) stopListening();
+                  handleSend(displayValue);
+                }
+              }} 
+              placeholder={isListening ? "Слушам..." : "Напишете съобщение..."} 
+              rows={1} 
+              className={cn(
+                "flex-1 resize-none bg-transparent text-[15px] leading-6 placeholder:text-muted-foreground/50 focus:outline-none",
+                isListening && "text-foreground/80"
+              )} 
+              style={{ maxHeight: "120px" }} 
+            />
+            
+            {/* Recording indicator */}
+            {isListening && (
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-foreground" />
+              </span>
+            )}
 
-            {/* Send Button - Bigger touch target on mobile */}
+            {/* Send Button */}
             <button 
               onClick={() => {
                 if (isListening) stopListening();
@@ -280,15 +270,18 @@ export function ChatInterface({
               }} 
               disabled={!canSend} 
               className={cn(
-                "flex h-10 w-10 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full transition-all touch-manipulation",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
                 canSend 
-                  ? "bg-foreground text-background hover:bg-foreground/90 active:scale-95" 
-                  : "text-muted-foreground/40"
+                  ? "bg-foreground text-background hover:bg-foreground/90" 
+                  : "text-muted-foreground/30"
               )}
             >
               <SendIcon className="h-4 w-4" />
             </button>
           </div>
+          <p className="text-center text-xs text-muted-foreground/60 mt-2">
+            Симора може да прави грешки. Проверявайте важната информация.
+          </p>
         </div>
       </div>
     </div>;
