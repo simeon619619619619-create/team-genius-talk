@@ -19,8 +19,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDailyTasks } from "@/hooks/useDailyTasks";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +35,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import logo from "@/assets/logo.png";
 import logoIcon from "@/assets/logo-icon.png";
 
-const baseNavItems = [
+interface NavItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  badge?: number;
+}
+
+const baseNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
@@ -52,6 +61,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { pendingCount } = useDailyTasks();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
 
@@ -94,9 +104,17 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     navigate("/auth");
   };
 
+  // Add badge to AI Assistant
+  const navItemsWithBadge = baseNavItems.map(item => {
+    if (item.path === "/assistant" && pendingCount > 0) {
+      return { ...item, badge: pendingCount };
+    }
+    return item;
+  });
+
   const navItems = isAdmin 
-    ? [...baseNavItems, { icon: Shield, label: "Админ", path: "/admin" }]
-    : baseNavItems;
+    ? [...navItemsWithBadge, { icon: Shield, label: "Админ", path: "/admin" }]
+    : navItemsWithBadge;
 
   const getUserInitials = () => {
     if (profile?.full_name) {
@@ -159,18 +177,38 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center font-medium transition-all duration-300 ease-out",
+                  "flex items-center font-medium transition-all duration-300 ease-out relative",
                   collapsed ? "justify-center rounded-2xl p-3" : "gap-3 rounded-full px-4 py-3.5",
                   isActive
                     ? "bg-secondary text-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
                 )}
               >
-                <item.icon className={cn(
-                  "flex-shrink-0 transition-transform duration-200",
-                  isActive && "scale-110"
-                )} style={{ width: 22, height: 22 }} />
-                {!collapsed && <span className="text-[15px] transition-opacity duration-200">{item.label}</span>}
+                <div className="relative">
+                  <item.icon className={cn(
+                    "flex-shrink-0 transition-transform duration-200",
+                    isActive && "scale-110"
+                  )} style={{ width: 22, height: 22 }} />
+                  {/* Badge for collapsed state */}
+                  {collapsed && item.badge && item.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <>
+                    <span className="text-[15px] transition-opacity duration-200 flex-1">{item.label}</span>
+                    {item.badge && item.badge > 0 && (
+                      <Badge 
+                        variant="default" 
+                        className="h-5 min-w-5 px-1.5 text-[10px] font-bold animate-pulse bg-primary text-primary-foreground"
+                      >
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </Badge>
+                    )}
+                  </>
+                )}
               </Link>
             );
 
@@ -180,8 +218,13 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                   <TooltipTrigger asChild>
                     {linkContent}
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="ml-2">
+                  <TooltipContent side="right" className="ml-2 flex items-center gap-2">
                     {item.label}
+                    {item.badge && item.badge > 0 && (
+                      <Badge variant="default" className="h-4 px-1 text-[10px]">
+                        {item.badge}
+                      </Badge>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               );
