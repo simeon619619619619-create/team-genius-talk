@@ -100,14 +100,14 @@ export function PlanStepCard({
   };
 
   return (
-    <div className="lg:col-span-2 flex flex-col animate-fade-in" style={{ height: 'calc(100vh - 80px)' }}>
+    <div className="lg:col-span-2 flex flex-col animate-fade-in" style={{ height: 'calc(100vh - 140px)' }}>
       {/* Main Card - takes all space except button */}
-      <Card className="p-4 flex flex-col flex-1 min-h-0 overflow-hidden rounded-3xl border-border/50 shadow-xl shadow-black/5 transition-shadow duration-300">
+      <Card className="p-3 md:p-4 flex flex-col flex-1 min-h-0 overflow-hidden rounded-2xl md:rounded-3xl border-border/50 shadow-xl shadow-black/5 transition-shadow duration-300">
         {/* Combined Header with Mark Complete Button */}
-        <div className="flex items-center justify-between mb-3 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-2 md:mb-3 flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <span className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium",
+              "inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-medium shrink-0",
               "transition-all duration-300 ease-out",
               step.completed
                 ? "bg-success/15 text-success"
@@ -115,17 +115,17 @@ export function PlanStepCard({
             )}>
               {step.completed ? (
                 <>
-                  <Check className="h-3.5 w-3.5" />
-                  Завършено
+                  <Check className="h-3 w-3" />
+                  <span className="hidden sm:inline">Завършено</span>
                 </>
               ) : (
                 <>
-                  <Circle className="h-3.5 w-3.5" />
-                  В процес
+                  <Circle className="h-3 w-3" />
+                  <span className="hidden sm:inline">В процес</span>
                 </>
               )}
             </span>
-            <h2 className="text-lg font-display font-bold text-foreground">
+            <h2 className="text-base md:text-lg font-display font-bold text-foreground truncate">
               {step.title}
             </h2>
           </div>
@@ -139,28 +139,28 @@ export function PlanStepCard({
                     size="sm"
                     variant={step.completed ? "outline" : "secondary"}
                     className={cn(
-                      "shrink-0 rounded-xl transition-all duration-300 ease-out font-medium",
-                      !step.completed && canComplete && "bg-success hover:bg-success/90 text-success-foreground shadow-md shadow-success/25 hover:shadow-lg hover:shadow-success/30 hover:scale-105 active:scale-95",
-                      !step.completed && !canComplete && "bg-muted/60 text-muted-foreground/60 dark:bg-muted/40 dark:text-muted-foreground/50 cursor-not-allowed border border-border/30 dark:border-border/20",
-                      step.completed && "border-success/30 text-success hover:bg-success/10 dark:border-success/20 dark:hover:bg-success/15"
+                      "shrink-0 rounded-xl transition-all duration-300 ease-out font-medium text-xs md:text-sm h-8 md:h-9 px-2 md:px-3",
+                      !step.completed && canComplete && "bg-success hover:bg-success/90 text-success-foreground shadow-md shadow-success/25",
+                      !step.completed && !canComplete && "bg-muted/60 text-muted-foreground/60 cursor-not-allowed border border-border/30",
+                      step.completed && "border-success/30 text-success hover:bg-success/10"
                     )}
                     onClick={handleToggleComplete}
                     disabled={!step.completed && !canComplete}
                   >
                     {step.completed ? (
                       <>
-                        <Circle className="h-4 w-4 mr-1.5" />
-                        Върни
+                        <Circle className="h-3.5 w-3.5 md:mr-1" />
+                        <span className="hidden md:inline">Върни</span>
                       </>
                     ) : !canComplete ? (
                       <>
-                        <Lock className="h-4 w-4 mr-1.5" />
-                        Завърши
+                        <Lock className="h-3.5 w-3.5 md:mr-1" />
+                        <span className="hidden md:inline">Завърши</span>
                       </>
                     ) : (
                       <>
-                        <Check className="h-4 w-4 mr-1.5" />
-                        Завърши
+                        <Check className="h-3.5 w-3.5 md:mr-1" />
+                        <span className="hidden md:inline">Завърши</span>
                       </>
                     )}
                   </Button>
@@ -181,14 +181,14 @@ export function PlanStepCard({
           </TooltipProvider>
         </div>
 
-        {/* Progress indicator for missing fields */}
+        {/* Progress indicator for missing fields - Compact on mobile */}
         {!step.completed && missingFields.length > 0 && (
           <div className={cn(
-            "flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs",
+            "flex items-center gap-2 mb-2 md:mb-3 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs",
             "bg-warning/10 text-warning border border-warning/20",
             "animate-fade-in transition-all duration-300"
           )}>
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <AlertCircle className="h-3 w-3 shrink-0" />
             <span>
               Отговорете на {missingFields.length} {missingFields.length === 1 ? 'въпрос' : 'въпроса'} за да завършите стъпката
             </span>
@@ -196,7 +196,7 @@ export function PlanStepCard({
         )}
 
         {/* Chat Interface - takes ALL remaining space in card */}
-        <div className="flex-1 min-h-0 rounded-2xl overflow-hidden">
+        <div className="flex-1 min-h-0 rounded-xl md:rounded-2xl overflow-hidden">
           <StepChatInterface
             step={step}
             projectId={projectId}

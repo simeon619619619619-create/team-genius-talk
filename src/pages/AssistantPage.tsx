@@ -1,6 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DailyPlanWidget } from "@/components/dashboard/DailyPlanWidget";
+import { MobileDailyCard } from "@/components/dashboard/MobileDailyCard";
 import { ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const suggestions = [
   {
@@ -37,6 +39,7 @@ const models = [
 export default function AssistantPage() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const { markAsViewed } = useDailyTasks();
+  const isMobile = useIsMobile();
 
   // Mark as viewed when page opens
   useEffect(() => {
@@ -45,19 +48,19 @@ export default function AssistantPage() {
 
   return (
     <MainLayout>
-      <div className="h-[calc(100vh-3rem)] flex gap-6">
-        {/* Daily Tasks Sidebar */}
+      <div className="h-[calc(100vh-3rem)] md:h-[calc(100vh-3rem)] flex flex-col md:flex-row gap-4 md:gap-6">
+        {/* Desktop Daily Tasks Sidebar */}
         <div className="w-80 shrink-0 hidden lg:block">
           <DailyPlanWidget />
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col rounded-2xl border border-border bg-card overflow-hidden">
-          {/* Header */}
-          <div className="border-b border-border/50 px-4 py-3 flex justify-center">
+        <div className="flex-1 flex flex-col rounded-2xl md:border md:border-border md:bg-card overflow-hidden min-h-0">
+          {/* Header with Model Selector */}
+          <div className="border-b border-border/50 px-4 py-2.5 md:py-3 flex justify-center bg-card rounded-t-2xl">
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-lg transition-colors focus:outline-none">
-                <span className="font-semibold">{selectedModel.name}</span>
+                <span className="font-semibold text-sm md:text-base">{selectedModel.name}</span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="min-w-[160px]">
@@ -74,12 +77,14 @@ export default function AssistantPage() {
             </DropdownMenu>
           </div>
           
-          {/* Mobile Daily Tasks */}
-          <div className="lg:hidden p-4 border-b border-border/50">
-            <DailyPlanWidget />
-          </div>
+          {/* Mobile Daily Card - Compact */}
+          {isMobile && (
+            <div className="px-3 py-2 border-b border-border/50 bg-card">
+              <MobileDailyCard />
+            </div>
+          )}
 
-          <ChatInterface suggestions={suggestions} />
+          <ChatInterface suggestions={isMobile ? [] : suggestions} />
         </div>
       </div>
     </MainLayout>

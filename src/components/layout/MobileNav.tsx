@@ -17,10 +17,10 @@ const navItems = [
 ];
 
 const allNavItems = [
-  { icon: LayoutDashboard, label: "Табло", path: "/" },
-  { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
-  { icon: ListTodo, label: "Задачи", path: "/tasks" },
-  { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
+  { label: "Табло", path: "/" },
+  { label: "AI Асистент", path: "/assistant" },
+  { label: "Задачи", path: "/tasks" },
+  { label: "Маркетинг план", path: "/plan" },
   { label: "Бизнес план", path: "/business-plan" },
   { label: "Екипи", path: "/teams" },
   { label: "Настройки", path: "/settings" },
@@ -39,8 +39,8 @@ export function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom md:hidden">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-xl border-t border-border md:hidden">
+      <div className="flex items-center justify-around h-14 px-1 safe-area-bottom">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const showDot = item.path === "/assistant" && showBadge && pendingCount > 0;
@@ -51,34 +51,27 @@ export function MobileNav() {
               to={item.path}
               onClick={() => handleNavClick(item.path)}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-2xl transition-all relative",
+                "flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 rounded-2xl transition-all relative min-w-[60px]",
                 isActive
                   ? "text-primary"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground active:scale-95"
               )}
             >
               <div className="relative">
                 <item.icon className={cn(
-                  "h-6 w-6 transition-transform",
+                  "h-5 w-5 transition-transform",
                   isActive && "scale-110"
                 )} />
                 {showDot && (
-                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary animate-pulse flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-primary-foreground">
-                      {pendingCount > 9 ? "9" : pendingCount}
-                    </span>
-                  </span>
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
                 )}
               </div>
               <span className={cn(
-                "text-[10px] font-medium",
-                isActive && "font-semibold"
+                "text-[10px] leading-tight",
+                isActive ? "font-semibold" : "font-medium"
               )}>
                 {item.label}
               </span>
-              {isActive && (
-                <div className="absolute -bottom-1 h-1 w-8 bg-primary rounded-full" />
-              )}
             </Link>
           );
         })}
@@ -86,13 +79,14 @@ export function MobileNav() {
         {/* More Menu */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
-            <button className="flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-2xl text-muted-foreground transition-all">
-              <Menu className="h-6 w-6" />
-              <span className="text-[10px] font-medium">Още</span>
+            <button className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-4 rounded-2xl text-muted-foreground transition-all active:scale-95 min-w-[60px]">
+              <Menu className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-tight">Още</span>
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl">
-            <div className="py-4 space-y-2">
+          <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-8">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-4" />
+            <div className="space-y-1">
               {allNavItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
@@ -101,13 +95,13 @@ export function MobileNav() {
                     to={item.path}
                     onClick={() => handleNavClick(item.path)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors",
+                      "flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-colors active:scale-[0.98]",
                       isActive
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-primary font-medium"
                         : "text-foreground hover:bg-secondary"
                     )}
                   >
-                    <span className="font-medium">{item.label}</span>
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}

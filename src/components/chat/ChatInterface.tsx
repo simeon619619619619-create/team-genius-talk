@@ -197,7 +197,7 @@ export function ChatInterface({
   return <div className="flex h-full flex-col bg-background">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-4 py-8 space-y-4">
+        <div className="mx-auto max-w-2xl px-3 md:px-4 py-4 md:py-8 space-y-3 md:space-y-4">
           {messages.map(message => <ChatMessage key={message.id} {...message} />)}
           {isTyping && <div className="flex justify-start">
               <div className="bg-secondary rounded-[20px] rounded-bl-[4px] px-4 py-3">
@@ -218,28 +218,25 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-border/50 bg-background pb-0">
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          {/* Suggestions above input */}
-          {suggestions.length > 0 && messages.length <= 1}
-
-          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-3 py-1.5 transition-colors focus-within:border-border">
+      {/* Input Area - Fixed at bottom on mobile */}
+      <div className="border-t border-border/50 bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-2xl px-3 md:px-4 py-2 md:py-3">
+          <div className="relative flex items-center rounded-full border border-border/50 bg-secondary/50 px-2 md:px-3 py-1 md:py-1.5 transition-colors focus-within:border-border">
             {/* Voice Button */}
             <button 
               onClick={isListening ? stopListening : startListening} 
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all",
+                "flex h-9 w-9 md:h-8 md:w-8 shrink-0 items-center justify-center rounded-full transition-all touch-manipulation",
                 isListening 
                   ? "bg-foreground text-background" 
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground active:scale-95"
               )}
             >
               {isListening ? <StopIcon className="h-3.5 w-3.5" /> : <MicIcon className="h-4 w-4" />}
             </button>
 
             {/* Text Input */}
-            <div className="relative flex-1 flex items-center min-h-[36px]">
+            <div className="relative flex-1 flex items-center min-h-[40px] md:min-h-[36px]">
               <textarea 
                 ref={textareaRef} 
                 value={displayValue} 
@@ -255,13 +252,13 @@ export function ChatInterface({
                     handleSend(displayValue);
                   }
                 }} 
-                placeholder={isListening ? "Слушам..." : "Съобщение"} 
+                placeholder={isListening ? "Слушам..." : "Напишете съобщение..."} 
                 rows={1} 
                 className={cn(
-                  "w-full resize-none bg-transparent px-3 py-2 text-[15px] leading-5 placeholder:text-muted-foreground/60 focus:outline-none",
+                  "w-full resize-none bg-transparent px-2 md:px-3 py-2 text-base md:text-[15px] leading-5 placeholder:text-muted-foreground/60 focus:outline-none",
                   isListening && "text-foreground/80"
                 )} 
-                style={{ maxHeight: "120px" }} 
+                style={{ maxHeight: "100px" }} 
               />
               
               {/* Recording indicator */}
@@ -275,7 +272,7 @@ export function ChatInterface({
               )}
             </div>
 
-            {/* Send Button */}
+            {/* Send Button - Bigger touch target on mobile */}
             <button 
               onClick={() => {
                 if (isListening) stopListening();
@@ -283,9 +280,9 @@ export function ChatInterface({
               }} 
               disabled={!canSend} 
               className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all",
+                "flex h-10 w-10 md:h-9 md:w-9 shrink-0 items-center justify-center rounded-full transition-all touch-manipulation",
                 canSend 
-                  ? "bg-foreground text-background hover:bg-foreground/90" 
+                  ? "bg-foreground text-background hover:bg-foreground/90 active:scale-95" 
                   : "text-muted-foreground/40"
               )}
             >
