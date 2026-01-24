@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDailyTasks } from "@/hooks/useDailyTasks";
 
 const suggestions = [
   {
@@ -35,6 +36,12 @@ const models = [
 
 export default function AssistantPage() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
+  const { markAsViewed } = useDailyTasks();
+
+  // Mark as viewed when page opens
+  useEffect(() => {
+    markAsViewed();
+  }, [markAsViewed]);
 
   return (
     <MainLayout>

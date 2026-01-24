@@ -61,7 +61,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { pendingCount } = useDailyTasks();
+  const { pendingCount, showBadge } = useDailyTasks();
   const [isAdmin, setIsAdmin] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
 
@@ -104,15 +104,15 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     navigate("/auth");
   };
 
-  // Add badge to AI Assistant
+  // Add badge to AI Assistant only if should show (8h rule)
   const navItemsWithBadge = baseNavItems.map(item => {
-    if (item.path === "/assistant" && pendingCount > 0) {
+    if (item.path === "/assistant" && showBadge && pendingCount > 0) {
       return { ...item, badge: pendingCount };
     }
     return item;
   });
 
-  const navItems = isAdmin 
+  const navItems = isAdmin
     ? [...navItemsWithBadge, { icon: Shield, label: "Админ", path: "/admin" }]
     : navItemsWithBadge;
 
