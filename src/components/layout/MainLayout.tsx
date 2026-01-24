@@ -36,8 +36,8 @@ export function MainLayout({ children }: MainLayoutProps) {
         !isMobile && (sidebarCollapsed ? "pl-16" : "pl-64")
       )}>
         <div className={cn(
-          "min-h-screen p-4 md:p-6",
-          isMobile && "pb-24" // Space for bottom nav
+          "min-h-screen p-3 md:p-6",
+          isMobile && "pb-20" // Space for bottom nav
         )}>
           {children}
         </div>

@@ -243,31 +243,33 @@ export default function TeamsPage() {
 
     return (
       <MainLayout>
-        <div className="space-y-6">
-          <Button variant="ghost" onClick={() => setSelectedTeam(null)} className="gap-2">
+        <div className="space-y-4 md:space-y-6">
+          <Button variant="ghost" onClick={() => setSelectedTeam(null)} className="gap-2 -ml-2">
             <ArrowLeft className="h-4 w-4" />
-            Назад към екипите
+            <span className="text-sm">Назад</span>
           </Button>
 
           <div 
-            className="rounded-xl p-8 relative"
+            className="rounded-xl p-4 md:p-8 relative"
             style={{ background: `linear-gradient(135deg, ${colors[teams.indexOf(selectedTeam) % colors.length]} 0%, ${colors[teams.indexOf(selectedTeam) % colors.length]}99 100%)` }}
           >
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4 text-white/80 hover:text-white hover:bg-white/20"
+              className="absolute top-3 right-3 md:top-4 md:right-4 text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
               onClick={openEditDialog}
             >
               <Pencil className="h-4 w-4" />
             </Button>
-            <h1 className="text-3xl font-display font-bold text-white">
+            <h1 className="text-xl md:text-3xl font-display font-bold text-white pr-10">
               {selectedTeam.name}
             </h1>
-            <p className="mt-2 text-white/80">{selectedTeam.description}</p>
-            <div className="mt-4 flex items-center gap-2">
-              <Users className="h-5 w-5 text-white" />
-              <span className="text-white">{teamMembers.length} членове</span>
+            {selectedTeam.description && (
+              <p className="mt-1 md:mt-2 text-sm md:text-base text-white/80">{selectedTeam.description}</p>
+            )}
+            <div className="mt-3 md:mt-4 flex items-center gap-2">
+              <Users className="h-4 w-4 md:h-5 md:w-5 text-white" />
+              <span className="text-sm text-white">{teamMembers.length} членове</span>
             </div>
           </div>
 
@@ -314,8 +316,8 @@ export default function TeamsPage() {
             </DialogContent>
           </Dialog>
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-display font-semibold">Членове на екипа</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg md:text-xl font-display font-semibold">Членове</h2>
             <Dialog open={newMemberOpen} onOpenChange={(open) => {
               if (open) {
                 setNewMemberOpen(true);
@@ -324,9 +326,9 @@ export default function TeamsPage() {
               }
             }}>
               <DialogTrigger asChild>
-                <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Покани член
+                <Button size="sm" className="gradient-primary text-primary-foreground shadow-lg h-9 px-3">
+                  <Mail className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Покани член</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -426,30 +428,29 @@ export default function TeamsPage() {
             </Dialog>
           </div>
 
-          {/* Team Members */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Team Members - Full width on mobile */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {teamMembers.map((member) => (
-              <div key={member.id} className="glass-card rounded-xl p-4 animate-fade-in group relative">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
-                    <UserCircle className="h-8 w-8 text-muted-foreground" />
+              <div key={member.id} className="glass-card rounded-xl p-3 md:p-4 animate-fade-in group relative">
+                <div className="flex items-center gap-2.5 md:gap-3">
+                  <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-secondary shrink-0">
+                    <UserCircle className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium truncate">
+                    <div className="flex items-center gap-1.5 md:gap-2">
+                      <h4 className="font-medium text-sm md:text-base truncate">
                         {member.profile?.full_name || member.email.split("@")[0]}
                       </h4>
-                      <Badge variant={member.status === "accepted" ? "default" : "secondary"}>
+                      <Badge variant={member.status === "accepted" ? "default" : "secondary"} className="text-[10px] md:text-xs shrink-0">
                         {member.status === "pending" ? "Чакащ" : "Приет"}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">{member.role}</p>
-                    <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground truncate">{member.role}</p>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       setMemberToRemove(member);
@@ -497,19 +498,19 @@ export default function TeamsPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">Екипи</h1>
-            <p className="mt-2 text-muted-foreground">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-3xl font-display font-bold text-foreground">Екипи</h1>
+            <p className="text-sm text-muted-foreground hidden md:block">
               Управлявайте екипите и членовете им
             </p>
           </div>
           <Dialog open={newTeamOpen} onOpenChange={setNewTeamOpen}>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl">
-                <Plus className="h-4 w-4 mr-2" />
-                Нов екип
+              <Button size="sm" className="gradient-primary text-primary-foreground shadow-lg h-9 px-3">
+                <Plus className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Нов екип</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -551,12 +552,12 @@ export default function TeamsPage() {
 
         {teams.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <h2 className="text-xl font-semibold mb-2">Нямате екипи</h2>
-            <p>Създайте първия си екип с бутона по-горе</p>
+            <Users className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-4 opacity-50" />
+            <h2 className="text-lg md:text-xl font-semibold mb-2">Нямате екипи</h2>
+            <p className="text-sm">Създайте първия си екип с бутона по-горе</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
             {teams.map((team) => (
               <TeamCard 
                 key={team.id} 
