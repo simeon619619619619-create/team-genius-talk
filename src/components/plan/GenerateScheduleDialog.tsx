@@ -94,16 +94,17 @@ export function GenerateScheduleDialog({ projectId, allStepsCompleted }: Generat
       <DialogTrigger asChild>
         <Button
           variant="default"
+          size="sm"
           className={cn(
-            "gap-2 rounded-xl transition-all duration-300",
+            "gap-1.5 rounded-xl text-xs md:text-sm px-2.5 md:px-4 h-8 md:h-9 transition-all duration-300",
             allStepsCompleted 
               ? "gradient-primary shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95" 
               : "opacity-50 cursor-not-allowed"
           )}
           disabled={!allStepsCompleted}
         >
-          <Calendar className="h-4 w-4" />
-          Генерирай седмичен план
+          <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4" />
+          <span className="hidden sm:inline">Генерирай</span> план
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col rounded-3xl">

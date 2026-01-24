@@ -74,44 +74,42 @@ export default function TasksPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">Задачи</h1>
-            <p className="mt-2 text-muted-foreground">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-3xl font-display font-bold text-foreground">Задачи</h1>
+            <p className="mt-0.5 md:mt-2 text-xs md:text-base text-muted-foreground truncate">
               Управлявайте задачите на вашия екип
             </p>
           </div>
-          <div className="flex gap-3">
-            <AddTaskDialog onAddTask={handleAddTask} />
-          </div>
+          <AddTaskDialog onAddTask={handleAddTask} />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="kanban" className="flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4" />
+          <TabsList className="h-9">
+            <TabsTrigger value="kanban" className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 md:px-3">
+              <LayoutGrid className="h-3.5 w-3.5" />
               Канбан
             </TabsTrigger>
-            <TabsTrigger value="daily" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+            <TabsTrigger value="daily" className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 md:px-3">
+              <Calendar className="h-3.5 w-3.5" />
               Ежедневни
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="kanban" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <TabsContent value="kanban" className="mt-4 md:mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
               {/* Todo Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display font-semibold text-foreground">
+                  <h2 className="font-display font-medium text-sm md:text-base text-foreground">
                     За изпълнение
                   </h2>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  <span className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-muted text-[10px] md:text-xs font-medium">
                     {todoTasks.length}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {todoTasks.map((task) => (
                     <TaskCard
                       key={task.id}
@@ -124,22 +122,22 @@ export default function TasksPage() {
                     />
                   ))}
                   {todoTasks.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Няма задачи за изпълнение</p>
+                    <p className="text-xs md:text-sm text-muted-foreground text-center py-6 md:py-8">Няма задачи за изпълнение</p>
                   )}
                 </div>
               </div>
 
               {/* In Progress Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display font-semibold text-foreground">
+                  <h2 className="font-display font-medium text-sm md:text-base text-foreground">
                     В процес
                   </h2>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
+                  <span className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-medium">
                     {inProgressTasks.length}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {inProgressTasks.map((task) => (
                     <TaskCard
                       key={task.id}
@@ -152,22 +150,22 @@ export default function TasksPage() {
                     />
                   ))}
                   {inProgressTasks.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Няма задачи в процес</p>
+                    <p className="text-xs md:text-sm text-muted-foreground text-center py-6 md:py-8">Няма задачи в процес</p>
                   )}
                 </div>
               </div>
 
               {/* Done Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display font-semibold text-foreground">
+                  <h2 className="font-display font-medium text-sm md:text-base text-foreground">
                     Завършени
                   </h2>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10 text-success text-xs font-medium">
+                  <span className="flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full bg-success/10 text-success text-[10px] md:text-xs font-medium">
                     {doneTasks.length}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {doneTasks.map((task) => (
                     <TaskCard
                       key={task.id}
@@ -180,7 +178,7 @@ export default function TasksPage() {
                     />
                   ))}
                   {doneTasks.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Няма завършени задачи</p>
+                    <p className="text-xs md:text-sm text-muted-foreground text-center py-6 md:py-8">Няма завършени задачи</p>
                   )}
                 </div>
               </div>

@@ -98,19 +98,14 @@ export default function PlanPage() {
       </MainLayout>;
   }
   return <MainLayout>
-      <div className="space-y-4 md:space-y-6">
+      <div className="space-y-3 md:space-y-6">
         {/* Header - Mobile Optimized */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-              Маркетинг план
-            </h1>
-            <p className="mt-1 text-sm md:text-base text-muted-foreground hidden sm:block">
-              Създайте и проследявайте вашия бизнес план с AI ботове
-            </p>
-          </div>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl md:text-3xl font-display font-bold text-foreground truncate">
+            Маркетинг план
+          </h1>
           
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-1.5 md:gap-2 shrink-0">
             <GenerateScheduleDialog projectId={projectId || ""} allStepsCompleted={allStepsCompleted} />
             <ExportPdfButton steps={steps} bots={globalBots} projectName={projectName} />
           </div>
