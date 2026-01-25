@@ -26,9 +26,10 @@ interface StepChatInterfaceProps {
   onStepComplete?: () => void;
   onCompletionStatusChange?: (canComplete: boolean, missingFields: string[]) => void;
   onGoToNextStep?: () => void;
+  onCompleteAndGoNext?: () => void;
 }
 
-export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange, onGoToNextStep }: StepChatInterfaceProps) {
+export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange, onGoToNextStep, onCompleteAndGoNext }: StepChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -450,14 +451,14 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
           {/* Input - FIXED at bottom */}
           <div className="border-t border-border/50 p-3 bg-background/80 backdrop-blur-sm flex-shrink-0">
             {/* Show "Go to next step" button when step is complete */}
-            {stepComplete && onGoToNextStep && (
+            {stepComplete && onCompleteAndGoNext && (
               <Button
-                onClick={onGoToNextStep}
+                onClick={onCompleteAndGoNext}
                 className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] bg-success hover:bg-success/90 text-success-foreground"
                 size="sm"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Продължи към следващата стъпка
+                Завърши и продължи
                 <ArrowRight className="h-4 w-4" />
               </Button>
             )}

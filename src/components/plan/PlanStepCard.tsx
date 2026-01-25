@@ -93,6 +93,19 @@ export function PlanStepCard({
     }
   };
 
+  // Combined handler: mark as complete AND go to next step
+  const handleCompleteAndGoNext = useCallback(() => {
+    if (!step.completed && canComplete) {
+      onToggleComplete();
+      // Navigate after confetti animation
+      if (onGoToNextStep) {
+        setTimeout(() => {
+          onGoToNextStep();
+        }, 500);
+      }
+    }
+  }, [step.completed, canComplete, onToggleComplete, onGoToNextStep]);
+
   const getMissingFieldsText = () => {
     if (missingFields.length === 0) return "";
     const labels = missingFields.map(f => fieldLabels[f] || f);
@@ -204,6 +217,7 @@ export function PlanStepCard({
             onContentUpdate={onContentUpdate}
             onCompletionStatusChange={handleCompletionStatusChange}
             onGoToNextStep={onGoToNextStep}
+            onCompleteAndGoNext={handleCompleteAndGoNext}
           />
         </div>
       </Card>
