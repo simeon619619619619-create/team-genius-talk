@@ -145,46 +145,63 @@ export function ChatInterface({
     handleSend(prompt);
   };
   const startListening = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Вашият браузър не поддържа гласово разпознаване.');
+    // Check for Speech Recognition support
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognitionAPI) {
+      alert('Вашият браузър не поддържа гласово разпознаване. Моля, използвайте Chrome или Safari.');
       return;
     }
-    const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognitionConstructor();
-    recognitionRef.current = recognition;
-    recognition.lang = 'bg-BG';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onstart = () => {
-      setIsListening(true);
-      setInterimTranscript("");
-    };
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = "";
-      let final = "";
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          final += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
-        }
-      }
-      if (final) {
-        setInput(prev => prev + final);
-        setInterimTranscript(interim);
-      } else {
-        setInterimTranscript(interim);
-      }
-    };
-    recognition.onerror = () => {
-      setIsListening(false);
-      setInterimTranscript("");
-    };
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-    recognition.start();
+    
+    // Request microphone permission first
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(() => {
+        const recognition = new SpeechRecognitionAPI();
+        recognitionRef.current = recognition;
+        recognition.lang = 'bg-BG';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        recognition.onstart = () => {
+          setIsListening(true);
+          setInterimTranscript("");
+        };
+        
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let interim = "";
+          let final = "";
+          for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              final += result[0].transcript;
+            } else {
+              interim += result[0].transcript;
+            }
+          }
+          if (final) {
+            setInput(prev => prev + final);
+            setInterimTranscript(interim);
+          } else {
+            setInterimTranscript(interim);
+          }
+        };
+        
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event);
+          setIsListening(false);
+          setInterimTranscript("");
+        };
+        
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognition.start();
+      })
+      .catch((err) => {
+        console.error('Microphone permission denied:', err);
+        alert('Моля, разрешете достъп до микрофона за да използвате гласово въвеждане.');
+      });
   }, []);
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
