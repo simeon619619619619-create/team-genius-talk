@@ -39,8 +39,8 @@ export function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-xl border-t border-border md:hidden">
-      <div className="flex items-center justify-around h-14 px-1 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-xl border-t border-border md:hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-around h-14 px-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const showDot = item.path === "/assistant" && showBadge && pendingCount > 0;
