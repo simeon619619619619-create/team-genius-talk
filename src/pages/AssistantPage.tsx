@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
-
+import { useOverdueTasks } from "@/hooks/useOverdueTasks";
+import { OverdueTasksSection } from "@/components/dashboard/OverdueTasksSection";
 const suggestions = [
   {
     icon: "💡",
@@ -36,12 +37,18 @@ const models = [
 export default function AssistantPage() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const { markAsViewed } = useDailyTasks();
+  const { overdueTasks } = useOverdueTasks();
+  const [showOverdue, setShowOverdue] = useState(true);
 
   // Mark as viewed when page opens
   useEffect(() => {
     markAsViewed();
   }, [markAsViewed]);
 
+  // Hide overdue section after user dismisses it
+  const handleDismissOverdue = () => {
+    setShowOverdue(false);
+  };
   return (
     <MainLayout>
       <div className="h-[calc(100vh-5rem)] md:h-[calc(100vh-4rem)] flex flex-col">
@@ -65,6 +72,15 @@ export default function AssistantPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Overdue Tasks Alert - Show at top when entering assistant */}
+        {showOverdue && overdueTasks.length > 0 && (
+          <div className="px-3 md:px-4 pb-3 shrink-0">
+            <div className="mx-auto max-w-3xl">
+              <OverdueTasksSection compact maxTasks={3} />
+            </div>
+          </div>
+        )}
 
         {/* Chat Interface - Full height */}
         <div className="flex-1 min-h-0">
