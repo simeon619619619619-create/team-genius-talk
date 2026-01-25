@@ -32,6 +32,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [collectedAnswers, setCollectedAnswers] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<'chat' | 'manual'>('chat');
@@ -104,12 +105,16 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       };
       recognition.onresult = (event: any) => {
         let finalTranscript = "";
+        let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.isFinal) {
             finalTranscript += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
           }
         }
+        setInterimTranscript(interim);
         if (finalTranscript) {
           setInput((prev) => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
         }
@@ -128,6 +133,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       recognitionRef.current?.stop?.();
     } finally {
       setIsListening(false);
+      setInterimTranscript("");
     }
   }, []);
 
@@ -463,19 +469,37 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   </>
                 )}
               </div>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
-                className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
+              {/* Input field with interim transcript overlay */}
+              <div className="flex-1 relative min-w-0">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => !isListening && setInput(e.target.value)}
+                  placeholder={isListening ? "" : "Напишете съобщение..."}
+                  className={cn(
+                    "w-full bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60",
+                    isListening && "caret-transparent"
+                  )}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                />
+                {/* Overlay showing combined text with interim in gray */}
+                {isListening && (
+                  <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
+                    <span className="text-base text-foreground whitespace-nowrap">{input}</span>
+                    {interimTranscript && (
+                      <span className="text-base text-muted-foreground/50 whitespace-nowrap">{input ? " " : ""}{interimTranscript}</span>
+                    )}
+                    {!input && !interimTranscript && (
+                      <span className="text-base text-muted-foreground/60">Слушам...</span>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleSend}
