@@ -203,6 +203,7 @@ export function PlanStepCard({
             bot={bot}
             onContentUpdate={onContentUpdate}
             onCompletionStatusChange={handleCompletionStatusChange}
+            onGoToNextStep={onGoToNextStep}
           />
         </div>
       </Card>
