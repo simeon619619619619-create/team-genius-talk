@@ -108,7 +108,7 @@ export default function AuthPage() {
             "text-4xl font-display font-bold text-foreground tracking-tight transition-all duration-500",
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           )} style={{ transitionDelay: "200ms" }}>
-            Team Genius
+            Симора
           </h1>
           <p className={cn(
             "text-muted-foreground mt-3 text-lg transition-all duration-500",
