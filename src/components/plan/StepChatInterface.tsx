@@ -165,20 +165,42 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       .order('created_at');
 
     if (!error && data) {
-      setMessages(data.map(m => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })));
-      
-      // If there are no messages, add greeting with guiding questions
-      if (data.length === 0 && stepQuestions) {
-        const greetingMessage = {
-          id: 'greeting',
-          role: 'assistant' as const,
-          content: stepQuestions.greeting,
-        };
-        setMessages([greetingMessage]);
+      if (data.length > 0) {
+        // Load existing conversation from database
+        setMessages(data.map(m => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })));
+      } else if (stepQuestions) {
+        // No messages yet - save greeting to database and set locally
+        const greetingContent = stepQuestions.greeting;
+        
+        const { data: insertedData, error: insertError } = await supabase
+          .from('step_conversations')
+          .insert({
+            step_id: step.id,
+            project_id: projectId,
+            role: 'assistant',
+            content: greetingContent,
+          })
+          .select()
+          .single();
+
+        if (!insertError && insertedData) {
+          setMessages([{
+            id: insertedData.id,
+            role: 'assistant' as const,
+            content: greetingContent,
+          }]);
+        } else {
+          // Fallback to local greeting if insert fails
+          setMessages([{
+            id: 'greeting',
+            role: 'assistant' as const,
+            content: greetingContent,
+          }]);
+        }
       }
     }
   };
