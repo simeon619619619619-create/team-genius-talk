@@ -3,12 +3,12 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DailyPlanWidget } from "@/components/dashboard/DailyPlanWidget";
+import { OverdueTasksSection } from "@/components/dashboard/OverdueTasksSection";
 import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuickCreateButton } from "@/components/dashboard/QuickCreateButton";
-
 const Index = () => {
   const { user } = useAuth();
   const [userName, setUserName] = useState<string | null>(null);
@@ -70,13 +70,15 @@ const Index = () => {
           />
         </div>
 
+        {/* Overdue Tasks Section - Show on both mobile and desktop */}
+        <OverdueTasksSection maxTasks={3} />
+
         {/* Main Content - Stack on mobile */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Daily Plan Widget - Hidden on mobile (shown in Assistant page) */}
           <div className="lg:col-span-1 hidden lg:block">
             <DailyPlanWidget />
           </div>
-
           {/* AI Chat */}
           <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden">
             <div className="border-b border-border px-4 py-3">
