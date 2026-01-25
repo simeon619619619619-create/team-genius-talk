@@ -471,15 +471,16 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               </div>
               {/* Input field with interim transcript overlay */}
               <div className="flex-1 relative min-w-0">
-                <input
-                  type="text"
-                  value={input}
+                <textarea
+                  value={isListening ? `${input}${interimTranscript ? (input ? " " : "") + interimTranscript : ""}` : input}
                   onChange={(e) => !isListening && setInput(e.target.value)}
-                  placeholder={isListening ? "" : "Напишете съобщение..."}
+                  placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
+                  rows={3}
                   className={cn(
-                    "w-full bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60",
+                    "w-full bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin",
                     isListening && "caret-transparent"
                   )}
+                  style={{ maxHeight: '120px' }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -487,18 +488,6 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                     }
                   }}
                 />
-                {/* Overlay showing combined text with interim in gray */}
-                {isListening && (
-                  <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
-                    <span className="text-base text-foreground whitespace-nowrap">{input}</span>
-                    {interimTranscript && (
-                      <span className="text-base text-muted-foreground/50 whitespace-nowrap">{input ? " " : ""}{interimTranscript}</span>
-                    )}
-                    {!input && !interimTranscript && (
-                      <span className="text-base text-muted-foreground/60">Слушам...</span>
-                    )}
-                  </div>
-                )}
               </div>
               <button
                 type="button"
