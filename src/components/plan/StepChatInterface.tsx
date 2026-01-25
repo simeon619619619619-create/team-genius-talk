@@ -430,23 +430,39 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               </Button>
             )}
             <div className="flex items-center gap-2 md:gap-4 bg-secondary/40 hover:bg-secondary/60 rounded-full px-3 md:px-5 py-2 md:py-3 transition-all duration-200 border border-border/30 focus-within:border-primary/30">
-              <button 
-                type="button" 
-                onClick={isListening ? stopListening : startListening}
-                className={cn(
-                  "transition-all duration-200 p-1 touch-manipulation",
-                  isListening
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+              {/* Mic button with recording indicator */}
+              <div className="relative">
+                <button 
+                  type="button" 
+                  onClick={isListening ? stopListening : startListening}
+                  className={cn(
+                    "relative z-10 flex items-center justify-center h-8 w-8 rounded-full transition-all duration-200 touch-manipulation",
+                    isListening
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                  aria-label={isListening ? "Спри запис" : "Започни запис"}
+                >
+                  {isListening ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                      <line x1="12" x2="12" y1="19" y2="22"/>
+                    </svg>
+                  )}
+                </button>
+                {/* Pulsing rings when recording */}
+                {isListening && (
+                  <>
+                    <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping" />
+                    <span className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse" />
+                  </>
                 )}
-                aria-label={isListening ? "Спри запис" : "Започни запис"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" x2="12" y1="19" y2="22"/>
-                </svg>
-              </button>
+              </div>
               <input
                 type="text"
                 value={input}
