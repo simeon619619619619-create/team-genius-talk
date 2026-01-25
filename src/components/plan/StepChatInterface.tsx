@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,9 +25,10 @@ interface StepChatInterfaceProps {
   onContentUpdate: (content: string) => void;
   onStepComplete?: () => void;
   onCompletionStatusChange?: (canComplete: boolean, missingFields: string[]) => void;
+  onGoToNextStep?: () => void;
 }
 
-export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange }: StepChatInterfaceProps) {
+export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange, onGoToNextStep }: StepChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +52,15 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const contextKeys = stepQuestions?.contextKeys || [];
   const botRole = stepQuestions?.botRole || "AI Асистент";
 
-  // Load existing conversation and answers
+  // Load existing conversation and answers - reset state when step changes
   useEffect(() => {
+    // Reset state when switching steps
+    setMessages([]);
+    setCollectedAnswers({});
+    setCurrentQuestionIndex(0);
+    setMissingFields([]);
+    setStepComplete(false);
+    
     loadConversation();
     loadAnswers();
   }, [step.id]);
@@ -441,7 +449,20 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
 
           {/* Input - FIXED at bottom */}
           <div className="border-t border-border/50 p-3 bg-background/80 backdrop-blur-sm flex-shrink-0">
-            {Object.keys(collectedAnswers).length >= questions.length && (
+            {/* Show "Go to next step" button when step is complete */}
+            {stepComplete && onGoToNextStep && (
+              <Button
+                onClick={onGoToNextStep}
+                className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] bg-success hover:bg-success/90 text-success-foreground"
+                size="sm"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Продължи към следващата стъпка
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {Object.keys(collectedAnswers).length >= questions.length && !stepComplete && (
               <Button
                 onClick={handleGenerateFromAnswers}
                 disabled={isGenerating}
