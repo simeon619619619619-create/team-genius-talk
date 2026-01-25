@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [collectedAnswers, setCollectedAnswers] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<'chat' | 'manual'>('chat');
@@ -39,6 +40,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [stepComplete, setStepComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const stepQuestions = getQuestionsForStep(step.title);
   const questions = stepQuestions?.questions || [];
@@ -57,6 +59,69 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   useEffect(() => {
     setManualContent(step.generated_content || "");
   }, [step.generated_content]);
+
+  // Cleanup speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
+  const startListening = useCallback(async () => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      toast.error("Гласовото разпознаване не се поддържа от този браузър.");
+      return;
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      toast.error("Няма достъп до микрофона. Разрешете микрофон от настройките на браузъра.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionAPI();
+      recognitionRef.current = recognition;
+
+      recognition.lang = "bg-BG";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = (e: any) => {
+        console.error("Speech recognition error", e);
+        setIsListening(false);
+        toast.error("Проблем с гласовото разпознаване. Опитайте отново.");
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = event?.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start speech recognition", e);
+      setIsListening(false);
+      toast.error("Не успях да стартирам гласовото разпознаване.");
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    try {
+      recognitionRef.current?.stop?.();
+    } finally {
+      setIsListening(false);
+    }
+  }, []);
 
   // Check completion status when answers change and notify parent
   useEffect(() => {
@@ -359,7 +424,14 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
             <div className="flex items-center gap-2 md:gap-4 bg-secondary/40 hover:bg-secondary/60 rounded-full px-3 md:px-5 py-2 md:py-3 transition-all duration-200 border border-border/30 focus-within:border-primary/30">
               <button 
                 type="button" 
-                className="text-muted-foreground hover:text-foreground transition-all duration-200 p-1 touch-manipulation"
+                onClick={isListening ? stopListening : startListening}
+                className={cn(
+                  "transition-all duration-200 p-1 touch-manipulation",
+                  isListening
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                aria-label={isListening ? "Спри запис" : "Започни запис"}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
@@ -371,7 +443,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Напишете съобщение..."
+                placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
                 className="flex-1 bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
