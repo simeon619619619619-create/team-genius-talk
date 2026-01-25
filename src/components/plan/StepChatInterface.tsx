@@ -90,20 +90,28 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       recognitionRef.current = recognition;
 
       recognition.lang = "bg-BG";
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
       recognition.onstart = () => setIsListening(true);
       recognition.onend = () => setIsListening(false);
       recognition.onerror = (e: any) => {
         console.error("Speech recognition error", e);
         setIsListening(false);
-        toast.error("Проблем с гласовото разпознаване. Опитайте отново.");
+        if (e?.error !== "aborted") {
+          toast.error("Проблем с гласовото разпознаване. Опитайте отново.");
+        }
       };
       recognition.onresult = (event: any) => {
-        const transcript = event?.results?.[0]?.[0]?.transcript;
-        if (transcript) {
-          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        let finalTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setInput((prev) => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
         }
       };
 
