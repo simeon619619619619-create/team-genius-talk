@@ -11,6 +11,7 @@ import { useOrganizations } from "@/hooks/useOrganizations";
 import { useSubscription, STRIPE_PLANS } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
 
 type UserType = "worker" | "owner";
@@ -89,37 +90,92 @@ export default function OnboardingPage() {
   const [promoCode, setPromoCode] = useState("");
 
   const handlePromoCode = async () => {
-    if (promoCode.trim() === "simora69$") {
-      setIsSubmitting(true);
-      try {
-        // Update profile with user type and mark as completed
-        const success = await updateProfile({ 
-          user_type: userType || "worker",
-          onboarding_completed: true 
+    if (!user) {
+      toast.error("Трябва да сте влезли в системата");
+      return;
+    }
+
+    const enteredCode = promoCode.trim();
+    if (!enteredCode) {
+      toast.error("Моля, въведете промо код");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check if promo code exists and is valid
+      const { data: promoCodeData, error: promoError } = await supabase
+        .from("promo_codes")
+        .select("*")
+        .eq("code", enteredCode)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (promoError || !promoCodeData) {
+        toast.error("Невалиден промо код");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check if already used by this user
+      const { data: existingUse } = await supabase
+        .from("used_promo_codes")
+        .select("id")
+        .eq("promo_code_id", promoCodeData.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existingUse) {
+        toast.error("Вече сте използвали този промо код");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check max uses
+      if (promoCodeData.max_uses !== null && promoCodeData.current_uses >= promoCodeData.max_uses) {
+        toast.error("Този промо код е изчерпан");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Record the promo code usage
+      const { error: useError } = await supabase
+        .from("used_promo_codes")
+        .insert({
+          promo_code_id: promoCodeData.id,
+          user_id: user.id,
         });
 
-        if (!success) {
-          throw new Error("Failed to update profile");
-        }
-
-        // Create organization if owner
-        if (userType === "owner" && organizationName.trim()) {
-          await createOrganization(organizationName.trim());
-        }
-
-        toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
-        
-        // Small delay to ensure profile state is updated before navigation
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 500);
-      } catch (error) {
-        console.error("Error applying promo code:", error);
-        toast.error("Възникна грешка. Моля, опитайте отново.");
-        setIsSubmitting(false);
+      if (useError) {
+        console.error("Error recording promo code usage:", useError);
+        throw useError;
       }
-    } else {
-      toast.error("Невалиден промо код");
+
+      // Update profile with user type and mark as completed
+      const success = await updateProfile({ 
+        user_type: userType || "worker",
+        onboarding_completed: true 
+      });
+
+      if (!success) {
+        throw new Error("Failed to update profile");
+      }
+
+      // Create organization if owner
+      if (userType === "owner" && organizationName.trim()) {
+        await createOrganization(organizationName.trim());
+      }
+
+      toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
+      
+      // Small delay to ensure profile state is updated before navigation
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
+    } catch (error) {
+      console.error("Error applying promo code:", error);
+      toast.error("Възникна грешка. Моля, опитайте отново.");
+      setIsSubmitting(false);
     }
   };
 
