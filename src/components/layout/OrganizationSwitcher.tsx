@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronsUpDown, Building2, Plus, Check, User, Pencil } from "lucide-react";
+import { ChevronsUpDown, Building2, Plus, Check, User, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +17,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useOrganizations, Organization } from "@/hooks/useOrganizations";
 import { useProfile } from "@/hooks/useProfile";
@@ -35,19 +45,23 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
     switchOrganization, 
     createOrganization,
     updateOrganization,
+    deleteOrganization,
     canCreateOrganization 
   } = useOrganizations();
   const { profile, updateProfile } = useProfile();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showWorkspaceEditDialog, setShowWorkspaceEditDialog] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [deletingOrg, setDeletingOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [editOrgName, setEditOrgName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const allOrganizations = [...organizations, ...memberOrganizations];
   const isOwner = profile?.user_type === "owner";
@@ -108,6 +122,30 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleDeleteOrganization = async () => {
+    if (!deletingOrg) return;
+
+    setIsDeleting(true);
+    try {
+      const success = await deleteOrganization(deletingOrg.id);
+      if (success) {
+        toast.success("Организацията е изтрита");
+        setShowDeleteDialog(false);
+        setDeletingOrg(null);
+      } else {
+        toast.error("Грешка при изтриване");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = (org: Organization, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingOrg(org);
+    setShowDeleteDialog(true);
   };
 
   const handleUpdateWorkspaceName = async () => {
@@ -272,8 +310,16 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
                     <button
                       onClick={(e) => handleEditOrganization(org, e)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity"
+                      title="Преименувай"
                     >
                       <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={(e) => openDeleteDialog(org, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 text-destructive rounded transition-opacity"
+                      title="Изтрий"
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </button>
                     {currentOrganization?.id === org.id && <Check className="h-4 w-4" />}
                   </div>
@@ -404,6 +450,28 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Изтриване на организация</AlertDialogTitle>
+            <AlertDialogDescription>
+              Сигурни ли сте, че искате да изтриете организацията "{deletingOrg?.name}"? 
+              Това действие е необратимо и ще премахне всички членове от организацията.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Отказ</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrganization}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Изтриване..." : "Изтрий"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

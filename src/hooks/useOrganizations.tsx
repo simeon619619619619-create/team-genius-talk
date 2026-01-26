@@ -153,6 +153,44 @@ export function useOrganizations() {
     }
   };
 
+  const deleteOrganization = async (orgId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      // First delete all organization members
+      await supabase
+        .from("organization_members")
+        .delete()
+        .eq("organization_id", orgId);
+
+      // Then delete the organization
+      const { error } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", orgId)
+        .eq("owner_id", user.id);
+
+      if (error) throw error;
+      
+      // If deleted org was current, switch to first available or null
+      if (currentOrganization?.id === orgId) {
+        const remaining = organizations.filter(o => o.id !== orgId);
+        const allRemaining = [...remaining, ...memberOrganizations];
+        if (allRemaining.length > 0) {
+          switchOrganization(allRemaining[0]);
+        } else {
+          switchOrganization(null);
+        }
+      }
+      
+      await fetchOrganizations();
+      return true;
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      return false;
+    }
+  };
+
   const isOrganizationOwner = (orgId: string) => {
     return organizations.some(o => o.id === orgId);
   };
@@ -172,6 +210,7 @@ export function useOrganizations() {
     loading,
     createOrganization,
     updateOrganization,
+    deleteOrganization,
     switchOrganization,
     isOrganizationOwner,
     canCreateOrganization,
