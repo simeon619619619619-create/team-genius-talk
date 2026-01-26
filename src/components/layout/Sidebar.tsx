@@ -93,9 +93,16 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     navigate("/auth");
   };
 
-  // Add badge to AI Assistant only if should show (8h rule)
-  // Filter out Teams nav for workers
+  // Workers only see Dashboard - they can only accept org invitations
+  const isWorkerType = profile?.user_type === "worker";
+  
+  // Filter navigation based on user type
   const filteredNavItems = baseNavItems.filter(item => {
+    // Workers only see Dashboard
+    if (isWorkerType) {
+      return item.path === "/";
+    }
+    // Owners see everything except Teams is already handled
     if (item.path === "/teams" && !isOwnerType) {
       return false;
     }
