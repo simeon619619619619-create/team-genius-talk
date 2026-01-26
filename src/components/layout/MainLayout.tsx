@@ -3,6 +3,9 @@ import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { DataMigrationDialog } from "@/components/organization/DataMigrationDialog";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -16,10 +19,28 @@ export function MainLayout({ children }: MainLayoutProps) {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
     return stored === "true";
   });
+  const { getAllOrganizations } = useOrganizations();
+  const { needsMigration, refetch: refetchProject } = useCurrentProject();
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  // Show migration dialog when needed
+  useEffect(() => {
+    if (needsMigration) {
+      const allOrgs = getAllOrganizations();
+      if (allOrgs.length > 0) {
+        setShowMigrationDialog(true);
+      }
+    }
+  }, [needsMigration, getAllOrganizations]);
+
+  const handleMigrationComplete = () => {
+    setShowMigrationDialog(false);
+    refetchProject();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,6 +66,13 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && <MobileNav />}
+
+      {/* Data Migration Dialog */}
+      <DataMigrationDialog
+        organizations={getAllOrganizations()}
+        open={showMigrationDialog}
+        onComplete={handleMigrationComplete}
+      />
     </div>
   );
 }

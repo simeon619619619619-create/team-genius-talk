@@ -451,6 +451,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          organization_id: string | null
           owner_id: string
           updated_at: string
         }
@@ -459,6 +460,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          organization_id?: string | null
           owner_id: string
           updated_at?: string
         }
@@ -467,10 +469,19 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          organization_id?: string | null
           owner_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
