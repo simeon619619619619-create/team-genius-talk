@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User, Sparkles, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoIcon from "@/assets/logo-icon.png";
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export default function AuthPage() {
             "inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-card border border-border/50 mb-6 shadow-2xl transition-all duration-500 hover:scale-105 hover:shadow-primary/20",
             mounted ? "opacity-100 scale-100" : "opacity-0 scale-75"
           )} style={{ transitionDelay: "100ms" }}>
-            <Sparkles className="h-10 w-10 text-foreground" />
+            <img src={logoIcon} alt="Симора" className="h-10 w-10 dark:invert dark:brightness-200" />
           </div>
           <h1 className={cn(
             "text-4xl font-display font-bold text-foreground tracking-tight transition-all duration-500",
