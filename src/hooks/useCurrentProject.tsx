@@ -97,16 +97,26 @@ export function useCurrentProject() {
         }
       }
 
-      // Check if there are unassigned projects that need migration
-      const { count, error: countError } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true })
-        .eq("owner_id", user.id)
-        .is("organization_id", null);
+      // Check if there are unassigned projects OR orphaned tasks that need migration
+      const [projectsResult, tasksResult] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("*", { count: "exact", head: true })
+          .eq("owner_id", user.id)
+          .is("organization_id", null),
+        supabase
+          .from("tasks")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .is("project_id", null)
+      ]);
 
-      if (!countError && count && count > 0) {
+      const unassignedProjectsCount = projectsResult.count || 0;
+      const orphanedTasksCount = tasksResult.count || 0;
+
+      if (unassignedProjectsCount > 0 || orphanedTasksCount > 0) {
         setNeedsMigration(true);
-        setUnassignedCount(count);
+        setUnassignedCount(unassignedProjectsCount + orphanedTasksCount);
       } else {
         setNeedsMigration(false);
         setUnassignedCount(0);

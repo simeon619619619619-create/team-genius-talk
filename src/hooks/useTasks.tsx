@@ -48,10 +48,10 @@ export function useTasks() {
       let query = supabase.from("tasks").select("*");
       
       if (projectId) {
-        // Filter by project_id OR user_id (for backward compatibility)
-        query = query.or(`project_id.eq.${projectId},and(user_id.eq.${user.id},project_id.is.null)`);
+        // Only show tasks for this specific project
+        query = query.eq("project_id", projectId);
       } else {
-        // No project selected, show only user's tasks without project
+        // No project selected, show only user's tasks without project (orphaned tasks)
         query = query.eq("user_id", user.id).is("project_id", null);
       }
       

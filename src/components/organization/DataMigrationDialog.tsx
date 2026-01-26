@@ -43,32 +43,44 @@ export function DataMigrationDialog({
 }: DataMigrationDialogProps) {
   const { user } = useAuth();
   const [unassignedProjects, setUnassignedProjects] = useState<UnassignedProject[]>([]);
+  const [orphanedTasksCount, setOrphanedTasksCount] = useState(0);
   const [selectedOrg, setSelectedOrg] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [migrating, setMigrating] = useState(false);
   const [migrated, setMigrated] = useState(false);
 
   useEffect(() => {
-    const fetchUnassignedProjects = async () => {
+    const fetchUnassignedData = async () => {
       if (!user || !open) return;
 
       try {
-        const { data, error } = await supabase
+        // Fetch unassigned projects
+        const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
           .select("id, name")
           .eq("owner_id", user.id)
           .is("organization_id", null);
 
-        if (error) throw error;
-        setUnassignedProjects(data || []);
+        if (projectsError) throw projectsError;
+        setUnassignedProjects(projectsData || []);
+
+        // Fetch count of orphaned tasks (tasks without project_id)
+        const { count, error: tasksError } = await supabase
+          .from("tasks")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .is("project_id", null);
+
+        if (tasksError) throw tasksError;
+        setOrphanedTasksCount(count || 0);
       } catch (error) {
-        console.error("Error fetching unassigned projects:", error);
+        console.error("Error fetching unassigned data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUnassignedProjects();
+    fetchUnassignedData();
   }, [user, open]);
 
   // Auto-select first organization if only one exists
@@ -79,19 +91,63 @@ export function DataMigrationDialog({
   }, [organizations, selectedOrg]);
 
   const handleMigrate = async () => {
-    if (!selectedOrg || unassignedProjects.length === 0) return;
+    if (!selectedOrg) return;
 
     setMigrating(true);
     try {
-      // Update all unassigned projects to belong to the selected organization
-      const projectIds = unassignedProjects.map((p) => p.id);
-      
-      const { error } = await supabase
-        .from("projects")
-        .update({ organization_id: selectedOrg })
-        .in("id", projectIds);
+      // First, get or create project for the selected organization
+      let targetProjectId: string;
 
-      if (error) throw error;
+      const { data: existingProject } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("organization_id", selectedOrg)
+        .eq("owner_id", user!.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingProject) {
+        targetProjectId = existingProject.id;
+      } else {
+        // Get org name for project naming
+        const selectedOrgData = organizations.find(o => o.id === selectedOrg);
+        const { data: newProject, error: createError } = await supabase
+          .from("projects")
+          .insert({
+            name: `Проект на ${selectedOrgData?.name || "Организация"}`,
+            owner_id: user!.id,
+            organization_id: selectedOrg,
+            description: "Основен проект",
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        targetProjectId = newProject.id;
+      }
+
+      // Update all unassigned projects to belong to the selected organization
+      if (unassignedProjects.length > 0) {
+        const projectIds = unassignedProjects.map((p) => p.id);
+        
+        const { error } = await supabase
+          .from("projects")
+          .update({ organization_id: selectedOrg })
+          .in("id", projectIds);
+
+        if (error) throw error;
+      }
+
+      // Update all orphaned tasks to belong to the target project
+      if (orphanedTasksCount > 0) {
+        const { error: tasksError } = await supabase
+          .from("tasks")
+          .update({ project_id: targetProjectId })
+          .eq("user_id", user!.id)
+          .is("project_id", null);
+
+        if (tasksError) throw tasksError;
+      }
 
       setMigrated(true);
       toast.success("Данните са успешно прехвърлени!");
@@ -101,12 +157,15 @@ export function DataMigrationDialog({
         onComplete();
       }, 1500);
     } catch (error) {
-      console.error("Error migrating projects:", error);
+      console.error("Error migrating data:", error);
       toast.error("Грешка при прехвърляне на данните");
     } finally {
       setMigrating(false);
     }
   };
+
+  // Check if there's anything to migrate
+  const hasDataToMigrate = unassignedProjects.length > 0 || orphanedTasksCount > 0;
 
   if (loading) {
     return (
@@ -120,8 +179,8 @@ export function DataMigrationDialog({
     );
   }
 
-  // Don't show if no unassigned projects
-  if (unassignedProjects.length === 0) {
+  // Don't show if nothing to migrate
+  if (!hasDataToMigrate) {
     onComplete();
     return null;
   }
@@ -135,7 +194,7 @@ export function DataMigrationDialog({
             Прехвърляне на съществуващи данни
           </DialogTitle>
           <DialogDescription>
-            Имате съществуващи планове и проекти. Изберете в коя организация да бъдат прехвърлени.
+            Имате съществуващи данни. Изберете в коя организация да бъдат прехвърлени.
           </DialogDescription>
         </DialogHeader>
 
@@ -150,18 +209,24 @@ export function DataMigrationDialog({
           </div>
         ) : (
           <div className="space-y-6 py-4">
-            {/* Show projects to migrate */}
+            {/* Show what will be migrated */}
             <div className="space-y-2">
               <Label className="text-muted-foreground text-sm">
-                Проекти за прехвърляне ({unassignedProjects.length}):
+                Данни за прехвърляне:
               </Label>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 max-h-32 overflow-y-auto">
-                {unassignedProjects.map((project) => (
-                  <div key={project.id} className="flex items-center gap-2 py-1">
+              <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+                {unassignedProjects.length > 0 && (
+                  <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="text-sm">{project.name}</span>
+                    <span className="text-sm">{unassignedProjects.length} проект(а) с планове и екипи</span>
                   </div>
-                ))}
+                )}
+                {orphanedTasksCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-warning" />
+                    <span className="text-sm">{orphanedTasksCount} задачи без проект</span>
+                  </div>
+                )}
               </div>
             </div>
 
