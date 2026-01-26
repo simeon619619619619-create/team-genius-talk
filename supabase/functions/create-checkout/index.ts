@@ -51,8 +51,8 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://team-genius-talk.lovable.app";
 
-    // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+    // Create checkout session with 7-day trial for subscriptions
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
@@ -62,13 +62,22 @@ serve(async (req) => {
         },
       ],
       mode: mode || "subscription",
-      success_url: `${origin}/settings?payment=success`,
+      success_url: `${origin}/?payment=success`,
       cancel_url: `${origin}/settings?payment=canceled`,
       metadata: {
         user_id: user.id,
       },
-    });
-    logStep("Checkout session created", { sessionId: session.id });
+    };
+
+    // Add 7-day trial for subscriptions (not for lifetime/payment mode)
+    if (mode === "subscription") {
+      sessionParams.subscription_data = {
+        trial_period_days: 7,
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    logStep("Checkout session created", { sessionId: session.id, hasTrialDays: mode === "subscription" });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

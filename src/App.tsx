@@ -17,6 +17,7 @@ import BusinessPlanPage from "./pages/BusinessPlanPage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
@@ -36,6 +37,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                 <Route path="/install" element={<InstallPage />} />
                 <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
                 <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />

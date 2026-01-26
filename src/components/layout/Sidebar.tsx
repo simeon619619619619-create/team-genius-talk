@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
+import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import logo from "@/assets/logo.png";
 import logoIcon from "@/assets/logo-icon.png";
 
@@ -62,8 +64,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { pendingCount, showBadge } = useDailyTasks();
+  const { profile } = useProfile();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -82,21 +84,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     checkAdminStatus();
   }, [user]);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) {
-        setProfile(null);
-        return;
-      }
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setProfile(data);
-    };
-    fetchProfile();
-  }, [user]);
+  // Check if user is owner type - hide Teams for workers
+  const isOwnerType = profile?.user_type === "owner";
 
   const handleSignOut = async () => {
     await signOut();
@@ -105,7 +94,15 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   };
 
   // Add badge to AI Assistant only if should show (8h rule)
-  const navItemsWithBadge = baseNavItems.map(item => {
+  // Filter out Teams nav for workers
+  const filteredNavItems = baseNavItems.filter(item => {
+    if (item.path === "/teams" && !isOwnerType) {
+      return false;
+    }
+    return true;
+  });
+
+  const navItemsWithBadge = filteredNavItems.map(item => {
     if (item.path === "/assistant" && showBadge && pendingCount > 0) {
       return { ...item, badge: pendingCount };
     }
@@ -150,22 +147,30 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         </button>
 
         <div className="flex h-full flex-col">
-          {/* Logo */}
+          {/* Logo and Org Switcher */}
           <div className={cn(
-            "flex h-16 items-center border-b border-border",
-            collapsed ? "justify-center px-2" : "justify-between px-6"
+            "flex flex-col border-b border-border",
+            collapsed ? "p-2 gap-2" : "p-4 gap-3"
           )}>
-            <div className="flex items-center gap-3">
-              <img 
-                src={collapsed ? logoIcon : logo} 
-                alt="Симора" 
-                className={cn(
-                  "object-contain transition-all duration-300 dark:invert dark:brightness-200",
-                  collapsed ? "h-8 w-8" : "h-10 w-auto max-w-[140px]"
-                )}
-              />
+            <div className={cn(
+              "flex items-center",
+              collapsed ? "justify-center" : "justify-between"
+            )}>
+              <div className="flex items-center gap-3">
+                <img 
+                  src={collapsed ? logoIcon : logo} 
+                  alt="Симора" 
+                  className={cn(
+                    "object-contain transition-all duration-300 dark:invert dark:brightness-200",
+                    collapsed ? "h-8 w-8" : "h-10 w-auto max-w-[140px]"
+                  )}
+                />
+              </div>
+              {!collapsed && <ThemeToggle />}
             </div>
-            {!collapsed && <ThemeToggle />}
+            
+            {/* Organization Switcher */}
+            <OrganizationSwitcher collapsed={collapsed} />
           </div>
 
         {/* Navigation */}

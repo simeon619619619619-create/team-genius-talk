@@ -290,6 +290,62 @@ export type Database = {
           },
         ]
       }
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plan_steps: {
         Row: {
           assigned_bot_id: string | null
@@ -352,9 +408,11 @@ export type Database = {
           full_name: string | null
           id: string
           instagram: string | null
+          onboarding_completed: boolean | null
           phone: string | null
           updated_at: string
           user_id: string
+          user_type: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -363,9 +421,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           instagram?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
           user_id: string
+          user_type?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -374,9 +434,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           instagram?: string | null
+          onboarding_completed?: boolean | null
           phone?: string | null
           updated_at?: string
           user_id?: string
+          user_type?: string | null
         }
         Relationships: []
       }
@@ -852,11 +914,19 @@ export type Database = {
         Returns: boolean
       }
       get_invitation_by_token: { Args: { _token: string }; Returns: Json }
+      get_user_organization_count: {
+        Args: { _user_id: string }
+        Returns: number
+      }
       has_project_access: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_organization_owner: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_project_owner: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
