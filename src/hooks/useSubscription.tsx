@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -42,20 +42,29 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const [subscribed, setSubscribed] = useState(false);
   const [planType, setPlanType] = useState<PlanType>("free");
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const checkInProgress = useRef(false);
 
   const checkSubscription = useCallback(async () => {
-    if (!session?.access_token) {
-      setSubscribed(false);
-      setPlanType("free");
-      setSubscriptionEnd(null);
-      setLoading(false);
+    // Prevent concurrent checks
+    if (checkInProgress.current) return;
+    
+    // Don't check if auth is still loading or no valid session
+    if (authLoading || !session?.access_token) {
+      if (!authLoading) {
+        setSubscribed(false);
+        setPlanType("free");
+        setSubscriptionEnd(null);
+        setLoading(false);
+      }
       return;
     }
+
+    checkInProgress.current = true;
 
     try {
       const { data, error } = await supabase.functions.invoke("check-subscription", {
@@ -80,8 +89,9 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setPlanType("free");
     } finally {
       setLoading(false);
+      checkInProgress.current = false;
     }
-  }, [session?.access_token]);
+  }, [session?.access_token, authLoading]);
 
   const createCheckout = useCallback(async (planKey: keyof typeof STRIPE_PLANS) => {
     if (!session?.access_token) {
@@ -127,9 +137,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
   }, [session?.access_token]);
 
-  // Check subscription on mount and when user changes
+  // Check subscription on mount and when user/session changes
   useEffect(() => {
-    if (user) {
+    // Wait for auth to finish loading and ensure we have a valid session
+    if (authLoading) return;
+    
+    if (user && session?.access_token) {
       checkSubscription();
     } else {
       setSubscribed(false);
@@ -137,7 +150,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setSubscriptionEnd(null);
       setLoading(false);
     }
-  }, [user, checkSubscription]);
+  }, [user, session?.access_token, authLoading, checkSubscription]);
 
   // Auto-refresh subscription status every minute
   useEffect(() => {
