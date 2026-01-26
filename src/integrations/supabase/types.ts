@@ -413,6 +413,7 @@ export type Database = {
           updated_at: string
           user_id: string
           user_type: string | null
+          workspace_name: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -426,6 +427,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           user_type?: string | null
+          workspace_name?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -439,6 +441,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           user_type?: string | null
+          workspace_name?: string | null
         }
         Relationships: []
       }

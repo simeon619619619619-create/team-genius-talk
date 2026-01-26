@@ -37,18 +37,21 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
     updateOrganization,
     canCreateOrganization 
   } = useOrganizations();
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showWorkspaceEditDialog, setShowWorkspaceEditDialog] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
   const [editOrgName, setEditOrgName] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const allOrganizations = [...organizations, ...memberOrganizations];
   const isOwner = profile?.user_type === "owner";
+  const personalWorkspaceName = profile?.workspace_name || "Личен workspace";
 
   const handleCreateOrganization = async () => {
     if (!newOrgName.trim()) {
@@ -79,6 +82,12 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
     setShowEditDialog(true);
   };
 
+  const handleEditWorkspace = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setWorkspaceName(personalWorkspaceName);
+    setShowWorkspaceEditDialog(true);
+  };
+
   const handleUpdateOrganization = async () => {
     if (!editingOrg || !editOrgName.trim()) {
       toast.error("Моля, въведете име");
@@ -93,6 +102,27 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
         setShowEditDialog(false);
         setEditingOrg(null);
         setEditOrgName("");
+      } else {
+        toast.error("Грешка при обновяване");
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUpdateWorkspaceName = async () => {
+    if (!workspaceName.trim()) {
+      toast.error("Моля, въведете име");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const success = await updateProfile({ workspace_name: workspaceName.trim() });
+      if (success) {
+        toast.success("Името е обновено");
+        setShowWorkspaceEditDialog(false);
+        setWorkspaceName("");
       } else {
         toast.error("Грешка при обновяване");
       }
@@ -128,13 +158,21 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
           {showPersonalWorkspace && (
             <DropdownMenuItem
               onClick={() => switchOrganization(null)}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between group"
             >
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                <span>Личен workspace</span>
+                <span>{personalWorkspaceName}</span>
               </div>
-              {!currentOrganization && <Check className="h-4 w-4" />}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => handleEditWorkspace(e)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                {!currentOrganization && <Check className="h-4 w-4" />}
+              </div>
             </DropdownMenuItem>
           )}
           
@@ -183,7 +221,7 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
               ) : (
                 <>
                   <User className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Личен workspace</span>
+                  <span className="truncate">{personalWorkspaceName}</span>
                 </>
               )}
             </div>
@@ -197,13 +235,21 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
           {showPersonalWorkspace && (
             <DropdownMenuItem
               onClick={() => switchOrganization(null)}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between group"
             >
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4" />
-                <span>Личен workspace</span>
+                <span>{personalWorkspaceName}</span>
               </div>
-              {!currentOrganization && <Check className="h-4 w-4" />}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => handleEditWorkspace(e)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                {!currentOrganization && <Check className="h-4 w-4" />}
+              </div>
             </DropdownMenuItem>
           )}
           
@@ -326,6 +372,33 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
               Отказ
             </Button>
             <Button onClick={handleUpdateOrganization} disabled={isUpdating}>
+              {isUpdating ? "Запазване..." : "Запази"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showWorkspaceEditDialog} onOpenChange={setShowWorkspaceEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактирай workspace</DialogTitle>
+            <DialogDescription>
+              Променете името на личния си workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Име на workspace"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleUpdateWorkspaceName()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowWorkspaceEditDialog(false)}>
+              Отказ
+            </Button>
+            <Button onClick={handleUpdateWorkspaceName} disabled={isUpdating}>
               {isUpdating ? "Запазване..." : "Запази"}
             </Button>
           </DialogFooter>
