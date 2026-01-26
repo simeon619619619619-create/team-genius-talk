@@ -30,17 +30,41 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new Error("No authorization header provided");
+    }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    
+    let userEmail: string;
+    let userId: string;
+    
+    // First try getClaims for faster validation
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims?.sub) {
+      // Fallback to getUser if getClaims fails
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      if (userError) throw new Error(`Authentication error: ${userError.message}`);
+      if (!userData.user?.email) throw new Error("User not authenticated or email not available");
+      
+      const user = userData.user;
+      logStep("User authenticated via getUser", { userId: user.id, email: user.email });
+      
+      userEmail = user.email!;
+      userId = user.id;
+    } else {
+      // Use claims data
+      const claims = claimsData.claims;
+      logStep("User authenticated via getClaims", { userId: claims.sub, email: claims.email });
+      userEmail = claims.email as string;
+      userId = claims.sub as string;
+    }
+    
+    if (!userEmail) throw new Error("User email not available");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
 
     if (customers.data.length === 0) {
       logStep("No customer found, returning unsubscribed state");
