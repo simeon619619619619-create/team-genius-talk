@@ -165,7 +165,7 @@ export function useTeams(projectId: string | null) {
     }
   };
 
-  const inviteMember = async (teamId: string, email: string, name: string, role: string): Promise<{ invitationUrl?: string } | null> => {
+  const inviteMember = async (teamId: string, email: string, name: string, role: string): Promise<{ invitationUrl?: string; memberId?: string } | null> => {
     try {
       const { data, error } = await supabase.functions.invoke("create-invitation-link", {
         body: { teamId, email, name, role },
@@ -174,7 +174,10 @@ export function useTeams(projectId: string | null) {
       if (error) throw error;
 
       await fetchTeams(); // Refresh teams
-      return data;
+      return {
+        invitationUrl: data?.invitationUrl,
+        memberId: data?.teamMemberId,
+      };
     } catch (error: any) {
       toast.error(`Грешка при създаване на поканата: ${error.message}`);
       return null;

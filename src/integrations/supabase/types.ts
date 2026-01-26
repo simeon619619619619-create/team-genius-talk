@@ -249,6 +249,47 @@ export type Database = {
         }
         Relationships: []
       }
+      member_permissions: {
+        Row: {
+          can_view_all: boolean
+          can_view_annual_plan: boolean
+          can_view_business_plan: boolean
+          can_view_tasks: boolean
+          created_at: string
+          id: string
+          team_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          can_view_all?: boolean
+          can_view_annual_plan?: boolean
+          can_view_business_plan?: boolean
+          can_view_tasks?: boolean
+          created_at?: string
+          id?: string
+          team_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          can_view_all?: boolean
+          can_view_annual_plan?: boolean
+          can_view_business_plan?: boolean
+          can_view_tasks?: boolean
+          created_at?: string
+          id?: string
+          team_member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_permissions_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: true
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_steps: {
         Row: {
           assigned_bot_id: string | null
@@ -818,6 +859,10 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_project_owner: {
         Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      member_has_section_access: {
+        Args: { _project_id: string; _section: string; _user_id: string }
         Returns: boolean
       }
       user_has_role_for_project: {
