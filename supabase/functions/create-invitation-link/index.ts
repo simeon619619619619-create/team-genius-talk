@@ -84,12 +84,21 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { data: hasAccess, error: accessError } = await supabaseClient.rpc(
+    // Use admin client to call SECURITY DEFINER function
+    const { data: hasAccess, error: accessError } = await supabaseAdmin.rpc(
       "has_project_access",
       { _user_id: user.id, _project_id: team.project_id },
     );
 
-    if (accessError || !hasAccess) {
+    if (accessError) {
+      console.error("Access check error:", accessError.message);
+      return new Response(
+        JSON.stringify({ error: "Access check failed" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    if (!hasAccess) {
       return new Response(
         JSON.stringify({ error: "Access denied" }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
