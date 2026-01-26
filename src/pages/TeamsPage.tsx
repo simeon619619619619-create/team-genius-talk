@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil, Copy, Check } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil, Copy, Check, Settings } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Team, TeamMember } from "@/types";
+import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
+import { useMemberPermissions } from "@/hooks/useMemberPermissions";
 
 export default function TeamsPage() {
   const { user } = useAuth();
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const { teams, loading, createTeam, updateTeam, inviteMember, removeMember } = useTeams(currentProjectId);
+  const { teams, loading, createTeam, updateTeam, inviteMember, removeMember, refreshTeams } = useTeams(currentProjectId);
+  const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
   const [newTeamOpen, setNewTeamOpen] = useState(false);
@@ -43,6 +46,13 @@ export default function TeamsPage() {
   const [updating, setUpdating] = useState(false);
   const [invitationLink, setInvitationLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [createdMemberId, setCreatedMemberId] = useState<string | null>(null);
+
+  // Permission editing state
+  const [editPermissionsOpen, setEditPermissionsOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<DbTeamMember | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<MemberPermissions | null>(null);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   // New team form state
   const [newTeamName, setNewTeamName] = useState("");
@@ -56,6 +66,12 @@ export default function TeamsPage() {
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("");
+  const [newMemberPermissions, setNewMemberPermissions] = useState<MemberPermissions>({
+    can_view_tasks: false,
+    can_view_business_plan: false,
+    can_view_annual_plan: false,
+    can_view_all: false,
+  });
 
   const colors = [
     "hsl(221, 83%, 53%)",
@@ -136,13 +152,25 @@ export default function TeamsPage() {
     setInviting(true);
     try {
       const result = await inviteMember(selectedTeam.id, newMemberEmail, newMemberName, newMemberRole);
-      if (result?.invitationUrl) {
+      if (result?.invitationUrl && result?.memberId) {
+        // Save permissions for the new member
+        await savePermissions(result.memberId, newMemberPermissions);
+        setCreatedMemberId(result.memberId);
+        setInvitationLink(result.invitationUrl);
+        toast.success("Линкът за покана е готов!");
+      } else if (result?.invitationUrl) {
         setInvitationLink(result.invitationUrl);
         toast.success("Линкът за покана е готов!");
       }
       setNewMemberName("");
       setNewMemberEmail("");
       setNewMemberRole("");
+      setNewMemberPermissions({
+        can_view_tasks: false,
+        can_view_business_plan: false,
+        can_view_annual_plan: false,
+        can_view_all: false,
+      });
     } finally {
       setInviting(false);
     }
@@ -163,7 +191,37 @@ export default function TeamsPage() {
   const handleCloseInviteDialog = () => {
     setNewMemberOpen(false);
     setInvitationLink(null);
+    setCreatedMemberId(null);
     setCopied(false);
+  };
+
+  const openEditPermissions = async (member: DbTeamMember) => {
+    setEditingMember(member);
+    const perms = await getPermissions(member.id);
+    setEditingPermissions(perms || {
+      can_view_tasks: false,
+      can_view_business_plan: false,
+      can_view_annual_plan: false,
+      can_view_all: false,
+    });
+    setEditPermissionsOpen(true);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!editingMember || !editingPermissions) return;
+    
+    setSavingPermissions(true);
+    try {
+      const success = await savePermissions(editingMember.id, editingPermissions);
+      if (success) {
+        toast.success("Правата са запазени!");
+        setEditPermissionsOpen(false);
+        setEditingMember(null);
+        setEditingPermissions(null);
+      }
+    } finally {
+      setSavingPermissions(false);
+    }
   };
 
   const handleEditTeam = async (e: React.FormEvent) => {
@@ -409,6 +467,12 @@ export default function TeamsPage() {
                         required
                       />
                     </div>
+                    
+                    <MemberPermissionsEditor
+                      permissions={newMemberPermissions}
+                      onChange={setNewMemberPermissions}
+                    />
+                    
                     <div className="flex justify-end gap-3 pt-4">
                       <Button type="button" variant="outline" onClick={handleCloseInviteDialog}>
                         Отказ
@@ -447,17 +511,31 @@ export default function TeamsPage() {
                     </div>
                     <p className="text-xs md:text-sm text-muted-foreground truncate">{member.role}</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMemberToRemove(member);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground h-8 w-8 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditPermissions(member);
+                      }}
+                      title="Редактирай права"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMemberToRemove(member);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -492,6 +570,49 @@ export default function TeamsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Permissions Dialog */}
+        <Dialog open={editPermissionsOpen} onOpenChange={(open) => {
+          if (!open) {
+            setEditPermissionsOpen(false);
+            setEditingMember(null);
+            setEditingPermissions(null);
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-display">
+                Редактиране на права - {editingMember?.profile?.full_name || editingMember?.email}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              {editingPermissions && (
+                <MemberPermissionsEditor
+                  permissions={editingPermissions}
+                  onChange={setEditingPermissions}
+                />
+              )}
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setEditPermissionsOpen(false)}
+              >
+                Отказ
+              </Button>
+              <Button 
+                type="button" 
+                className="gradient-primary text-primary-foreground"
+                onClick={handleSavePermissions}
+                disabled={savingPermissions}
+              >
+                {savingPermissions && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Запази
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </MainLayout>
     );
   }
