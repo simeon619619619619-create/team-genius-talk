@@ -18,6 +18,7 @@ const stepTitleToKey: Record<string, string> = {
   "Резюме на бизнеса": "business_summary",
   "Пазарен анализ": "market_analysis",
   "Маркетинг стратегия": "marketing_strategy",
+  "Контент стратегия": "content_strategy",
   "Оперативен план": "operational_plan",
   "Финансови прогнози": "financial_projections",
 };

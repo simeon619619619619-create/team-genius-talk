@@ -21,6 +21,7 @@ const stepKeyLabels: Record<string, string> = {
   business_summary: "Резюме на бизнеса",
   market_analysis: "Пазарен анализ",
   marketing_strategy: "Маркетинг стратегия",
+  content_strategy: "Контент стратегия",
   operational_plan: "Оперативен план",
   financial_projections: "Финансови прогнози",
 };
