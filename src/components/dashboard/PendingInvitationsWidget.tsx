@@ -45,7 +45,8 @@ export function PendingInvitationsWidget() {
     
     setProcessingId(invitation.id);
     try {
-      // Update team member with user_id and status
+      // Step 1: Update team member with user_id and status FIRST
+      // This is required for the RLS policy on user_roles to work
       const { error: memberError } = await supabase
         .from("team_members")
         .update({
@@ -55,9 +56,13 @@ export function PendingInvitationsWidget() {
         })
         .eq("id", invitation.team_member_id);
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error("Error updating team member:", memberError);
+        throw memberError;
+      }
 
-      // Create user_role entry for project access
+      // Step 2: Create user_role entry for project access
+      // Now that team_member status is 'accepted', the RLS policy will allow this
       const { data: existingRole } = await supabase
         .from("user_roles")
         .select("id")
@@ -66,22 +71,33 @@ export function PendingInvitationsWidget() {
         .maybeSingle();
 
       if (!existingRole) {
-        await supabase.from("user_roles").insert({
+        const { error: roleError } = await supabase.from("user_roles").insert({
           project_id: invitation.project.id,
           user_id: user.id,
           role: "viewer",
           invited_email: invitation.team_member.email,
         });
+
+        if (roleError) {
+          console.error("Error creating user role:", roleError);
+          // Don't throw - the team member is already accepted
+        }
       }
 
-      // Mark invitation as used
-      await supabase
+      // Step 3: Mark invitation as used
+      const { error: inviteError } = await supabase
         .from("team_invitations")
         .update({ used_at: new Date().toISOString() })
         .eq("id", invitation.id);
 
+      if (inviteError) {
+        console.error("Error marking invitation as used:", inviteError);
+      }
+
       toast.success("Успешно се присъединихте към екипа!");
-      refetch();
+      
+      // Reload the page to refresh all data including organization context
+      window.location.reload();
     } catch (error: any) {
       console.error("Error accepting invitation:", error);
       toast.error("Грешка при приемане на поканата");
