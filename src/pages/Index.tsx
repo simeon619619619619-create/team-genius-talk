@@ -4,11 +4,13 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DailyPlanWidget } from "@/components/dashboard/DailyPlanWidget";
 import { OverdueTasksSection } from "@/components/dashboard/OverdueTasksSection";
+import { PendingInvitationsWidget } from "@/components/dashboard/PendingInvitationsWidget";
 import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuickCreateButton } from "@/components/dashboard/QuickCreateButton";
+
 const Index = () => {
   const { user } = useAuth();
   const [userName, setUserName] = useState<string | null>(null);
@@ -45,6 +47,9 @@ const Index = () => {
           </div>
           <QuickCreateButton />
         </div>
+
+        {/* Pending Invitations - Show at the top */}
+        <PendingInvitationsWidget />
 
         {/* Stats - 2x2 grid on mobile */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
