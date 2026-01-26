@@ -27,44 +27,50 @@ interface PlanCardProps {
 
 function PlanCard({ name, price, interval, features, popular, onSelect, isLoading }: PlanCardProps) {
   return (
-    <Card className={cn(
-      "relative transition-all duration-300 cursor-pointer hover:scale-[1.02]",
-      popular ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border hover:border-primary/50"
-    )} onClick={onSelect}>
-      {popular && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
-          Популярен
-        </div>
-      )}
-      <CardHeader className="text-center pt-8">
-        <CardTitle className="text-xl">{name}</CardTitle>
-        <div className="mt-4">
-          <span className="text-3xl font-bold">{price}</span>
-          <span className="text-muted-foreground ml-1">{interval}</span>
-        </div>
-      </CardHeader>
-      <CardContent className="pb-6">
-        <ul className="space-y-2 mb-6">
-          {features.map((feature, i) => (
-            <li key={i} className="flex items-center gap-2 text-sm">
-              <Check className="h-4 w-4 text-primary shrink-0" />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-        <Button 
-          className="w-full" 
-          variant={popular ? "default" : "outline"}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Избери план"
-          )}
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center">
+      {/* Trial badge above each card */}
+      <div className="mb-3 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20">
+        🎁 7 дена безплатен период
+      </div>
+      <Card className={cn(
+        "relative transition-all duration-300 cursor-pointer hover:scale-[1.02] w-full",
+        popular ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border hover:border-primary/50"
+      )} onClick={onSelect}>
+        {popular && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
+            Популярен
+          </div>
+        )}
+        <CardHeader className="text-center pt-8">
+          <CardTitle className="text-xl">{name}</CardTitle>
+          <div className="mt-4">
+            <span className="text-3xl font-bold">{price}</span>
+            <span className="text-muted-foreground ml-1">{interval}</span>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-6">
+          <ul className="space-y-2 mb-6">
+            {features.map((feature, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <Check className="h-4 w-4 text-primary shrink-0" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <Button 
+            className="w-full" 
+            variant={popular ? "default" : "outline"}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Избери план"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -80,6 +86,35 @@ export default function OnboardingPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+
+  const handlePromoCode = async () => {
+    if (promoCode.trim() === "simora69$") {
+      setIsSubmitting(true);
+      try {
+        // Update profile with user type and mark as completed
+        await updateProfile({ 
+          user_type: userType || "worker",
+          onboarding_completed: true 
+        });
+
+        // Create organization if owner
+        if (userType === "owner" && organizationName.trim()) {
+          await createOrganization(organizationName.trim());
+        }
+
+        toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
+        navigate("/", { replace: true });
+      } catch (error) {
+        console.error("Error applying promo code:", error);
+        toast.error("Възникна грешка. Моля, опитайте отново.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      toast.error("Невалиден промо код");
+    }
+  };
 
   // Redirect if already completed onboarding
   useEffect(() => {
@@ -349,13 +384,30 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">
-                  🎁 <span className="font-medium">Опитай безплатно</span> — 7 дена тестов период
-                </p>
+              <div className="text-center space-y-4">
                 <p className="text-xs text-muted-foreground">
                   Изисква се регистрация на карта. Отмени по всяко време преди края на периода.
                 </p>
+                
+                {/* Promo code section */}
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Имаш промо код?</p>
+                  <div className="flex gap-2 max-w-xs">
+                    <Input
+                      placeholder="Въведи промо код"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      className="text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handlePromoCode}
+                      disabled={isSubmitting || !promoCode.trim()}
+                    >
+                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Приложи"}
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {step === 3 && (
