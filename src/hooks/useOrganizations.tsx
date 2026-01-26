@@ -133,6 +133,26 @@ export function useOrganizations() {
     }
   };
 
+  const updateOrganization = async (orgId: string, name: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ name })
+        .eq("id", orgId)
+        .eq("owner_id", user.id);
+
+      if (error) throw error;
+      
+      await fetchOrganizations();
+      return true;
+    } catch (error) {
+      console.error("Error updating organization:", error);
+      return false;
+    }
+  };
+
   const isOrganizationOwner = (orgId: string) => {
     return organizations.some(o => o.id === orgId);
   };
@@ -151,6 +171,7 @@ export function useOrganizations() {
     currentOrganization,
     loading,
     createOrganization,
+    updateOrganization,
     switchOrganization,
     isOrganizationOwner,
     canCreateOrganization,
