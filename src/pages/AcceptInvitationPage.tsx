@@ -101,6 +101,34 @@ export default function AcceptInvitationPage() {
 
       if (memberError) throw memberError;
 
+      // Create user_role entry for the project so they have access
+      // The team belongs to a project, get that project_id from the team
+      if (team?.project_id) {
+        // Check if user_role already exists
+        const { data: existingRole } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("project_id", team.project_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!existingRole) {
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({
+              project_id: team.project_id,
+              user_id: user.id,
+              role: "viewer",
+              invited_email: invitation.team_members?.email,
+            });
+
+          if (roleError) {
+            console.error("Error creating user role:", roleError);
+            // Don't throw - the member is already accepted
+          }
+        }
+      }
+
       // Mark invitation as used
       const { error: inviteError } = await supabase
         .from("team_invitations")
