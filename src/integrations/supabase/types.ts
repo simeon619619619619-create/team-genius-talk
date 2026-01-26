@@ -416,6 +416,7 @@ export type Database = {
       }
       step_conversations: {
         Row: {
+          attachments: Json | null
           content: string
           created_at: string
           id: string
@@ -424,6 +425,7 @@ export type Database = {
           step_id: string | null
         }
         Insert: {
+          attachments?: Json | null
           content: string
           created_at?: string
           id?: string
@@ -432,6 +434,7 @@ export type Database = {
           step_id?: string | null
         }
         Update: {
+          attachments?: Json | null
           content?: string
           created_at?: string
           id?: string

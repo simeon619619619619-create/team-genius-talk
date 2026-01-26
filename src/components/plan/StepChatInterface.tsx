@@ -11,11 +11,13 @@ import type { PlanStep } from "@/hooks/usePlanSteps";
 import type { GlobalBot } from "@/hooks/useGlobalBots";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
+import { ChatFileUpload, ChatAttachmentDisplay, type ChatAttachment } from "./ChatFileUpload";
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 interface StepChatInterfaceProps {
@@ -42,6 +44,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const [isGenerating, setIsGenerating] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [stepComplete, setStepComplete] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -237,16 +240,29 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && pendingAttachments.length === 0) || isLoading) return;
+
+    // Build message content including attachment info
+    let messageContent = input.trim();
+    if (pendingAttachments.length > 0) {
+      const attachmentInfo = pendingAttachments.map(a => 
+        a.type === 'image' ? `[Прикачена снимка: ${a.name}]` : `[Прикачен файл: ${a.name}]`
+      ).join(' ');
+      messageContent = messageContent 
+        ? `${messageContent}\n\n${attachmentInfo}` 
+        : attachmentInfo;
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: messageContent,
+      attachments: pendingAttachments.length > 0 ? [...pendingAttachments] : undefined,
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput("");
+    setPendingAttachments([]);
     setIsLoading(true);
     scrollToBottom();
 
@@ -415,8 +431,13 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   </div>
                 )}
                 {message.role === 'user' && (
-                  <div className="rounded-2xl px-4 py-2 text-sm font-medium bg-primary text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md">
-                    {message.content}
+                  <div className="max-w-[85%] flex flex-col items-end">
+                    <div className="rounded-2xl px-4 py-2 text-sm font-medium bg-primary text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md">
+                      {message.content.split('\n\n[Прикачен')[0]}
+                    </div>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <ChatAttachmentDisplay attachments={message.attachments} />
+                    )}
                   </div>
                 )}
                 {message.role === 'assistant' && (
@@ -479,7 +500,50 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 Генерирай съдържание от отговорите
               </Button>
             )}
-            <div className="flex items-center gap-2 md:gap-4 bg-secondary/40 hover:bg-secondary/60 rounded-full px-3 md:px-5 py-2 md:py-3 transition-all duration-200 border border-border/30 focus-within:border-primary/30">
+            
+            {/* Pending attachments preview */}
+            {pendingAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 px-1">
+                {pendingAttachments.map((file) => (
+                  <div
+                    key={file.id}
+                    className={cn(
+                      "relative group rounded-xl overflow-hidden border border-border/50 bg-secondary/30",
+                      file.type === 'image' ? "w-14 h-14" : "flex items-center gap-2 px-2 py-1.5"
+                    )}
+                  >
+                    {file.type === 'image' ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs truncate max-w-[80px]">{file.name}</span>
+                    )}
+                    <button
+                      onClick={() => setPendingAttachments(prev => prev.filter(f => f.id !== file.id))}
+                      className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex items-center gap-2 md:gap-3 bg-secondary/40 hover:bg-secondary/60 rounded-2xl px-3 md:px-4 py-2 md:py-3 transition-all duration-200 border border-border/30 focus-within:border-primary/30">
+              {/* File upload button */}
+              <ChatFileUpload
+                projectId={projectId}
+                stepId={step.id}
+                pendingFiles={pendingAttachments}
+                onFilesSelected={(files) => setPendingAttachments(prev => [...prev, ...files])}
+                onRemoveFile={(id) => setPendingAttachments(prev => prev.filter(f => f.id !== id))}
+              />
+              
               {/* Mic button with recording indicator */}
               <div className="relative">
                 <button 
@@ -513,18 +577,19 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   </>
                 )}
               </div>
-              {/* Input field with interim transcript overlay */}
+              
+              {/* Input field */}
               <div className="flex-1 relative min-w-0">
                 <textarea
                   value={isListening ? `${input}${interimTranscript ? (input ? " " : "") + interimTranscript : ""}` : input}
                   onChange={(e) => !isListening && setInput(e.target.value)}
                   placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
-                  rows={3}
+                  rows={2}
                   className={cn(
-                    "w-full bg-transparent border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin",
+                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin",
                     isListening && "caret-transparent"
                   )}
-                  style={{ maxHeight: '120px' }}
+                  style={{ maxHeight: '100px' }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -533,13 +598,15 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   }}
                 />
               </div>
+              
+              {/* Send button */}
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || (!input.trim() && pendingAttachments.length === 0)}
                 className={cn(
                   "p-2.5 md:p-2 rounded-full transition-all duration-200 touch-manipulation",
-                  input.trim() 
+                  (input.trim() || pendingAttachments.length > 0)
                     ? "bg-primary text-primary-foreground shadow-sm active:scale-95" 
                     : "text-muted-foreground/40 cursor-not-allowed"
                 )}
