@@ -93,10 +93,14 @@ export default function OnboardingPage() {
       setIsSubmitting(true);
       try {
         // Update profile with user type and mark as completed
-        await updateProfile({ 
+        const success = await updateProfile({ 
           user_type: userType || "worker",
           onboarding_completed: true 
         });
+
+        if (!success) {
+          throw new Error("Failed to update profile");
+        }
 
         // Create organization if owner
         if (userType === "owner" && organizationName.trim()) {
@@ -104,11 +108,14 @@ export default function OnboardingPage() {
         }
 
         toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
-        navigate("/", { replace: true });
+        
+        // Small delay to ensure profile state is updated before navigation
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
       } catch (error) {
         console.error("Error applying promo code:", error);
         toast.error("Възникна грешка. Моля, опитайте отново.");
-      } finally {
         setIsSubmitting(false);
       }
     } else {
