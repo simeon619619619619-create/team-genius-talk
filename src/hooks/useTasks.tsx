@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { toast } from "sonner";
 
 export interface DbTask {
@@ -13,6 +14,7 @@ export interface DbTask {
   team_name: string | null;
   due_date: string | null;
   day_of_week: number | null;
+  project_id: string | null;
   created_at: string;
   subtasks?: DbSubtask[];
 }
@@ -30,10 +32,11 @@ export interface DbSubtask {
 
 export function useTasks() {
   const { user } = useAuth();
+  const { projectId } = useCurrentProject();
   const [tasks, setTasks] = useState<DbTask[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     if (!user) {
       setTasks([]);
       setLoading(false);
@@ -41,24 +44,39 @@ export function useTasks() {
     }
 
     try {
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Build query based on whether we have a project
+      let query = supabase.from("tasks").select("*");
+      
+      if (projectId) {
+        // Filter by project_id OR user_id (for backward compatibility)
+        query = query.or(`project_id.eq.${projectId},and(user_id.eq.${user.id},project_id.is.null)`);
+      } else {
+        // No project selected, show only user's tasks without project
+        query = query.eq("user_id", user.id).is("project_id", null);
+      }
+      
+      const { data: tasksData, error: tasksError } = await query.order("created_at", { ascending: false });
 
       if (tasksError) throw tasksError;
 
-      const { data: subtasksData, error: subtasksError } = await supabase
-        .from("subtasks")
-        .select("*");
+      const taskIds = (tasksData || []).map((t) => t.id);
+      
+      let subtasksData: any[] = [];
+      if (taskIds.length > 0) {
+        const { data, error: subtasksError } = await supabase
+          .from("subtasks")
+          .select("*")
+          .in("task_id", taskIds);
 
-      if (subtasksError) throw subtasksError;
+        if (subtasksError) throw subtasksError;
+        subtasksData = data || [];
+      }
 
       const tasksWithSubtasks = (tasksData || []).map((task) => ({
         ...task,
         status: task.status as DbTask["status"],
         priority: task.priority as DbTask["priority"],
-        subtasks: (subtasksData || [])
+        subtasks: subtasksData
           .filter((s) => s.task_id === task.id)
           .map((s) => ({
             ...s,
@@ -68,15 +86,16 @@ export function useTasks() {
 
       setTasks(tasksWithSubtasks);
     } catch (error: any) {
+      console.error("Error fetching tasks:", error);
       toast.error("Грешка при зареждане на задачите");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, projectId]);
 
   useEffect(() => {
     fetchTasks();
-  }, [user]);
+  }, [fetchTasks]);
 
   const addTask = async (taskData: {
     title: string;
@@ -98,6 +117,7 @@ export function useTasks() {
         .from("tasks")
         .insert({
           user_id: user.id,
+          project_id: projectId || null,
           title: taskData.title,
           description: taskData.description || null,
           status: taskData.status || "todo",
