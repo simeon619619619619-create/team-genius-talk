@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronsUpDown, Building2, Plus, Check, User } from "lucide-react";
+import { ChevronsUpDown, Building2, Plus, Check, User, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,13 +34,18 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
     currentOrganization, 
     switchOrganization, 
     createOrganization,
+    updateOrganization,
     canCreateOrganization 
   } = useOrganizations();
   const { profile } = useProfile();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [newOrgName, setNewOrgName] = useState("");
+  const [editOrgName, setEditOrgName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const allOrganizations = [...organizations, ...memberOrganizations];
   const isOwner = profile?.user_type === "owner";
@@ -64,6 +69,35 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
       }
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleEditOrganization = (org: Organization, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOrg(org);
+    setEditOrgName(org.name);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateOrganization = async () => {
+    if (!editingOrg || !editOrgName.trim()) {
+      toast.error("Моля, въведете име");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const success = await updateOrganization(editingOrg.id, editOrgName.trim());
+      if (success) {
+        toast.success("Организацията е обновена");
+        setShowEditDialog(false);
+        setEditingOrg(null);
+        setEditOrgName("");
+      } else {
+        toast.error("Грешка при обновяване");
+      }
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -182,13 +216,21 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
                 <DropdownMenuItem
                   key={org.id}
                   onClick={() => switchOrganization(org)}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
                     <span className="truncate">{org.name}</span>
                   </div>
-                  {currentOrganization?.id === org.id && <Check className="h-4 w-4" />}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => handleEditOrganization(org, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-secondary rounded transition-opacity"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    {currentOrganization?.id === org.id && <Check className="h-4 w-4" />}
+                  </div>
                 </DropdownMenuItem>
               ))}
             </>
@@ -258,6 +300,33 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
             </Button>
             <Button onClick={handleCreateOrganization} disabled={isCreating}>
               {isCreating ? "Създаване..." : "Създай"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактирай организация</DialogTitle>
+            <DialogDescription>
+              Променете името на организацията.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Име на организацията"
+              value={editOrgName}
+              onChange={(e) => setEditOrgName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleUpdateOrganization()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Отказ
+            </Button>
+            <Button onClick={handleUpdateOrganization} disabled={isUpdating}>
+              {isUpdating ? "Запазване..." : "Запази"}
             </Button>
           </DialogFooter>
         </DialogContent>
