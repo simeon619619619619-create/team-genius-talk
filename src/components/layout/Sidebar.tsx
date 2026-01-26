@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
 import { useProfile } from "@/hooks/useProfile";
+import { usePendingInvitations } from "@/hooks/usePendingInvitations";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { pendingCount, showBadge } = useDailyTasks();
   const { profile } = useProfile();
+  const { invitations: pendingInvitations } = usePendingInvitations();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -116,6 +118,11 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   });
 
   const navItemsWithBadge = filteredNavItems.map(item => {
+    // Show pending invitations badge on Dashboard
+    if (item.path === "/" && pendingInvitations.length > 0) {
+      return { ...item, badge: pendingInvitations.length };
+    }
+    // Show daily tasks badge on Assistant
     if (item.path === "/assistant" && showBadge && pendingCount > 0) {
       return { ...item, badge: pendingCount };
     }
