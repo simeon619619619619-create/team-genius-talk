@@ -8,11 +8,11 @@ const corsHeaders = {
 };
 
 // Maximum sizes for input validation
-const MAX_MESSAGE_LENGTH = 5000;
-const MAX_HISTORY_MESSAGE_LENGTH = 2000;
-const MAX_TITLE_LENGTH = 200;
-const MAX_QUESTION_LENGTH = 500;
-const MAX_ANSWER_LENGTH = 2000;
+const MAX_MESSAGE_LENGTH = 10000;
+const MAX_HISTORY_MESSAGE_LENGTH = 10000;
+const MAX_TITLE_LENGTH = 500;
+const MAX_QUESTION_LENGTH = 1000;
+const MAX_ANSWER_LENGTH = 5000;
 
 const InputSchema = z.object({
   stepId: z.string().uuid(),
