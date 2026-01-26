@@ -184,6 +184,10 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
           role: m.role as 'user' | 'assistant',
           content: m.content,
         })));
+        // Scroll to bottom after loading existing messages
+        setTimeout(() => {
+          scrollRef.current?.scrollIntoView({ behavior: 'auto' });
+        }, 150);
       } else if (stepQuestions) {
         // No messages yet - save greeting to database and set locally
         const greetingContent = stepQuestions.greeting;
