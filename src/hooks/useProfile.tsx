@@ -12,6 +12,7 @@ export interface Profile {
   instagram: string | null;
   user_type: "worker" | "owner" | null;
   onboarding_completed: boolean;
+  workspace_name: string | null;
   created_at: string;
   updated_at: string;
 }
