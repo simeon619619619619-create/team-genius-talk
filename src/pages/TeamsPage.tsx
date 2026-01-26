@@ -25,7 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useTeams, TeamWithMembers, DbTeamMember } from "@/hooks/useTeams";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { toast } from "sonner";
 import { Team, TeamMember } from "@/types";
 import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
@@ -33,7 +33,7 @@ import { useMemberPermissions } from "@/hooks/useMemberPermissions";
 
 export default function TeamsPage() {
   const { user } = useAuth();
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const { projectId: currentProjectId, loading: projectLoading } = useCurrentProject();
   const { teams, loading, createTeam, updateTeam, inviteMember, removeMember, refreshTeams } = useTeams(currentProjectId);
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   
@@ -81,49 +81,7 @@ export default function TeamsPage() {
     "hsl(142, 71%, 45%)",
   ];
 
-  // Fetch or create user's project
-  useEffect(() => {
-    const fetchOrCreateProject = async () => {
-      if (!user) return;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        return;
-      }
-
-      // Try to fetch existing project using maybeSingle to avoid errors when no data
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("owner_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (data) {
-        setCurrentProjectId(data.id);
-      } else if (!error || error.code === 'PGRST116') {
-        // No project found, create a default one
-        const { data: newProject, error: createError } = await supabase
-          .from("projects")
-          .insert({
-            name: "Моят проект",
-            owner_id: session.user.id,
-            description: "Основен проект",
-          })
-          .select("id")
-          .single();
-
-        if (!createError && newProject) {
-          setCurrentProjectId(newProject.id);
-        } else if (createError) {
-          toast.error("Грешка при създаване на проект");
-        }
-      }
-    };
-
-    fetchOrCreateProject();
-  }, [user]);
+  // Note: Project is now managed by useCurrentProject hook
 
   // Update selected team when teams change
   useEffect(() => {
@@ -274,7 +232,7 @@ export default function TeamsPage() {
     color: colors[teams.indexOf(dbTeam) % colors.length],
   });
 
-  if (loading) {
+  if (loading || projectLoading) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">

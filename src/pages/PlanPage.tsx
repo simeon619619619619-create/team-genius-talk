@@ -6,34 +6,14 @@ import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
 import { GenerateScheduleDialog } from "@/components/plan/GenerateScheduleDialog";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import confetti from "canvas-confetti";
-export default function PlanPage() {
-  const {
-    user
-  } = useAuth();
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState<string>("");
-  const [activeStepId, setActiveStepId] = useState<string | null>(null);
 
-  // Fetch user's project
-  useEffect(() => {
-    const fetchProject = async () => {
-      if (!user) return;
-      const {
-        data,
-        error
-      } = await supabase.from('projects').select('id, name').eq('owner_id', user.id).limit(1).maybeSingle();
-      if (!error && data) {
-        setProjectId(data.id);
-        setProjectName(data.name);
-      }
-    };
-    fetchProject();
-  }, [user]);
+export default function PlanPage() {
+  const { projectId, projectName, loading: projectLoading } = useCurrentProject();
+  const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const {
     steps,
     loading,
@@ -83,7 +63,7 @@ export default function PlanPage() {
   const allStepsCompleted = completedCount === steps.length && steps.length > 0;
   const progress = steps.length > 0 ? completedCount / steps.length * 100 : 0;
   const activeStep = steps.find(s => s.id === activeStepId);
-  if (loading || botsLoading) {
+  if (loading || botsLoading || projectLoading) {
     return <MainLayout>
         <div className="space-y-6">
           <Skeleton className="h-10 w-64" />
