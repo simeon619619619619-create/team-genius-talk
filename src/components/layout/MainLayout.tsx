@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useMemo } from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { cn } from "@/lib/utils";
@@ -19,9 +19,13 @@ export function MainLayout({ children }: MainLayoutProps) {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
     return stored === "true";
   });
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  
   const { getAllOrganizations } = useOrganizations();
   const { needsMigration, refetch: refetchProject } = useCurrentProject();
-  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  
+  // Memoize organizations to prevent unnecessary re-renders
+  const organizations = useMemo(() => getAllOrganizations(), [getAllOrganizations]);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarCollapsed));
@@ -29,13 +33,10 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   // Show migration dialog when needed
   useEffect(() => {
-    if (needsMigration) {
-      const allOrgs = getAllOrganizations();
-      if (allOrgs.length > 0) {
-        setShowMigrationDialog(true);
-      }
+    if (needsMigration && organizations.length > 0) {
+      setShowMigrationDialog(true);
     }
-  }, [needsMigration, getAllOrganizations]);
+  }, [needsMigration, organizations.length]);
 
   const handleMigrationComplete = () => {
     setShowMigrationDialog(false);
@@ -69,7 +70,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Data Migration Dialog */}
       <DataMigrationDialog
-        organizations={getAllOrganizations()}
+        organizations={organizations}
         open={showMigrationDialog}
         onComplete={handleMigrationComplete}
       />
