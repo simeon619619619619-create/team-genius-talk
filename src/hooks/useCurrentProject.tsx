@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useOrganizations } from "./useOrganizations";
-import { toast } from "sonner";
 
 export interface Project {
   id: string;
@@ -21,6 +20,8 @@ export function useCurrentProject() {
   const [loading, setLoading] = useState(true);
   const [needsMigration, setNeedsMigration] = useState(false);
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const fetchingRef = useRef(false);
+  const lastOrgIdRef = useRef<string | null>(null);
 
   const fetchOrCreateProject = useCallback(async () => {
     if (!user) {
@@ -31,6 +32,13 @@ export function useCurrentProject() {
 
     // Wait for orgs to load
     if (orgsLoading) return;
+
+    // Prevent duplicate fetches for same org
+    const currentOrgId = currentOrganization?.id || null;
+    if (fetchingRef.current && lastOrgIdRef.current === currentOrgId) return;
+    
+    fetchingRef.current = true;
+    lastOrgIdRef.current = currentOrgId;
 
     try {
       // If we have a current organization, get the project for that organization
@@ -105,17 +113,20 @@ export function useCurrentProject() {
       }
     } catch (error) {
       console.error("Error fetching project:", error);
-      toast.error("Грешка при зареждане на проекта");
+      // Don't show toast for network errors to avoid spam
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
-  }, [user, currentOrganization, orgsLoading]);
+  }, [user, currentOrganization?.id, orgsLoading]);
 
   useEffect(() => {
     fetchOrCreateProject();
   }, [fetchOrCreateProject]);
 
   const refetch = useCallback(() => {
+    fetchingRef.current = false;
+    lastOrgIdRef.current = null;
     setLoading(true);
     fetchOrCreateProject();
   }, [fetchOrCreateProject]);
