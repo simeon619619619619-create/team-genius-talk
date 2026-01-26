@@ -88,9 +88,15 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const isOwnerType = profile?.user_type === "owner";
 
   const handleSignOut = async () => {
-    await signOut();
-    toast.success("Успешно излязохте от профила");
-    navigate("/auth");
+    try {
+      await signOut();
+      toast.success("Успешно излязохте от профила");
+      // Force navigation after state is cleared
+      window.location.href = "/auth";
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Грешка при излизане от профила");
+    }
   };
 
   // Workers only see Dashboard - they can only accept org invitations
