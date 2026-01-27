@@ -379,10 +379,12 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
       return !answer || 
              answer.trim().length === 0 || 
              answer.toLowerCase().includes('не знам') ||
-             answer.toLowerCase().includes('не съм решил');
+             answer.toLowerCase().includes('не съм решил') ||
+             answer.toLowerCase().includes('не съм сигурен');
     });
 
-    const stepComplete = nowMissingFields.length === 0 && requiredFields.length > 0 && isLastQuestion;
+    // Step is complete when ALL required fields are filled - regardless of question index
+    const stepComplete = nowMissingFields.length === 0 && requiredFields.length > 0;
 
     // If step is complete, save context for other bots
     if (stepComplete && contextKeys.length > 0) {
