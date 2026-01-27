@@ -8,6 +8,7 @@ import { StepChatInterface } from "./StepChatInterface";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PlanStep } from "@/hooks/usePlanSteps";
 import type { GlobalBot } from "@/hooks/useGlobalBots";
+import confetti from "canvas-confetti";
 interface PlanStepCardProps {
   step: PlanStep;
   stepNumber: number;
@@ -97,15 +98,43 @@ export function PlanStepCard({
     }
   };
 
-  // Combined handler: mark as complete AND go to next step
+  // Combined handler: mark as complete AND go to next step with confetti
   const handleCompleteAndGoNext = useCallback(() => {
     if (!step.completed && canComplete) {
+      // Fire confetti celebration!
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fbbf24', '#f59e0b']
+      });
+      
+      // Also fire a second burst for extra celebration
+      setTimeout(() => {
+        confetti({
+          particleCount: 60,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#10b981', '#34d399', '#6ee7b7']
+        });
+        confetti({
+          particleCount: 60,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#10b981', '#34d399', '#6ee7b7']
+        });
+      }, 150);
+      
+      // Mark as complete
       onToggleComplete();
+      
       // Navigate after confetti animation
       if (onGoToNextStep) {
         setTimeout(() => {
           onGoToNextStep();
-        }, 500);
+        }, 800);
       }
     }
   }, [step.completed, canComplete, onToggleComplete, onGoToNextStep]);
