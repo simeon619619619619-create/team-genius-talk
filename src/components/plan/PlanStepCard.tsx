@@ -194,19 +194,6 @@ export function PlanStepCard({
           </TooltipProvider>
         </div>
 
-        {/* Progress indicator for missing fields - Compact on mobile */}
-        {!step.completed && missingFields.length > 0 && (
-          <div className={cn(
-            "flex items-center gap-2 mb-2 md:mb-3 px-2 md:px-3 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs",
-            "bg-warning/10 text-warning border border-warning/20",
-            "animate-fade-in transition-all duration-300"
-          )}>
-            <AlertCircle className="h-3 w-3 shrink-0" />
-            <span>
-              Отговорете на {missingFields.length} {missingFields.length === 1 ? 'въпрос' : 'въпроса'} за да завършите стъпката
-            </span>
-          </div>
-        )}
 
         {/* Chat Interface - takes ALL remaining space in card */}
         <div className="flex-1 min-h-0 rounded-xl md:rounded-2xl overflow-hidden">
