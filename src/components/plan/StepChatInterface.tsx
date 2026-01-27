@@ -48,6 +48,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastResultIndexRef = useRef<number>(0);
   const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const stepQuestions = getQuestionsForStep(step.title);
   const questions = stepQuestions?.questions || [];
@@ -275,6 +276,10 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
     setInput("");
     setPendingAttachments([]);
     setIsLoading(true);
+    // Reset textarea height after sending
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     scrollToBottom();
 
     try {
@@ -576,21 +581,20 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               {/* Input field */}
               <div className="flex-1 relative min-w-0">
                 <textarea
+                  ref={textareaRef}
                   value={isListening ? `${input}${interimTranscript ? (input ? " " : "") + interimTranscript : ""}` : input}
                   onChange={(e) => {
                     if (!isListening) {
                       setInput(e.target.value);
-                      // Auto-resize textarea with smooth transition
-                      requestAnimationFrame(() => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
-                      });
                     }
+                    // Auto-resize textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                   }}
                   placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
                   rows={1}
                   className={cn(
-                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin overflow-y-auto transition-[height] duration-150 ease-out",
+                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin overflow-y-auto transition-[height] duration-150 ease-out py-0.5",
                     isListening && "caret-transparent"
                   )}
                   style={{ minHeight: '24px', maxHeight: '200px' }}
