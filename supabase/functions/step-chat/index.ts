@@ -253,13 +253,24 @@ ${relevantContext.map(c => `• ${c.context_key}: ${c.context_value}`).join('\n'
       .join('\n');
 
     // Check required fields completion
-    const missingFields = requiredFields.filter(field => {
-      const answer = collectedAnswers[field];
-      return !answer || 
-             answer.trim().length === 0 || 
-             answer.toLowerCase().includes('не знам') ||
-             answer.toLowerCase().includes('не съм решил');
-    });
+    // Helper function to check if an answer is actually invalid/empty
+    const isInvalidAnswer = (answer: string | undefined): boolean => {
+      if (!answer || answer.trim().length === 0) return true;
+      
+      // Only consider answer invalid if the WHOLE answer is essentially "don't know"
+      const trimmed = answer.trim().toLowerCase();
+      const invalidPatterns = [
+        /^не знам\.?$/,
+        /^не съм решил\.?$/,
+        /^не съм сигурен\.?$/,
+        /^нямам идея\.?$/,
+        /^не мога да кажа\.?$/
+      ];
+      
+      return invalidPatterns.some(pattern => pattern.test(trimmed));
+    };
+
+    const missingFields = requiredFields.filter(field => isInvalidAnswer(collectedAnswers[field]));
 
     const allRequiredComplete = missingFields.length === 0 && requiredFields.length > 0;
 
@@ -373,15 +384,8 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
       updatedAnswers[currentQuestion.key] = userMessage;
     }
 
-    // Check if step is complete now
-    const nowMissingFields = requiredFields.filter(field => {
-      const answer = updatedAnswers[field];
-      return !answer || 
-             answer.trim().length === 0 || 
-             answer.toLowerCase().includes('не знам') ||
-             answer.toLowerCase().includes('не съм решил') ||
-             answer.toLowerCase().includes('не съм сигурен');
-    });
+    // Check if step is complete now using the same validation helper
+    const nowMissingFields = requiredFields.filter(field => isInvalidAnswer(updatedAnswers[field]));
 
     // Step is complete when ALL required fields are filled - regardless of question index
     const stepComplete = nowMissingFields.length === 0 && requiredFields.length > 0;

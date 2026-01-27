@@ -157,17 +157,27 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
     }
   }, []);
 
+  // Helper function to check if an answer is actually invalid/empty
+  const isInvalidAnswer = useCallback((answer: string | undefined): boolean => {
+    if (!answer || answer.trim().length === 0) return true;
+    
+    // Only consider answer invalid if the WHOLE answer is essentially "don't know"
+    const trimmed = answer.trim().toLowerCase();
+    const invalidPatterns = [
+      /^не знам\.?$/,
+      /^не съм решил\.?$/,
+      /^не съм сигурен\.?$/,
+      /^нямам идея\.?$/,
+      /^не мога да кажа\.?$/
+    ];
+    
+    return invalidPatterns.some(pattern => pattern.test(trimmed));
+  }, []);
+
   // Check completion status when answers change and notify parent
   useEffect(() => {
     if (requiredFields.length > 0) {
-      const missing = requiredFields.filter(field => {
-        const answer = collectedAnswers[field];
-        return !answer || 
-               answer.trim().length === 0 || 
-               answer.toLowerCase().includes('не знам') ||
-               answer.toLowerCase().includes('не съм решил') ||
-               answer.toLowerCase().includes('не съм сигурен');
-      });
+      const missing = requiredFields.filter(field => isInvalidAnswer(collectedAnswers[field]));
       setMissingFields(missing);
       const canComplete = missing.length === 0;
       setStepComplete(canComplete);
@@ -175,7 +185,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       // Notify parent component about completion status with total fields count
       onCompletionStatusChange?.(canComplete, missing, requiredFields.length);
     }
-  }, [collectedAnswers, requiredFields, onCompletionStatusChange]);
+  }, [collectedAnswers, requiredFields, onCompletionStatusChange, isInvalidAnswer]);
 
   const loadConversation = async () => {
     const { data, error } = await supabase
