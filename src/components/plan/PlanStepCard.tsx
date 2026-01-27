@@ -70,6 +70,7 @@ export function PlanStepCard({
   const [canComplete, setCanComplete] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [totalFields, setTotalFields] = useState(0);
+  const [isAnimatingProgress, setIsAnimatingProgress] = useState(false);
 
   const handleCompletionStatusChange = useCallback((canCompleteNow: boolean, missing: string[], total?: number) => {
     setCanComplete(canCompleteNow);
@@ -100,53 +101,63 @@ export function PlanStepCard({
 
   // Combined handler: mark as complete AND go to next step with confetti
   const handleCompleteAndGoNext = useCallback(() => {
-    if (!step.completed && canComplete) {
-      // Fire confetti celebration!
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fbbf24', '#f59e0b']
-      });
+    if (!step.completed && canComplete && !isAnimatingProgress) {
+      // Start progress bar animation to 100%
+      setIsAnimatingProgress(true);
       
-      // Also fire a second burst for extra celebration
+      // After progress bar fills (600ms), fire confetti
       setTimeout(() => {
+        // Fire confetti celebration!
         confetti({
-          particleCount: 60,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ['#10b981', '#34d399', '#6ee7b7']
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fbbf24', '#f59e0b']
         });
-        confetti({
-          particleCount: 60,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ['#10b981', '#34d399', '#6ee7b7']
-        });
-      }, 150);
-      
-      // Mark as complete
-      onToggleComplete();
-      
-      // Navigate after confetti animation
-      if (onGoToNextStep) {
+        
+        // Also fire a second burst for extra celebration
         setTimeout(() => {
-          onGoToNextStep();
-        }, 800);
-      }
+          confetti({
+            particleCount: 60,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#10b981', '#34d399', '#6ee7b7']
+          });
+          confetti({
+            particleCount: 60,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#10b981', '#34d399', '#6ee7b7']
+          });
+        }, 150);
+        
+        // Mark as complete
+        onToggleComplete();
+        
+        // Navigate after confetti animation
+        if (onGoToNextStep) {
+          setTimeout(() => {
+            setIsAnimatingProgress(false);
+            onGoToNextStep();
+          }, 600);
+        } else {
+          setIsAnimatingProgress(false);
+        }
+      }, 600);
     }
-  }, [step.completed, canComplete, onToggleComplete, onGoToNextStep]);
+  }, [step.completed, canComplete, isAnimatingProgress, onToggleComplete, onGoToNextStep]);
 
   const getMissingFieldLabels = () => {
     if (missingFields.length === 0) return [];
     return missingFields.map(f => fieldLabels[f] || f);
   };
 
-  // Calculate progress percentage
+  // Calculate progress percentage - animate to 100% when completing
   const answeredCount = totalFields - missingFields.length;
-  const progressPercentage = totalFields > 0 ? (answeredCount / totalFields) * 100 : 0;
+  const baseProgressPercentage = totalFields > 0 ? (answeredCount / totalFields) * 100 : 0;
+  const progressPercentage = isAnimatingProgress ? 100 : baseProgressPercentage;
 
   return (
     <div className="lg:col-span-2 flex flex-col animate-fade-in" style={{ height: 'calc(100vh - 140px)' }}>
@@ -231,12 +242,15 @@ export function PlanStepCard({
           </TooltipProvider>
         </div>
 
-        {/* Progress bar - visual indicator */}
+        {/* Progress bar - visual indicator with smooth animation */}
         {!step.completed && totalFields > 0 && (
           <div className="mb-2 md:mb-3 flex-shrink-0">
             <Progress 
               value={progressPercentage} 
-              className="h-1.5 rounded-full bg-secondary/50"
+              className={cn(
+                "h-1.5 rounded-full bg-secondary/50 transition-all",
+                isAnimatingProgress && "[&>div]:transition-all [&>div]:duration-500 [&>div]:ease-out"
+              )}
             />
           </div>
         )}
