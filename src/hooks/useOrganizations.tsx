@@ -43,7 +43,7 @@ export function useOrganizations() {
 
       if (ownedError) throw ownedError;
 
-      // Fetch organizations where user is a member
+      // Fetch organizations where user is a member (via organization_members)
       const { data: membershipData, error: memberError } = await supabase
         .from("organization_members")
         .select("organization_id")
@@ -53,13 +53,42 @@ export function useOrganizations() {
 
       const memberOrgIds = membershipData?.map(m => m.organization_id) || [];
       
+      // Also check for organizations via user_roles + projects
+      const { data: userRolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("project_id")
+        .eq("user_id", user.id);
+
+      if (rolesError) throw rolesError;
+
+      // Get organization_ids from projects where user has roles
+      let projectOrgIds: string[] = [];
+      if (userRolesData && userRolesData.length > 0) {
+        const projectIds = userRolesData.map(r => r.project_id);
+        const { data: projectsData } = await supabase
+          .from("projects")
+          .select("organization_id")
+          .in("id", projectIds)
+          .not("organization_id", "is", null);
+
+        if (projectsData) {
+          projectOrgIds = projectsData
+            .map(p => p.organization_id)
+            .filter((id): id is string => id !== null);
+        }
+      }
+
+      // Combine all organization IDs (excluding ones user owns)
+      const ownedOrgIds = ownedOrgs?.map(o => o.id) || [];
+      const allMemberOrgIds = [...new Set([...memberOrgIds, ...projectOrgIds])]
+        .filter(id => !ownedOrgIds.includes(id));
+      
       let memberOrgs: Organization[] = [];
-      if (memberOrgIds.length > 0) {
+      if (allMemberOrgIds.length > 0) {
         const { data: orgs, error: orgsError } = await supabase
           .from("organizations")
           .select("*")
-          .in("id", memberOrgIds)
-          .neq("owner_id", user.id);
+          .in("id", allMemberOrgIds);
 
         if (orgsError) throw orgsError;
         memberOrgs = orgs || [];

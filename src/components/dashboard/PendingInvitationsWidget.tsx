@@ -84,7 +84,32 @@ export function PendingInvitationsWidget() {
         }
       }
 
-      // Step 3: Mark invitation as used
+      // Step 3: Add user to organization_members if organization exists
+      if (invitation.organization?.id) {
+        const { data: existingOrgMember } = await supabase
+          .from("organization_members")
+          .select("id")
+          .eq("organization_id", invitation.organization.id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!existingOrgMember) {
+          const { error: orgMemberError } = await supabase
+            .from("organization_members")
+            .insert({
+              organization_id: invitation.organization.id,
+              user_id: user.id,
+              role: "member",
+            });
+
+          if (orgMemberError) {
+            console.error("Error adding to organization:", orgMemberError);
+            // Don't throw - continue with other steps
+          }
+        }
+      }
+
+      // Step 4: Mark invitation as used
       const { error: inviteError } = await supabase
         .from("team_invitations")
         .update({ used_at: new Date().toISOString() })
