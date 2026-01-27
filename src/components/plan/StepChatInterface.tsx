@@ -488,22 +488,6 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               </Button>
             )}
             
-            {Object.keys(collectedAnswers).length >= questions.length && !stepComplete && (
-              <Button
-                onClick={handleGenerateFromAnswers}
-                disabled={isGenerating}
-                className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                variant="secondary"
-                size="sm"
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                Генерирай съдържание от отговорите
-              </Button>
-            )}
             
             {/* Pending attachments preview */}
             {pendingAttachments.length > 0 && (
@@ -586,14 +570,21 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
               <div className="flex-1 relative min-w-0">
                 <textarea
                   value={isListening ? `${input}${interimTranscript ? (input ? " " : "") + interimTranscript : ""}` : input}
-                  onChange={(e) => !isListening && setInput(e.target.value)}
+                  onChange={(e) => {
+                    if (!isListening) {
+                      setInput(e.target.value);
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                    }
+                  }}
                   placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
-                  rows={2}
+                  rows={1}
                   className={cn(
-                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin",
+                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin overflow-y-auto",
                     isListening && "caret-transparent"
                   )}
-                  style={{ maxHeight: '100px' }}
+                  style={{ minHeight: '24px', maxHeight: '200px' }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
