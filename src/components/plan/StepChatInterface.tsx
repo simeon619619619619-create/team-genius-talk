@@ -329,11 +329,20 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
 
       // Update missing fields and completion status
       if (data.missingFields) {
-        setMissingFields(data.missingFields);
+        const missing = Array.isArray(data.missingFields) ? data.missingFields : [];
+        setMissingFields(missing);
+
+        // Keep parent (PlanStepCard) in sync with server-side validation.
+        // Otherwise the top "Завърши" button may stay disabled even when the bot says the step is complete.
+        const canCompleteNow = missing.length === 0;
+        setStepComplete(canCompleteNow);
+        onCompletionStatusChange?.(canCompleteNow, missing, requiredFields.length);
       }
       
       if (data.canProceedToNext) {
+        // Server confirmed the step can proceed; ensure UI reflects it immediately.
         setStepComplete(true);
+        onCompletionStatusChange?.(true, [], requiredFields.length);
         toast.success("Стъпката е завършена! Можете да преминете към следващата.");
         onStepComplete?.();
       }
