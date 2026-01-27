@@ -26,7 +26,7 @@ interface StepChatInterfaceProps {
   bot: GlobalBot | null;
   onContentUpdate: (content: string) => void;
   onStepComplete?: () => void;
-  onCompletionStatusChange?: (canComplete: boolean, missingFields: string[]) => void;
+  onCompletionStatusChange?: (canComplete: boolean, missingFields: string[], totalFields?: number) => void;
   onGoToNextStep?: () => void;
   onCompleteAndGoNext?: () => void;
 }
@@ -164,8 +164,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       const canComplete = missing.length === 0;
       setStepComplete(canComplete);
       
-      // Notify parent component about completion status
-      onCompletionStatusChange?.(canComplete, missing);
+      // Notify parent component about completion status with total fields count
+      onCompletionStatusChange?.(canComplete, missing, requiredFields.length);
     }
   }, [collectedAnswers, requiredFields, onCompletionStatusChange]);
 
