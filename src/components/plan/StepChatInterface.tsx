@@ -46,6 +46,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const [stepComplete, setStepComplete] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastResultIndexRef = useRef<number>(0);
   const recognitionRef = useRef<any>(null);
 
   const stepQuestions = getQuestionsForStep(step.title);
@@ -101,6 +102,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
     try {
       const recognition = new SpeechRecognitionAPI();
       recognitionRef.current = recognition;
+      lastResultIndexRef.current = 0;
 
       recognition.lang = "bg-BG";
       recognition.continuous = true;
@@ -118,14 +120,18 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
       recognition.onresult = (event: any) => {
         let finalTranscript = "";
         let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        
+        // Only process results we haven't seen yet
+        for (let i = lastResultIndexRef.current; i < event.results.length; i++) {
           const result = event.results[i];
           if (result.isFinal) {
             finalTranscript += result[0].transcript;
+            lastResultIndexRef.current = i + 1;
           } else {
             interim += result[0].transcript;
           }
         }
+        
         setInterimTranscript(interim);
         if (finalTranscript) {
           setInput((prev) => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
@@ -146,6 +152,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
     } finally {
       setIsListening(false);
       setInterimTranscript("");
+      lastResultIndexRef.current = 0;
     }
   }, []);
 
