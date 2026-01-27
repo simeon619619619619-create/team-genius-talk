@@ -1,13 +1,13 @@
 import { useState, useCallback } from "react";
-import { Check, Circle, AlertCircle, Lock } from "lucide-react";
+import { Check, Circle, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { StepChatInterface } from "./StepChatInterface";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PlanStep } from "@/hooks/usePlanSteps";
 import type { GlobalBot } from "@/hooks/useGlobalBots";
-
 interface PlanStepCardProps {
   step: PlanStep;
   stepNumber: number;
@@ -68,10 +68,14 @@ export function PlanStepCard({
 }: PlanStepCardProps) {
   const [canComplete, setCanComplete] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [totalFields, setTotalFields] = useState(0);
 
-  const handleCompletionStatusChange = useCallback((canCompleteNow: boolean, missing: string[]) => {
+  const handleCompletionStatusChange = useCallback((canCompleteNow: boolean, missing: string[], total?: number) => {
     setCanComplete(canCompleteNow);
     setMissingFields(missing);
+    if (total !== undefined) {
+      setTotalFields(total);
+    }
   }, []);
 
   const handleToggleComplete = () => {
@@ -106,11 +110,14 @@ export function PlanStepCard({
     }
   }, [step.completed, canComplete, onToggleComplete, onGoToNextStep]);
 
-  const getMissingFieldsText = () => {
-    if (missingFields.length === 0) return "";
-    const labels = missingFields.map(f => fieldLabels[f] || f);
-    return `Липсващи отговори: ${labels.join(", ")}`;
+  const getMissingFieldLabels = () => {
+    if (missingFields.length === 0) return [];
+    return missingFields.map(f => fieldLabels[f] || f);
   };
+
+  // Calculate progress percentage
+  const answeredCount = totalFields - missingFields.length;
+  const progressPercentage = totalFields > 0 ? (answeredCount / totalFields) * 100 : 0;
 
   return (
     <div className="lg:col-span-2 flex flex-col animate-fade-in" style={{ height: 'calc(100vh - 140px)' }}>
@@ -181,18 +188,29 @@ export function PlanStepCard({
               </TooltipTrigger>
               {!step.completed && !canComplete && missingFields.length > 0 && (
                 <TooltipContent side="bottom" className="max-w-xs rounded-xl p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-medium mb-1">Отговорете на всички въпроси</p>
-                      <p className="text-muted-foreground text-xs">{getMissingFieldsText()}</p>
-                    </div>
+                  <div className="text-sm">
+                    <p className="font-medium mb-2">Липсващи отговори:</p>
+                    <ul className="text-muted-foreground text-xs space-y-0.5">
+                      {getMissingFieldLabels().map((label, i) => (
+                        <li key={i}>• {label}</li>
+                      ))}
+                    </ul>
                   </div>
                 </TooltipContent>
               )}
             </Tooltip>
           </TooltipProvider>
         </div>
+
+        {/* Progress bar - visual indicator */}
+        {!step.completed && totalFields > 0 && (
+          <div className="mb-2 md:mb-3 flex-shrink-0">
+            <Progress 
+              value={progressPercentage} 
+              className="h-1.5 rounded-full bg-secondary/50"
+            />
+          </div>
+        )}
 
 
         {/* Chat Interface - takes ALL remaining space in card */}
