@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, Loader2, Sparkles, PenLine, MessageSquare, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { Send, Bot, User, Loader2, PenLine, MessageSquare, CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
