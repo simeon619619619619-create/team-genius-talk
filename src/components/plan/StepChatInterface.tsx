@@ -573,15 +573,17 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                   onChange={(e) => {
                     if (!isListening) {
                       setInput(e.target.value);
-                      // Auto-resize textarea
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      // Auto-resize textarea with smooth transition
+                      requestAnimationFrame(() => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      });
                     }
                   }}
                   placeholder={isListening ? "Слушам..." : "Напишете съобщение..."}
                   rows={1}
                   className={cn(
-                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin overflow-y-auto",
+                    "w-full bg-transparent border-none outline-none text-sm md:text-base text-foreground placeholder:text-muted-foreground/60 resize-none scrollbar-thin overflow-y-auto transition-[height] duration-150 ease-out",
                     isListening && "caret-transparent"
                   )}
                   style={{ minHeight: '24px', maxHeight: '200px' }}
