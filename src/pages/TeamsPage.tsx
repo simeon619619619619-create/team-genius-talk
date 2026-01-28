@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, Mail, Loader2, Pencil, Copy, Check, Settings } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ import { useMemberPermissions } from "@/hooks/useMemberPermissions";
 export default function TeamsPage() {
   const { user } = useAuth();
   const { projectId: currentProjectId, loading: projectLoading } = useCurrentProject();
-  const { teams, loading, createTeam, updateTeam, inviteMember, removeMember, refreshTeams } = useTeams(currentProjectId);
+  const { teams, loading, createTeam, updateTeam, createMemberDirectly, removeMember, refreshTeams } = useTeams(currentProjectId);
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
@@ -42,9 +42,9 @@ export default function TeamsPage() {
   const [newMemberOpen, setNewMemberOpen] = useState(false);
   const [editTeamOpen, setEditTeamOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<DbTeamMember | null>(null);
-  const [inviting, setInviting] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [invitationLink, setInvitationLink] = useState<string | null>(null);
+  const [accessLink, setAccessLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [createdMemberId, setCreatedMemberId] = useState<string | null>(null);
 
@@ -62,9 +62,8 @@ export default function TeamsPage() {
   const [editTeamName, setEditTeamName] = useState("");
   const [editTeamDescription, setEditTeamDescription] = useState("");
 
-  // New member form state
+  // New member form state (simplified - only name and role)
   const [newMemberName, setNewMemberName] = useState("");
-  const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("");
   const [newMemberPermissions, setNewMemberPermissions] = useState<MemberPermissions>({
     can_view_tasks: false,
@@ -103,25 +102,24 @@ export default function TeamsPage() {
     }
   };
 
-  const handleInviteMember = async (e: React.FormEvent) => {
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTeam) return;
 
-    setInviting(true);
+    setAdding(true);
     try {
-      const result = await inviteMember(selectedTeam.id, newMemberEmail, newMemberName, newMemberRole);
-      if (result?.invitationUrl && result?.memberId) {
+      const result = await createMemberDirectly(selectedTeam.id, newMemberName, newMemberRole);
+      if (result?.accessLink && result?.memberId) {
         // Save permissions for the new member
         await savePermissions(result.memberId, newMemberPermissions);
         setCreatedMemberId(result.memberId);
-        setInvitationLink(result.invitationUrl);
-        toast.success("Линкът за покана е готов!");
-      } else if (result?.invitationUrl) {
-        setInvitationLink(result.invitationUrl);
-        toast.success("Линкът за покана е готов!");
+        setAccessLink(result.accessLink);
+        toast.success("Членът е добавен успешно!");
+      } else if (result?.accessLink) {
+        setAccessLink(result.accessLink);
+        toast.success("Членът е добавен!");
       }
       setNewMemberName("");
-      setNewMemberEmail("");
       setNewMemberRole("");
       setNewMemberPermissions({
         can_view_tasks: false,
@@ -130,14 +128,14 @@ export default function TeamsPage() {
         can_view_all: false,
       });
     } finally {
-      setInviting(false);
+      setAdding(false);
     }
   };
 
   const handleCopyLink = async () => {
-    if (!invitationLink) return;
+    if (!accessLink) return;
     try {
-      await navigator.clipboard.writeText(invitationLink);
+      await navigator.clipboard.writeText(accessLink);
       setCopied(true);
       toast.success("Линкът е копиран!");
       setTimeout(() => setCopied(false), 2000);
@@ -146,9 +144,9 @@ export default function TeamsPage() {
     }
   };
 
-  const handleCloseInviteDialog = () => {
+  const handleCloseAddDialog = () => {
     setNewMemberOpen(false);
-    setInvitationLink(null);
+    setAccessLink(null);
     setCreatedMemberId(null);
     setCopied(false);
   };
@@ -338,30 +336,30 @@ export default function TeamsPage() {
               if (open) {
                 setNewMemberOpen(true);
               } else {
-                handleCloseInviteDialog();
+                handleCloseAddDialog();
               }
             }}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gradient-primary text-primary-foreground shadow-lg h-9 px-3">
-                  <Mail className="h-4 w-4 md:mr-2" />
-                  <span className="hidden md:inline">Покани член</span>
+                  <UserPlus className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Добави член</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle className="font-display">Покани нов член</DialogTitle>
+                  <DialogTitle className="font-display">Добавяне на член</DialogTitle>
                 </DialogHeader>
                 
-                {invitationLink ? (
+                {accessLink ? (
                   <div className="space-y-4 mt-4">
                     <div className="rounded-lg bg-success/10 border border-success/20 p-4">
-                      <p className="text-sm text-success font-medium mb-2">✓ Поканата е създадена!</p>
+                      <p className="text-sm text-success font-medium mb-2">✓ Членът е добавен!</p>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Копирайте линка и го изпратете на поканения:
+                        Споделете този линк с члена - при първо влизане ще зададе своя парола:
                       </p>
                       <div className="flex gap-2">
                         <Input 
-                          value={invitationLink} 
+                          value={accessLink} 
                           readOnly 
                           className="text-xs font-mono"
                         />
@@ -379,21 +377,21 @@ export default function TeamsPage() {
                       <Button 
                         type="button" 
                         variant="outline" 
-                        onClick={() => setInvitationLink(null)}
+                        onClick={() => setAccessLink(null)}
                       >
-                        Покани друг
+                        Добави друг
                       </Button>
                       <Button 
                         type="button" 
                         className="gradient-primary text-primary-foreground"
-                        onClick={handleCloseInviteDialog}
+                        onClick={handleCloseAddDialog}
                       >
                         Готово
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleInviteMember} className="space-y-4 mt-4">
+                  <form onSubmit={handleAddMember} className="space-y-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="memberName">Име</Label>
                       <Input
@@ -401,17 +399,6 @@ export default function TeamsPage() {
                         value={newMemberName}
                         onChange={(e) => setNewMemberName(e.target.value)}
                         placeholder="Въведете име..."
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="memberEmail">Имейл</Label>
-                      <Input
-                        id="memberEmail"
-                        type="email"
-                        value={newMemberEmail}
-                        onChange={(e) => setNewMemberEmail(e.target.value)}
-                        placeholder="email@company.bg"
                         required
                       />
                     </div>
@@ -432,16 +419,16 @@ export default function TeamsPage() {
                     />
                     
                     <div className="flex justify-end gap-3 pt-4">
-                      <Button type="button" variant="outline" onClick={handleCloseInviteDialog}>
+                      <Button type="button" variant="outline" onClick={handleCloseAddDialog}>
                         Отказ
                       </Button>
                       <Button 
                         type="submit" 
                         className="gradient-primary text-primary-foreground shadow-lg hover:shadow-xl"
-                        disabled={inviting}
+                        disabled={adding}
                       >
-                        {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        Създай линк за покана
+                        {adding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Добави член
                       </Button>
                     </div>
                   </form>

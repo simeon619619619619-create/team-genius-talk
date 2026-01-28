@@ -19,6 +19,7 @@ import AdminPage from "./pages/AdminPage";
 import AuthPage from "./pages/AuthPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
+import MemberLoginPage from "./pages/MemberLoginPage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                 <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+                <Route path="/member-login" element={<MemberLoginPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

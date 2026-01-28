@@ -184,6 +184,26 @@ export function useTeams(projectId: string | null) {
     }
   };
 
+  // New function: Create team member directly (without email)
+  const createMemberDirectly = async (teamId: string, name: string, role: string): Promise<{ accessLink?: string; memberId?: string } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("create-team-member", {
+        body: { teamId, name, role },
+      });
+
+      if (error) throw error;
+
+      await fetchTeams(); // Refresh teams
+      return {
+        accessLink: data?.accessLink,
+        memberId: data?.teamMemberId,
+      };
+    } catch (error: any) {
+      toast.error(`Грешка при добавяне на член: ${error.message}`);
+      return null;
+    }
+  };
+
   const removeMember = async (memberId: string) => {
     try {
       const { error } = await supabase
@@ -212,6 +232,7 @@ export function useTeams(projectId: string | null) {
     updateTeam,
     deleteTeam,
     inviteMember,
+    createMemberDirectly,
     removeMember,
     refreshTeams: fetchTeams,
   };
