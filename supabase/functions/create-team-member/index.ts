@@ -132,19 +132,21 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Created user account:", newUser.user.id);
 
-    // Create profile for the new user
+    // Create or update profile for the new user (upsert to handle auth trigger)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .insert({
+      .upsert({
         user_id: newUser.user.id,
         full_name: name,
         email: internalEmail,
         user_type: "worker",
         onboarding_completed: true, // Skip onboarding for team members
+      }, {
+        onConflict: "user_id",
       });
 
     if (profileError) {
-      console.error("Error creating profile:", profileError);
+      console.error("Error upserting profile:", profileError);
       // Cleanup: delete the user if profile creation fails
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
       throw new Error("Failed to create user profile");
