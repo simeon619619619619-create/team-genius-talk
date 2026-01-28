@@ -12,6 +12,7 @@ import { AvatarUpload } from "@/components/settings/AvatarUpload";
 import { ChangePasswordDialog } from "@/components/settings/ChangePasswordDialog";
 import { PricingPlans } from "@/components/subscription/PricingPlans";
 import { useSubscription } from "@/hooks/useSubscription";
+import { PushNotificationSettings } from "@/components/settings/PushNotificationSettings";
 
 interface ProfileData {
   full_name: string;
@@ -252,27 +253,30 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground">Настройки за известия</p>
               </div>
             </div>
-            <div className="space-y-1 divide-y divide-border/50">
-              <div className="flex items-center justify-between py-4 first:pt-0">
-                <div className="space-y-0.5">
-                  <p className="font-medium text-foreground">Имейл известия</p>
-                  <p className="text-sm text-muted-foreground">Получавайте актуализации по имейл</p>
+            <div className="space-y-4">
+              <PushNotificationSettings />
+              <div className="space-y-1 divide-y divide-border/50">
+                <div className="flex items-center justify-between py-4 first:pt-0">
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-foreground">Имейл известия</p>
+                    <p className="text-sm text-muted-foreground">Получавайте актуализации по имейл</p>
+                  </div>
+                  <Switch defaultChecked className="data-[state=checked]:bg-primary" />
                 </div>
-                <Switch defaultChecked className="data-[state=checked]:bg-primary" />
-              </div>
-              <div className="flex items-center justify-between py-4">
-                <div className="space-y-0.5">
-                  <p className="font-medium text-foreground">Известия за задачи</p>
-                  <p className="text-sm text-muted-foreground">Известия за нови и променени задачи</p>
+                <div className="flex items-center justify-between py-4">
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-foreground">Известия за задачи</p>
+                    <p className="text-sm text-muted-foreground">Известия за нови и променени задачи</p>
+                  </div>
+                  <Switch defaultChecked className="data-[state=checked]:bg-primary" />
                 </div>
-                <Switch defaultChecked className="data-[state=checked]:bg-primary" />
-              </div>
-              <div className="flex items-center justify-between py-4 last:pb-0">
-                <div className="space-y-0.5">
-                  <p className="font-medium text-foreground">Седмични отчети</p>
-                  <p className="text-sm text-muted-foreground">Получавайте седмични обобщения</p>
+                <div className="flex items-center justify-between py-4 last:pb-0">
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-foreground">Седмични отчети</p>
+                    <p className="text-sm text-muted-foreground">Получавайте седмични обобщения</p>
+                  </div>
+                  <Switch className="data-[state=checked]:bg-primary" />
                 </div>
-                <Switch className="data-[state=checked]:bg-primary" />
               </div>
             </div>
           </div>
