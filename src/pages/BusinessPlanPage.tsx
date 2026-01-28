@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3, Loader2 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { QuarterWeeksView } from "@/components/business-plan/QuarterWeeksView";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Goal {
   id: string;
@@ -624,10 +627,65 @@ function PlanSection({
 }
 
 export default function BusinessPlanPage() {
+  const { projectId, loading: projectLoading } = useCurrentProject();
   const [plan, setPlan] = useState<BusinessPlan>(initialPlan);
   const [activeTab, setActiveTab] = useState("annual");
+  const [isLoading, setIsLoading] = useState(true);
+  const [dbPlanId, setDbPlanId] = useState<string | null>(null);
 
   const generateId = () => crypto.randomUUID();
+
+  // Load business plan from database
+  const loadBusinessPlan = useCallback(async () => {
+    if (!projectId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("business_plans")
+        .select("*")
+        .eq("project_id", projectId)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        throw error;
+      }
+
+      if (data) {
+        setDbPlanId(data.id);
+        
+        // Parse the stored data back into our format
+        const annualGoals = Array.isArray(data.annual_goals) ? (data.annual_goals as unknown as Goal[]) : [];
+        const q1Items = Array.isArray(data.q1_items) ? (data.q1_items as unknown as PlanItem[]) : [];
+        const q2Items = Array.isArray(data.q2_items) ? (data.q2_items as unknown as PlanItem[]) : [];
+        const q3Items = Array.isArray(data.q3_items) ? (data.q3_items as unknown as PlanItem[]) : [];
+        const q4Items = Array.isArray(data.q4_items) ? (data.q4_items as unknown as PlanItem[]) : [];
+
+        setPlan({
+          year: data.year,
+          annualGoals,
+          annualItems: [],
+          quarters: {
+            Q1: { ...emptyQuarter, items: q1Items },
+            Q2: { ...emptyQuarter, items: q2Items },
+            Q3: { ...emptyQuarter, items: q3Items },
+            Q4: { ...emptyQuarter, items: q4Items },
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error loading business plan:", error);
+      toast.error("Грешка при зареждане на бизнес плана");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    loadBusinessPlan();
+  }, [loadBusinessPlan]);
 
   // Annual handlers
   const handleAddAnnualGoal = (goal: Omit<Goal, "id">) => {
