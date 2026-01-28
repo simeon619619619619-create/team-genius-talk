@@ -103,7 +103,13 @@ export function PlanStepCard({
 
   // Combined handler: mark as complete AND go to next step with confetti
   const handleCompleteAndGoNext = useCallback(() => {
-    if (!step.completed && canComplete && !isAnimatingProgress) {
+    // If already completed, just navigate to next
+    if (step.completed) {
+      onGoToNextStep?.();
+      return;
+    }
+    
+    if (canComplete && !isAnimatingProgress) {
       // Start progress bar animation to 100%
       setIsAnimatingProgress(true);
       
