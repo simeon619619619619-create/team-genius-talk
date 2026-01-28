@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, Bot, User, Loader2, PenLine, MessageSquare, CheckCircle2, ArrowRight } from "lucide-react";
+import { Send, Bot, User, Loader2, PenLine, MessageSquare, CheckCircle2, ArrowRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,9 +29,10 @@ interface StepChatInterfaceProps {
   onCompletionStatusChange?: (canComplete: boolean, missingFields: string[], totalFields?: number) => void;
   onGoToNextStep?: () => void;
   onCompleteAndGoNext?: () => void;
+  isLastStep?: boolean;
 }
 
-export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange, onGoToNextStep, onCompleteAndGoNext }: StepChatInterfaceProps) {
+export function StepChatInterface({ step, projectId, bot, onContentUpdate, onStepComplete, onCompletionStatusChange, onGoToNextStep, onCompleteAndGoNext, isLastStep = false }: StepChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -513,9 +514,19 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
                 className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] bg-success hover:bg-success/90 text-success-foreground"
                 size="sm"
               >
-                <CheckCircle2 className="h-4 w-4" />
-                Завърши и продължи
-                <ArrowRight className="h-4 w-4" />
+                {isLastStep ? (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Прехвърли в Бизнес план
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Завърши и продължи
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             )}
             

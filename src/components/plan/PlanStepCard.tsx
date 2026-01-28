@@ -19,6 +19,7 @@ interface PlanStepCardProps {
   onToggleComplete: () => void;
   onContentUpdate: (content: string) => void;
   onGoToNextStep?: () => void;
+  isLastStep?: boolean;
 }
 
 // Map field keys to human-readable Bulgarian labels
@@ -66,6 +67,7 @@ export function PlanStepCard({
   onToggleComplete,
   onContentUpdate,
   onGoToNextStep,
+  isLastStep = false,
 }: PlanStepCardProps) {
   const [canComplete, setCanComplete] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
@@ -266,6 +268,7 @@ export function PlanStepCard({
             onCompletionStatusChange={handleCompletionStatusChange}
             onGoToNextStep={onGoToNextStep}
             onCompleteAndGoNext={handleCompleteAndGoNext}
+            isLastStep={isLastStep}
           />
         </div>
       </Card>
