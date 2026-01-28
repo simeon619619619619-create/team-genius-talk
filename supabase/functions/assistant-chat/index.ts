@@ -131,6 +131,7 @@ serve(async (req) => {
     // Get business plan for context
     let businessPlanContext = "";
     let businessPlanId = null;
+    let marketingPlanContext = "";
     
     if (projectId) {
       const { data: businessPlan } = await supabase
@@ -149,6 +150,35 @@ serve(async (req) => {
 - Q3 елементи: ${JSON.stringify(businessPlan.q3_items || [])}
 - Q4 елементи: ${JSON.stringify(businessPlan.q4_items || [])}
 `;
+      }
+
+      // Get marketing plan (plan_steps with generated content)
+      const { data: planSteps } = await supabase
+        .from("plan_steps")
+        .select("title, description, generated_content, completed")
+        .eq("project_id", projectId)
+        .order("step_order");
+
+      if (planSteps && planSteps.length > 0) {
+        marketingPlanContext = "\n\n📋 МАРКЕТИНГ ПЛАН:\n";
+        for (const step of planSteps) {
+          if (step.generated_content) {
+            marketingPlanContext += `\n### ${step.title} ${step.completed ? "✅" : "⏳"}:\n${step.generated_content.substring(0, 2000)}\n`;
+          }
+        }
+      }
+
+      // Get step answers for additional context
+      const { data: stepAnswers } = await supabase
+        .from("step_answers")
+        .select("question_text, answer")
+        .eq("project_id", projectId);
+
+      if (stepAnswers && stepAnswers.length > 0) {
+        marketingPlanContext += "\n\n📝 ОТГОВОРИ ОТ МАРКЕТИНГ АНАЛИЗА:\n";
+        for (const qa of stepAnswers.slice(0, 20)) {
+          marketingPlanContext += `- ${qa.question_text}: ${qa.answer}\n`;
+        }
       }
 
       // Get overdue tasks
@@ -190,6 +220,7 @@ serve(async (req) => {
 📊 Година: ${dateContext.year}
 
 ${businessPlanContext}
+${marketingPlanContext}
 
 ТВОИТЕ ВЪЗМОЖНОСТИ:
 1. Можеш да добавяш задачи директно в бизнес плана чрез create_weekly_task
@@ -197,16 +228,20 @@ ${businessPlanContext}
 3. Можеш да показваш текущите задачи с get_current_week_tasks
 
 ПРАВИЛА:
+- ВИНАГИ се води по маркетинг плана когато предлагаш задачи
+- Ако има генерирано съдържание в маркетинг плана, използвай го за конкретни предложения
+- Предлагай задачи които са в съответствие с текущата стратегия и цели
 - Ако потребителят иска да добави задача, използвай create_weekly_task
 - Ако има пропуснати задачи, напомни за тях и предложи да ги преместим
 - Питай конкретни въпроси за: бюджет, таргет аудитория, канал (Instagram, Facebook, Email, и т.н.)
-- Предлагай седмични стратегии: Седмица 1: 30% отстъпка, Седмица 2: таргет модели, и т.н.
-- Бъди проактивен - предлагай идеи базирани на текущата дата и сезон
+- Предлагай седмични стратегии базирани на маркетинг плана
+- Бъди проактивен - предлагай идеи базирани на текущата дата, сезон и маркетинг плана
 
 ФОРМАТ НА ОТГОВОРИТЕ:
 - Кратки и ясни отговори
 - Използвай емоджита за по-добра четимост
-- Когато създаваш задача, потвърди какво си добавил`;
+- Когато създаваш задача, потвърди какво си добавил
+- Цитирай конкретни елементи от маркетинг плана когато предлагаш задачи`;
 
     // Initial AI call
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
