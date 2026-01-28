@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -7,6 +7,7 @@ import { WeeklyTasksView, WeeklyTask } from "./WeeklyTasksView";
 import { ContentPostsSection } from "./ContentPostsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface ContentPost {
   id: string;
@@ -60,6 +61,16 @@ const quarterWeeks: Record<string, number[]> = {
   Q4: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52],
 };
 
+// Get current week number
+function getCurrentWeekNumber(): number {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
 export function QuarterWeeksView({
   quarter,
   year,
@@ -71,8 +82,65 @@ export function QuarterWeeksView({
 }: QuarterWeeksViewProps) {
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set());
   const [contentPosts, setContentPosts] = useState<Record<number, ContentPost[]>>({});
+  const [dbWeeklyTasks, setDbWeeklyTasks] = useState<Record<number, WeeklyTask[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const currentWeek = getCurrentWeekNumber();
 
   const weeks = quarterWeeks[quarter];
+
+  // Auto-open current week
+  useEffect(() => {
+    if (weeks.includes(currentWeek)) {
+      setOpenWeeks(new Set([currentWeek]));
+    }
+  }, [currentWeek, weeks]);
+
+  // Fetch weekly tasks from database
+  const fetchWeeklyTasks = useCallback(async () => {
+    if (!businessPlanId) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("weekly_tasks")
+        .select("*")
+        .eq("business_plan_id", businessPlanId)
+        .in("week_number", weeks);
+
+      if (error) {
+        console.error("Error fetching weekly tasks:", error);
+        return;
+      }
+
+      // Group tasks by week number
+      const tasksByWeek: Record<number, WeeklyTask[]> = {};
+      (data || []).forEach((task) => {
+        if (!tasksByWeek[task.week_number]) {
+          tasksByWeek[task.week_number] = [];
+        }
+        tasksByWeek[task.week_number].push({
+          id: task.id,
+          title: task.title,
+          description: task.description || "",
+          priority: (task.priority as "low" | "medium" | "high") || "medium",
+          estimatedHours: task.estimated_hours || 1,
+          dayOfWeek: task.day_of_week || 1,
+          isCompleted: task.is_completed || false,
+          taskType: task.task_type as "project" | "strategy" | "action",
+        });
+      });
+
+      setDbWeeklyTasks(tasksByWeek);
+    } catch (error) {
+      console.error("Error fetching weekly tasks:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [businessPlanId, weeks]);
+
+  useEffect(() => {
+    fetchWeeklyTasks();
+  }, [fetchWeeklyTasks]);
 
   // Fetch content posts for all weeks in this quarter
   useEffect(() => {
@@ -126,7 +194,12 @@ export function QuarterWeeksView({
   };
 
   const getWeekStats = (weekNumber: number) => {
-    const tasks = weeklyTasks[weekNumber] || [];
+    // Merge local weeklyTasks with dbWeeklyTasks
+    const localTasks = weeklyTasks[weekNumber] || [];
+    const dbTasks = dbWeeklyTasks[weekNumber] || [];
+    
+    // Use dbTasks if available, otherwise fall back to local
+    const tasks = dbTasks.length > 0 ? dbTasks : localTasks;
     const completed = tasks.filter((t) => t.isCompleted).length;
     const total = tasks.length;
     const postsCount = (contentPosts[weekNumber] || []).length;
@@ -140,16 +213,34 @@ export function QuarterWeeksView({
     }));
   };
 
+  // Get combined tasks for a week
+  const getTasksForWeek = (weekNumber: number): WeeklyTask[] => {
+    const dbTasks = dbWeeklyTasks[weekNumber] || [];
+    const localTasks = weeklyTasks[weekNumber] || [];
+    return dbTasks.length > 0 ? dbTasks : localTasks;
+  };
+
   return (
     <Card>
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-4 flex flex-row items-center justify-between">
         <CardTitle className="text-lg">Седмици в {quarter}</CardTitle>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={fetchWeeklyTasks}
+          disabled={isLoading}
+          className="gap-2"
+        >
+          <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+          Обнови
+        </Button>
       </CardHeader>
       <CardContent className="space-y-2">
         {weeks.map((weekNumber) => {
           const isOpen = openWeeks.has(weekNumber);
           const stats = getWeekStats(weekNumber);
           const hasProgress = stats.total > 0;
+          const isCurrentWeek = weekNumber === currentWeek;
 
           return (
             <Collapsible
@@ -162,7 +253,8 @@ export function QuarterWeeksView({
                   variant="ghost"
                   className={cn(
                     "w-full justify-between h-auto py-3 px-4",
-                    isOpen && "bg-muted"
+                    isOpen && "bg-muted",
+                    isCurrentWeek && "ring-2 ring-primary/50"
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -172,6 +264,11 @@ export function QuarterWeeksView({
                       <ChevronRight className="h-4 w-4" />
                     )}
                     <span className="font-medium">Седмица {weekNumber}</span>
+                    {isCurrentWeek && (
+                      <Badge variant="default" className="text-xs">
+                        Текуща
+                      </Badge>
+                    )}
                     {stats.postsCount > 0 && (
                       <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                         {stats.postsCount} {stats.postsCount === 1 ? "пост" : "поста"}
@@ -202,8 +299,15 @@ export function QuarterWeeksView({
                   year={year}
                   goals={goals}
                   items={items}
-                  tasks={weeklyTasks[weekNumber] || []}
-                  onTasksUpdate={(tasks) => onWeeklyTasksUpdate(weekNumber, tasks)}
+                  tasks={getTasksForWeek(weekNumber)}
+                  onTasksUpdate={(tasks) => {
+                    // Update local state and also refresh from DB
+                    onWeeklyTasksUpdate(weekNumber, tasks);
+                    setDbWeeklyTasks(prev => ({
+                      ...prev,
+                      [weekNumber]: tasks,
+                    }));
+                  }}
                 />
                 <ContentPostsSection
                   businessPlanId={businessPlanId || null}
