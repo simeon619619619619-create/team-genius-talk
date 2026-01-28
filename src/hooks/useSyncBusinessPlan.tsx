@@ -14,6 +14,8 @@ export function useSyncBusinessPlan(projectId: string | null) {
   const navigate = useNavigate();
 
   const syncToBusinessPlan = useCallback(async (steps: PlanStep[]) => {
+    console.log("syncToBusinessPlan called with projectId:", projectId, "steps:", steps);
+    
     if (!projectId) {
       toast.error("Няма избран проект");
       return false;
@@ -28,6 +30,8 @@ export function useSyncBusinessPlan(projectId: string | null) {
           title: s.title,
           content: s.generated_content,
         }));
+
+      console.log("Steps with content:", stepsContent);
 
       if (stepsContent.length === 0) {
         toast.error("Няма генерирано съдържание за синхронизиране");
