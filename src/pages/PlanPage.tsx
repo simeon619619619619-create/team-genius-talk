@@ -7,6 +7,7 @@ import { GenerateScheduleDialog } from "@/components/plan/GenerateScheduleDialog
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { useSyncBusinessPlan } from "@/hooks/useSyncBusinessPlan";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import confetti from "canvas-confetti";
@@ -25,6 +26,7 @@ export default function PlanPage() {
     getBotForStep,
     loading: botsLoading
   } = useGlobalBots();
+  const { syncToBusinessPlan } = useSyncBusinessPlan(projectId);
 
   const triggerConfetti = useCallback(() => {
     confetti({
@@ -43,14 +45,29 @@ export default function PlanPage() {
     }
   }, [toggleStepComplete, triggerConfetti]);
 
-  const handleGoToNextStep = useCallback(() => {
+  // Check if active step is the last step
+  const isLastStep = useCallback(() => {
+    if (!activeStepId || steps.length === 0) return false;
+    const currentIndex = steps.findIndex(s => s.id === activeStepId);
+    return currentIndex === steps.length - 1;
+  }, [activeStepId, steps]);
+
+  const handleGoToNextStep = useCallback(async () => {
     if (!activeStepId) return;
     const currentIndex = steps.findIndex(s => s.id === activeStepId);
+    
+    // If this is the last step, sync to business plan and navigate
+    if (currentIndex === steps.length - 1) {
+      await syncToBusinessPlan(steps);
+      return;
+    }
+    
+    // Otherwise go to next step
     const nextStep = steps[currentIndex + 1];
     if (nextStep) {
       setActiveStepId(nextStep.id);
     }
-  }, [activeStepId, steps]);
+  }, [activeStepId, steps, syncToBusinessPlan]);
 
   // Set active step when steps load
   useEffect(() => {
@@ -59,10 +76,12 @@ export default function PlanPage() {
       setActiveStepId(firstIncomplete?.id || steps[0].id);
     }
   }, [steps, activeStepId]);
+  
   const completedCount = steps.filter(s => s.completed).length;
   const allStepsCompleted = completedCount === steps.length && steps.length > 0;
   const progress = steps.length > 0 ? completedCount / steps.length * 100 : 0;
   const activeStep = steps.find(s => s.id === activeStepId);
+  const currentIsLastStep = isLastStep();
   if (loading || botsLoading || projectLoading) {
     return <MainLayout>
         <div className="space-y-6">
@@ -170,7 +189,7 @@ export default function PlanPage() {
           </div>
 
           {/* Active Step Details */}
-          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} />}
+          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} isLastStep={currentIsLastStep} />}
         </div>
       </div>
     </MainLayout>;
