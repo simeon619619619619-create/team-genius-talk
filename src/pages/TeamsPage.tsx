@@ -23,9 +23,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTeams, TeamWithMembers, DbTeamMember } from "@/hooks/useTeams";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { useOrganizationProjects } from "@/hooks/useOrganizationProjects";
 import { toast } from "sonner";
 import { Team, TeamMember } from "@/types";
 import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
@@ -35,6 +37,7 @@ export default function TeamsPage() {
   const { user } = useAuth();
   const { projectId: currentProjectId, loading: projectLoading } = useCurrentProject();
   const { teams, loading, createTeam, updateTeam, createMemberDirectly, removeMember, refreshTeams } = useTeams(currentProjectId);
+  const { projects: orgProjects, loading: projectsLoading } = useOrganizationProjects();
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
@@ -65,6 +68,7 @@ export default function TeamsPage() {
   // New member form state (simplified - only name and role)
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [newMemberPermissions, setNewMemberPermissions] = useState<MemberPermissions>({
     can_view_tasks: false,
     can_view_business_plan: false,
@@ -108,7 +112,12 @@ export default function TeamsPage() {
 
     setAdding(true);
     try {
-      const result = await createMemberDirectly(selectedTeam.id, newMemberName, newMemberRole);
+      const result = await createMemberDirectly(
+        selectedTeam.id, 
+        newMemberName, 
+        newMemberRole,
+        selectedProjectIds.length > 0 ? selectedProjectIds : undefined
+      );
       if (result?.accessLink && result?.memberId) {
         // Save permissions for the new member
         await savePermissions(result.memberId, newMemberPermissions);
@@ -121,6 +130,7 @@ export default function TeamsPage() {
       }
       setNewMemberName("");
       setNewMemberRole("");
+      setSelectedProjectIds([]);
       setNewMemberPermissions({
         can_view_tasks: false,
         can_view_business_plan: false,
@@ -412,6 +422,41 @@ export default function TeamsPage() {
                         required
                       />
                     </div>
+                    
+                    {/* Project Access Selector */}
+                    {orgProjects.length > 1 && (
+                      <div className="space-y-2">
+                        <Label>Достъп до проекти</Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Членът автоматично получава достъп до текущия проект. Изберете допълнителни проекти:
+                        </p>
+                        <div className="space-y-2 rounded-lg border p-3 bg-secondary/30 max-h-40 overflow-y-auto">
+                          {orgProjects
+                            .filter(p => p.id !== currentProjectId) // Exclude current project
+                            .map((project) => (
+                              <div key={project.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`project-${project.id}`}
+                                  checked={selectedProjectIds.includes(project.id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedProjectIds([...selectedProjectIds, project.id]);
+                                    } else {
+                                      setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
+                                    }
+                                  }}
+                                />
+                                <Label 
+                                  htmlFor={`project-${project.id}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {project.name}
+                                </Label>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                     
                     <MemberPermissionsEditor
                       permissions={newMemberPermissions}

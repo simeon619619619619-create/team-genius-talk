@@ -10,6 +10,7 @@ interface CreateMemberRequest {
   teamId: string;
   name: string;
   role: string;
+  projectIds?: string[]; // Optional: additional projects to grant access to
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -56,7 +57,7 @@ serve(async (req: Request): Promise<Response> => {
     
     console.log("Authenticated owner:", user.email);
 
-    const { teamId, name, role }: CreateMemberRequest = await req.json();
+    const { teamId, name, role, projectIds }: CreateMemberRequest = await req.json();
 
     if (!teamId || !name || !role) {
       return new Response(
@@ -174,17 +175,25 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Failed to create team member");
     }
 
-    // Add user_roles entry for project access
+    // Build list of projects to grant access to
+    const allProjectIds = new Set<string>([team.project_id]);
+    if (projectIds && Array.isArray(projectIds)) {
+      projectIds.forEach(pid => allProjectIds.add(pid));
+    }
+
+    // Add user_roles entries for all projects
+    const roleInserts = Array.from(allProjectIds).map(pid => ({
+      user_id: newUser.user.id,
+      project_id: pid,
+      role: "viewer",
+    }));
+
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({
-        user_id: newUser.user.id,
-        project_id: team.project_id,
-        role: "viewer",
-      });
+      .insert(roleInserts);
 
     if (roleError) {
-      console.error("Error creating user role:", roleError);
+      console.error("Error creating user roles:", roleError);
     }
 
     // Add organization_members entry

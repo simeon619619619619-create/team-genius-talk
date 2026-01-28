@@ -185,10 +185,15 @@ export function useTeams(projectId: string | null) {
   };
 
   // New function: Create team member directly (without email)
-  const createMemberDirectly = async (teamId: string, name: string, role: string): Promise<{ accessLink?: string; memberId?: string } | null> => {
+  const createMemberDirectly = async (
+    teamId: string, 
+    name: string, 
+    role: string,
+    projectIds?: string[]
+  ): Promise<{ accessLink?: string; memberId?: string } | null> => {
     try {
       const { data, error } = await supabase.functions.invoke("create-team-member", {
-        body: { teamId, name, role },
+        body: { teamId, name, role, projectIds },
       });
 
       if (error) throw error;
