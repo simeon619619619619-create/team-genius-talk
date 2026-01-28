@@ -507,8 +507,8 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
 
           {/* Input - FIXED at bottom */}
           <div className="border-t border-border/50 p-3 bg-background/80 backdrop-blur-sm flex-shrink-0">
-            {/* Show "Go to next step" button when step is complete */}
-            {stepComplete && onCompleteAndGoNext && (
+            {/* Show "Go to next step" button when step is complete or already completed */}
+            {(stepComplete || step.completed) && onCompleteAndGoNext && (
               <Button
                 onClick={onCompleteAndGoNext}
                 className="w-full gap-2 mb-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] bg-success hover:bg-success/90 text-success-foreground"
