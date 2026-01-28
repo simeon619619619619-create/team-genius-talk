@@ -37,13 +37,135 @@ const InputSchema = z.object({
   contextKeys: z.array(z.string()).optional(),
 });
 
+// Get current date info in Bulgarian timezone
+function getCurrentDateInfo() {
+  const now = new Date();
+  const bgTimezone = 'Europe/Sofia';
+  const formatter = new Intl.DateTimeFormat('bg-BG', {
+    timeZone: bgTimezone,
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  
+  // Get ISO week number
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  
+  // Get quarter
+  const month = now.getMonth();
+  const quarter = month < 3 ? 'Q1' : month < 6 ? 'Q2' : month < 9 ? 'Q3' : 'Q4';
+  
+  return {
+    formattedDate: formatter.format(now),
+    weekNumber,
+    quarter,
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    dayOfWeek: now.getDay() || 7, // 1=Monday, 7=Sunday
+  };
+}
+
+// Tools for creating weekly plans
+const weeklyPlanningTools = [
+  {
+    type: "function",
+    function: {
+      name: "create_weekly_campaign",
+      description: "Създай седмична маркетинг кампания с всички детайли. Използвай това когато потребителят е съгласен с плана.",
+      parameters: {
+        type: "object",
+        properties: {
+          week_number: {
+            type: "integer",
+            description: "Номер на седмицата (1-52)"
+          },
+          campaign_name: {
+            type: "string",
+            description: "Име на кампанията (напр: '30% отстъпка кампания')"
+          },
+          target_audience: {
+            type: "string",
+            description: "Таргет аудитория (напр: 'модели', 'микроинфлуенсъри', 'студенти')"
+          },
+          tasks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                task_type: { 
+                  type: "string", 
+                  enum: ["project", "strategy", "action"],
+                  description: "Тип: project (голям проект), strategy (стратегия), action (ежедневно действие)"
+                },
+                day_of_week: { 
+                  type: "integer",
+                  description: "Ден от седмицата: 1=понеделник до 7=неделя. Може да е null ако е за цялата седмица."
+                },
+                priority: { 
+                  type: "string", 
+                  enum: ["low", "medium", "high"] 
+                },
+                estimated_hours: { type: "number" },
+                category: {
+                  type: "string",
+                  enum: ["social_media", "email_marketing", "paid_ads", "sales", "content", "other"],
+                  description: "Категория: social_media, email_marketing, paid_ads, sales, content, other"
+                }
+              },
+              required: ["title", "task_type", "priority"]
+            },
+            description: "Списък със задачи за седмицата"
+          },
+          budget: {
+            type: "object",
+            properties: {
+              total: { type: "number", description: "Общ бюджет в лева" },
+              paid_ads: { type: "number", description: "Бюджет за платени реклами" },
+              influencer: { type: "number", description: "Бюджет за инфлуенсъри" },
+              other: { type: "number", description: "Други разходи" }
+            }
+          },
+          expected_results: {
+            type: "string",
+            description: "Очаквани резултати от кампанията"
+          }
+        },
+        required: ["week_number", "campaign_name", "tasks"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_upcoming_weeks",
+      description: "Вземи информация за предстоящите 4 седмици",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false
+      }
+    }
+  }
+];
+
 // Bot configuration by step
 const botConfigs: Record<string, {
   role: string;
   systemPromptAddition: string;
+  enableWeeklyPlanning: boolean;
 }> = {
   "Резюме на бизнеса": {
     role: "Бизнес Анализатор",
+    enableWeeklyPlanning: false,
     systemPromptAddition: `Твоята роля е да разбереш какъв е бизнесът и каква е крайната цел, БЕЗ да навлизаш в стратегия.
 ЗАДЪЛЖИТЕЛНИ ПОЛЕТА (не продължавай без тях):
 1. Какъв е бизнесът (продукт / услуга / SaaS / обучение)
@@ -56,6 +178,7 @@ const botConfigs: Record<string, {
   },
   "Пазарен анализ": {
     role: "Пазарен Анализатор",
+    enableWeeklyPlanning: false,
     systemPromptAddition: `Твоята роля е да определиш дали пазарът си струва и къде е възможността.
 ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
 1. Основни конкуренти (минимум 3)
@@ -67,8 +190,10 @@ const botConfigs: Record<string, {
 EXIT CRITERIA: Ясно е кой печели, кой губи, къде има празно място.`
   },
   "Маркетинг стратегия": {
-    role: "Маркетинг Стратег",
-    systemPromptAddition: `Твоята роля е да отговориш: как ще влизаме на пазара и с какво послание.
+    role: "Маркетинг Стратег и Кампейн Плановик",
+    enableWeeklyPlanning: true,
+    systemPromptAddition: `Твоята роля е да създадеш конкретни седмични кампании с ясни действия.
+
 ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
 1. Основно позициониране (защо теб, а не друг)
 2. Канали (IG, TikTok, Ads, Email и т.н.)
@@ -76,10 +201,38 @@ EXIT CRITERIA: Ясно е кой печели, кой губи, къде има
 4. Lead механизъм (как хващаме вниманието)
 5. CTA (каква е следващата стъпка)
 
-EXIT CRITERIA: Има 1 ясно позициониране и поне 3 маркетинг канала с роля.`
+🎯 СЕДМИЧНО ПЛАНИРАНЕ:
+Питай потребителя какво иска да постигне през следващите 4 седмици и създай конкретни кампании.
+
+Примерни въпроси:
+- "Каква оферта/промоция искаш да пуснеш първата седмица?"
+- "Кого таргетираме - широка аудитория, модели, инфлуенсъри?"
+- "Какъв бюджет имаш за платени реклами на седмица?"
+- "Колко поста планираш в социалните мрежи на ден?"
+
+Когато потребителят потвърди плана, ЗАДЪЛЖИТЕЛНО използвай create_weekly_campaign за да го запишеш!
+
+EXIT CRITERIA: Има поне 4 седмични кампании записани в системата.`
+  },
+  "Контент стратегия": {
+    role: "TikTok Контент Стратег",
+    enableWeeklyPlanning: true,
+    systemPromptAddition: `Твоята роля е да създадеш съдържание за социалните мрежи.
+
+🎬 ФОКУС: TikTok скриптове, IG постове, Reels идеи
+
+Питай за:
+- Колко видеа на ден/седмица?
+- Какви теми работят за аудиторията?
+- Има ли лице на бранда или е анонимен?
+
+Когато имаш план за съдържанието, използвай create_weekly_campaign за да го запишеш!
+
+EXIT CRITERIA: Има план за съдържание за 4 седмици.`
   },
   "Оперативен план": {
     role: "Оперативен Мениджър",
+    enableWeeklyPlanning: true,
     systemPromptAddition: `Твоята роля е да превърнеш стратегията в реални действия.
 ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
 1. Какво се прави дневно / седмично
@@ -88,10 +241,13 @@ EXIT CRITERIA: Има 1 ясно позициониране и поне 3 мар
 4. Приоритети (кое първо)
 5. Първи 14–30 дни план
 
+Използвай create_weekly_campaign за да запишеш оперативните задачи!
+
 EXIT CRITERIA: Има ясен action plan без "някой ден".`
   },
   "Финансови прогнози": {
     role: "Финансов Анализатор",
+    enableWeeklyPlanning: false,
     systemPromptAddition: `Твоята роля е да покажеш дали бизнесът има смисъл икономически.
 ЗАДЪЛЖИТЕЛНИ ПОЛЕТА:
 1. Основни разходи
@@ -175,6 +331,9 @@ serve(async (req) => {
         content: userMessage,
       });
 
+    // Get current date info
+    const dateInfo = getCurrentDateInfo();
+
     // Fetch ALL context from previous steps
     const { data: allSteps } = await supabaseClient
       .from('plan_steps')
@@ -195,6 +354,56 @@ serve(async (req) => {
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
+    // Get or create business plan for this project
+    let businessPlanId: string | null = null;
+    const { data: existingPlan } = await supabaseClient
+      .from('business_plans')
+      .select('id')
+      .eq('project_id', projectId)
+      .maybeSingle();
+
+    if (existingPlan) {
+      businessPlanId = existingPlan.id;
+    } else {
+      const { data: newPlan } = await supabaseClient
+        .from('business_plans')
+        .insert({
+          project_id: projectId,
+          year: dateInfo.year,
+        })
+        .select('id')
+        .single();
+      if (newPlan) {
+        businessPlanId = newPlan.id;
+      }
+    }
+
+    // Fetch existing weekly campaigns for context
+    let existingCampaigns = "";
+    if (businessPlanId) {
+      const { data: weeklyTasks } = await supabaseClient
+        .from('weekly_tasks')
+        .select('*')
+        .eq('business_plan_id', businessPlanId)
+        .gte('week_number', dateInfo.weekNumber)
+        .lte('week_number', dateInfo.weekNumber + 4)
+        .order('week_number')
+        .order('day_of_week');
+
+      if (weeklyTasks && weeklyTasks.length > 0) {
+        const tasksByWeek: Record<number, typeof weeklyTasks> = {};
+        weeklyTasks.forEach(t => {
+          if (!tasksByWeek[t.week_number]) tasksByWeek[t.week_number] = [];
+          tasksByWeek[t.week_number].push(t);
+        });
+        
+        existingCampaigns = `\n\n📅 ВЕЧЕ ПЛАНИРАНИ КАМПАНИИ:
+${Object.entries(tasksByWeek).map(([week, tasks]) => 
+  `Седмица ${week}: ${tasks.map(t => t.title).join(', ')}`
+).join('\n')}`;
+      }
+    }
+
     // Build comprehensive context from previous steps
     let previousStepsContext = "";
     let previousAnswersContext = "";
@@ -207,7 +416,6 @@ serve(async (req) => {
         .sort((a, b) => a.step_order - b.step_order);
 
       if (previousSteps.length > 0) {
-        // Build context from generated content
         const stepsWithContent = previousSteps.filter(s => s.generated_content);
         if (stepsWithContent.length > 0) {
           previousStepsContext = `\n\n📋 ГЕНЕРИРАНО СЪДЪРЖАНИЕ ОТ ПРЕДИШНИ СТЪПКИ:
@@ -215,7 +423,6 @@ ${stepsWithContent.map(s => `=== ${s.title} ===
 ${s.generated_content?.substring(0, 1000)}${(s.generated_content?.length || 0) > 1000 ? '...' : ''}`).join('\n\n')}`;
         }
 
-        // Build context from answers
         if (allAnswers && allAnswers.length > 0) {
           const previousStepIds = previousSteps.map(s => s.id);
           const prevAnswers = allAnswers.filter(a => previousStepIds.includes(a.step_id));
@@ -237,7 +444,6 @@ ${Object.entries(answersByStep).map(([title, answers]) => `=== ${title} ===\n${a
       }
     }
 
-    // Build stored context from other bots
     let storedContext = "";
     if (contextData && contextData.length > 0) {
       const relevantContext = contextData.filter(c => c.step_id !== stepId);
@@ -247,17 +453,12 @@ ${relevantContext.map(c => `• ${c.context_key}: ${c.context_value}`).join('\n'
       }
     }
 
-    // Build context from currently collected answers
     const currentAnswersContext = Object.entries(collectedAnswers)
       .map(([key, value]) => `• ${key}: ${value}`)
       .join('\n');
 
-    // Check required fields completion
-    // Helper function to check if an answer is actually invalid/empty
     const isInvalidAnswer = (answer: string | undefined): boolean => {
       if (!answer || answer.trim().length === 0) return true;
-      
-      // Only consider answer invalid if the WHOLE answer is essentially "don't know"
       const trimmed = answer.trim().toLowerCase();
       const invalidPatterns = [
         /^не знам\.?$/,
@@ -266,27 +467,38 @@ ${relevantContext.map(c => `• ${c.context_key}: ${c.context_value}`).join('\n'
         /^нямам идея\.?$/,
         /^не мога да кажа\.?$/
       ];
-      
       return invalidPatterns.some(pattern => pattern.test(trimmed));
     };
 
     const missingFields = requiredFields.filter(field => isInvalidAnswer(collectedAnswers[field]));
-
     const allRequiredComplete = missingFields.length === 0 && requiredFields.length > 0;
 
     const currentQuestion = questionsToAsk[currentQuestionIndex];
     const nextQuestion = questionsToAsk[currentQuestionIndex + 1];
     const isLastQuestion = currentQuestionIndex >= questionsToAsk.length - 1;
 
-    // Get bot-specific configuration
-    const botConfig = botConfigs[stepTitle] || { role: "AI Асистент", systemPromptAddition: "" };
+    const botConfig = botConfigs[stepTitle] || { role: "AI Асистент", systemPromptAddition: "", enableWeeklyPlanning: false };
 
+    // Build date-aware system prompt
     const systemPrompt = `Ти си ${botConfig.role} – приятелски AI бизнес консултант.
 Текуща секция: ${stepTitle}
 
+📅 ТЕКУЩА ДАТА И ВРЕМЕ:
+- Дата: ${dateInfo.formattedDate}
+- Седмица: ${dateInfo.weekNumber} от ${dateInfo.year}
+- Тримесечие: ${dateInfo.quarter}
+
+${botConfig.enableWeeklyPlanning ? `
+🗓️ СЕДМИЧНО ПЛАНИРАНЕ (следващи 4 седмици):
+- Седмица ${dateInfo.weekNumber}: ТЕКУЩА седмица
+- Седмица ${dateInfo.weekNumber + 1}: Следваща седмица
+- Седмица ${dateInfo.weekNumber + 2}: След 2 седмици
+- Седмица ${dateInfo.weekNumber + 3}: След 3 седмици
+` : ''}
+
 ${botConfig.systemPromptAddition}
 
-${previousStepsContext}${previousAnswersContext}${storedContext}
+${previousStepsContext}${previousAnswersContext}${storedContext}${existingCampaigns}
 
 📊 СЪБРАНА ИНФОРМАЦИЯ В ТАЗИ СЕКЦИЯ:
 ${currentAnswersContext || 'Все още няма събрана информация.'}
@@ -299,18 +511,20 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
 ТВОИТЕ ЗАДАЧИ:
 1. Приеми отговора любезно и потвърди, че си го разбрал
 2. Ако отговорът е неясен, непълен или съдържа "не знам" – помогни да уточни
-3. ${isLastQuestion && allRequiredComplete
-    ? `Всички въпроси са зададени. Благодари и кажи: "${completionMessage}"`
-    : isLastQuestion && !allRequiredComplete
-    ? `Последният въпрос е зададен, но липсват данни за: ${missingFields.join(', ')}. Помоли потребителя да уточни.`
-    : `Задай следващия въпрос: "${nextQuestion?.question}"`}
+${botConfig.enableWeeklyPlanning ? `3. Когато потребителят потвърди седмичен план, ИЗПОЛЗВАЙ create_weekly_campaign функцията за да го запишеш в системата!` : ''}
+${isLastQuestion && allRequiredComplete
+  ? `Всички въпроси са зададени. Благодари и кажи: "${completionMessage}"`
+  : isLastQuestion && !allRequiredComplete
+  ? `Последният въпрос е зададен, но липсват данни за: ${missingFields.join(', ')}. Помоли потребителя да уточни.`
+  : `Задай следващия въпрос: "${nextQuestion?.question}"`}
 
 ГЛОБАЛНИ ПРАВИЛА:
 - Задавай максимум 3 въпроса наведнъж
 - НЕ преминавай напред по предположение
 - Използвай информацията от предишните стъпки за контекст
 - Бъди кратък и приятелски
-- Използвай емотикони умерено`;
+- Използвай емотикони умерено
+${botConfig.enableWeeklyPlanning ? `- ВАЖНО: Когато имаш конкретен план за седмица, ЗАДЪЛЖИТЕЛНО използвай create_weekly_campaign за да го запишеш!` : ''}`;
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -318,16 +532,24 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
       { role: "user", content: userMessage },
     ];
 
+    // Call AI with or without tools based on step configuration
+    const requestBody: any = {
+      model: "google/gemini-3-flash-preview",
+      messages,
+    };
+
+    if (botConfig.enableWeeklyPlanning) {
+      requestBody.tools = weeklyPlanningTools;
+      requestBody.tool_choice = "auto";
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -347,9 +569,66 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices?.[0]?.message?.content;
+    const choice = data.choices?.[0];
+    let assistantMessage = choice?.message?.content || "";
+    const toolCalls = choice?.message?.tool_calls;
 
-    if (!assistantMessage) {
+    // Process tool calls if any
+    let createdCampaigns: any[] = [];
+    if (toolCalls && toolCalls.length > 0 && businessPlanId) {
+      for (const toolCall of toolCalls) {
+        const functionName = toolCall.function?.name;
+        const args = JSON.parse(toolCall.function?.arguments || '{}');
+
+        if (functionName === 'create_weekly_campaign') {
+          const { week_number, campaign_name, target_audience, tasks, budget, expected_results } = args;
+
+          // Insert tasks for this campaign
+          const tasksToInsert = (tasks || []).map((t: any) => ({
+            business_plan_id: businessPlanId,
+            week_number: week_number,
+            title: `[${campaign_name}] ${t.title}`,
+            description: t.description || `${target_audience ? `Таргет: ${target_audience}. ` : ''}${expected_results || ''}`,
+            task_type: t.task_type || 'action',
+            priority: t.priority || 'medium',
+            day_of_week: t.day_of_week || null,
+            estimated_hours: t.estimated_hours || null,
+            is_completed: false,
+            created_by: user.id,
+          }));
+
+          if (tasksToInsert.length > 0) {
+            const { data: inserted, error: insertError } = await supabaseClient
+              .from('weekly_tasks')
+              .insert(tasksToInsert)
+              .select();
+
+            if (!insertError && inserted) {
+              createdCampaigns.push({
+                week: week_number,
+                name: campaign_name,
+                tasksCount: inserted.length,
+              });
+            }
+          }
+        } else if (functionName === 'get_upcoming_weeks') {
+          // This is informational, AI already has this in context
+        }
+      }
+
+      // If campaigns were created, add confirmation to the message
+      if (createdCampaigns.length > 0) {
+        const confirmationText = createdCampaigns.map(c => 
+          `✅ Седмица ${c.week}: "${c.name}" (${c.tasksCount} задачи)`
+        ).join('\n');
+        
+        assistantMessage = assistantMessage 
+          ? `${assistantMessage}\n\n📅 **Записани кампании:**\n${confirmationText}`
+          : `📅 **Записани кампании:**\n${confirmationText}`;
+      }
+    }
+
+    if (!assistantMessage && !createdCampaigns.length) {
       throw new Error("No content in response");
     }
 
@@ -384,10 +663,7 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
       updatedAnswers[currentQuestion.key] = userMessage;
     }
 
-    // Check if step is complete now using the same validation helper
     const nowMissingFields = requiredFields.filter(field => isInvalidAnswer(updatedAnswers[field]));
-
-    // Step is complete when ALL required fields are filled - regardless of question index
     const stepComplete = nowMissingFields.length === 0 && requiredFields.length > 0;
 
     // If step is complete, save context for other bots
@@ -415,6 +691,7 @@ ${currentQuestion?.question || 'Няма текущ въпрос'}
         isComplete: stepComplete,
         missingFields: nowMissingFields,
         canProceedToNext: stepComplete,
+        createdCampaigns,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
