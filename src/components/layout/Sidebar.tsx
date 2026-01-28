@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
 import { useProfile } from "@/hooks/useProfile";
 import { usePendingInvitations } from "@/hooks/usePendingInvitations";
+import { useCurrentUserPermissions } from "@/hooks/useCurrentUserPermissions";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { pendingCount, showBadge } = useDailyTasks();
   const { profile } = useProfile();
   const { invitations: pendingInvitations } = usePendingInvitations();
+  const { permissions: memberPermissions } = useCurrentUserPermissions();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -86,8 +88,9 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     checkAdminStatus();
   }, [user]);
 
-  // Check if user is owner type - hide Teams for workers
+  // Check if user is owner type
   const isOwnerType = profile?.user_type === "owner";
+  const isWorkerType = profile?.user_type === "worker";
 
   const handleSignOut = async () => {
     try {
@@ -101,17 +104,36 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
-  // Workers only see Dashboard - they can only accept org invitations
-  const isWorkerType = profile?.user_type === "worker";
-  
-  // Filter navigation based on user type
+  // Filter navigation based on user type and permissions
   const filteredNavItems = baseNavItems.filter(item => {
-    // Workers only see Dashboard
-    if (isWorkerType) {
-      return item.path === "/";
+    // Owners see everything
+    if (isOwnerType) {
+      return true;
     }
-    // Owners see everything except Teams is already handled
-    if (item.path === "/teams" && !isOwnerType) {
+    
+    // Workers with member permissions can see specific sections
+    if (isWorkerType) {
+      // Dashboard is always visible
+      if (item.path === "/") return true;
+      
+      // Check member permissions for each section
+      if (memberPermissions.canViewAll) {
+        // Can see everything except Teams (which is owner-only for management)
+        return item.path !== "/teams";
+      }
+      
+      // Specific section permissions
+      if (item.path === "/tasks" && memberPermissions.canViewTasks) return true;
+      if (item.path === "/business-plan" && memberPermissions.canViewBusinessPlan) return true;
+      if (item.path === "/plan" && memberPermissions.canViewAnnualPlan) return true;
+      if (item.path === "/assistant" && (memberPermissions.canViewTasks || memberPermissions.canViewBusinessPlan)) return true;
+      if (item.path === "/settings") return true;
+      
+      return false;
+    }
+    
+    // Non-owner, non-worker (shouldn't happen, but fallback)
+    if (item.path === "/teams") {
       return false;
     }
     return true;
