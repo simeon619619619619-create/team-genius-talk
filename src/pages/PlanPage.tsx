@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
 import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
 import { GenerateScheduleDialog } from "@/components/plan/GenerateScheduleDialog";
+import { SyncPreviewDialog } from "@/components/plan/SyncPreviewDialog";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
@@ -15,6 +16,7 @@ import confetti from "canvas-confetti";
 export default function PlanPage() {
   const { projectId, projectName, loading: projectLoading } = useCurrentProject();
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
+  const [showSyncPreview, setShowSyncPreview] = useState(false);
   const {
     steps,
     loading,
@@ -56,9 +58,9 @@ export default function PlanPage() {
     if (!activeStepId) return;
     const currentIndex = steps.findIndex(s => s.id === activeStepId);
     
-    // If this is the last step, sync to business plan and navigate
+    // If this is the last step, show preview dialog instead of navigating
     if (currentIndex === steps.length - 1) {
-      await syncToBusinessPlan(steps);
+      setShowSyncPreview(true);
       return;
     }
     
@@ -67,7 +69,12 @@ export default function PlanPage() {
     if (nextStep) {
       setActiveStepId(nextStep.id);
     }
-  }, [activeStepId, steps, syncToBusinessPlan]);
+  }, [activeStepId, steps]);
+
+  const handleConfirmSync = useCallback(async () => {
+    await syncToBusinessPlan(steps);
+    setShowSyncPreview(false);
+  }, [syncToBusinessPlan, steps]);
 
   // Set active step when steps load
   useEffect(() => {
@@ -192,5 +199,13 @@ export default function PlanPage() {
           {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} isLastStep={currentIsLastStep} />}
         </div>
       </div>
+
+      {/* Sync Preview Dialog */}
+      <SyncPreviewDialog
+        open={showSyncPreview}
+        onOpenChange={setShowSyncPreview}
+        steps={steps}
+        onConfirm={handleConfirmSync}
+      />
     </MainLayout>;
 }
