@@ -25,10 +25,10 @@ export default function MemberLoginPage() {
 
   useEffect(() => {
     const verifyToken = async () => {
-      const token = searchParams.get("token");
+      const tokenHash = searchParams.get("token_hash");
       const emailParam = searchParams.get("email");
 
-      if (!token || !emailParam) {
+      if (!tokenHash || !emailParam) {
         toast.error("Невалиден линк за достъп");
         navigate("/auth");
         return;
@@ -37,10 +37,10 @@ export default function MemberLoginPage() {
       setEmail(emailParam);
 
       try {
-        // Verify the magic link token
+        // Verify the magic link token using email type
         const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: "magiclink",
+          token_hash: tokenHash,
+          type: "email",
         });
 
         if (error) {

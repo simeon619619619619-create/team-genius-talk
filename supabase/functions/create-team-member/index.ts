@@ -226,9 +226,9 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Failed to generate access link");
     }
 
-    // Extract the token from the link and build our custom URL
-    const token = linkData.properties?.hashed_token;
-    const accessLink = `${appUrl}/member-login?token=${token}&email=${encodeURIComponent(internalEmail)}`;
+    // Extract the token_hash from the link and build our custom URL
+    const tokenHash = linkData.properties?.hashed_token;
+    const accessLink = `${appUrl}/member-login?token_hash=${tokenHash}&email=${encodeURIComponent(internalEmail)}`;
 
     console.log(`Team member created: ${name} for team ${team.name}`);
 
