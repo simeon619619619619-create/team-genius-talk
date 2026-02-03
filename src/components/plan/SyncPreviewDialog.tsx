@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowRight, Loader2, CheckCircle2, Target, Calendar } from "lucide-react";
+import { FileText, ArrowRight, Loader2, CheckCircle2, Target, Calendar, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PlanStep {
@@ -72,6 +72,10 @@ export function SyncPreviewDialog({
     }
   };
 
+  // Calculate how many weekly strategies will be generated
+  const weeksPerQuarter = 13;
+  const totalWeeks = 52;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
@@ -81,7 +85,7 @@ export function SyncPreviewDialog({
             Преглед на данните за прехвърляне
           </DialogTitle>
           <DialogDescription>
-            Следните секции ще бъдат прехвърлени в Бизнес плана като годишни цели и тримесечни стратегии.
+            Маркетинг планът ще генерира <strong>{totalWeeks} седмични стратегии</strong> за цялата година.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +95,7 @@ export function SyncPreviewDialog({
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Target className="h-4 w-4" />
-                Годишни цели ({stepsWithContent.length})
+                Годишни цели от маркетинг плана ({stepsWithContent.length})
               </div>
               
               {stepsWithContent.map((step, index) => {
@@ -123,6 +127,34 @@ export function SyncPreviewDialog({
               })}
             </div>
 
+            {/* Weekly Strategies Generation Info */}
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Автоматично генерирани седмични стратегии
+              </div>
+              
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm text-foreground mb-3">
+                  Въз основа на маркетинг плана ще бъдат създадени <strong>{totalWeeks} седмични стратегии</strong> с:
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Различен маркетинг фокус за всяка седмица
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Конкретни тактики: Социални мрежи, Имейл, Реклами, SEO
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Интегриране на съдържанието от всички стъпки на плана
+                  </li>
+                </ul>
+              </div>
+            </div>
+
             {/* Quarterly Distribution */}
             <div className="space-y-3 pt-2 border-t border-border/50">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -131,24 +163,18 @@ export function SyncPreviewDialog({
               </div>
               
               <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map(quarter => {
-                  const itemsPerQuarter = Math.ceil(stepsWithContent.length / 4);
-                  const startIndex = (quarter - 1) * itemsPerQuarter;
-                  const quarterSteps = stepsWithContent.slice(startIndex, startIndex + itemsPerQuarter);
-                  
-                  return (
-                    <div
-                      key={quarter}
-                      className="rounded-xl border border-border/50 p-3 bg-card/30 text-center"
-                    >
-                      <div className="text-xs font-semibold text-primary mb-1">Q{quarter}</div>
-                      <div className="text-lg font-bold text-foreground">{quarterSteps.length}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {quarterSteps.length === 1 ? "стратегия" : "стратегии"}
-                      </div>
+                {[1, 2, 3, 4].map(quarter => (
+                  <div
+                    key={quarter}
+                    className="rounded-xl border border-border/50 p-3 bg-card/30 text-center"
+                  >
+                    <div className="text-xs font-semibold text-primary mb-1">Q{quarter}</div>
+                    <div className="text-lg font-bold text-foreground">{weeksPerQuarter}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      седмици
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -171,12 +197,12 @@ export function SyncPreviewDialog({
             {isSyncing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Прехвърляне...
+                Генериране на {totalWeeks} седмици...
               </>
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4" />
-                Потвърди и прехвърли
+                Генерирай седмични стратегии
                 <ArrowRight className="h-4 w-4" />
               </>
             )}
