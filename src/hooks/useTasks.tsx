@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { toast } from "sonner";
+import { syncTaskToWeeklyTask } from "@/hooks/useWeeklyTaskSync";
 
 export interface DbTask {
   id: string;
@@ -17,6 +18,10 @@ export interface DbTask {
   project_id: string | null;
   created_at: string;
   subtasks?: DbSubtask[];
+  // Business plan source fields
+  source_weekly_task_id?: string | null;
+  source_week_number?: number | null;
+  source_business_plan_id?: string | null;
 }
 
 export interface DbSubtask {
@@ -159,6 +164,9 @@ export function useTasks() {
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, status } : t))
       );
+
+      // Sync to weekly_task if linked (bidirectional)
+      await syncTaskToWeeklyTask(taskId, { status });
     } catch (error: any) {
       toast.error("Грешка при обновяване на задача");
     }
