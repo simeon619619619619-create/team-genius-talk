@@ -19,6 +19,7 @@ import { QuarterWeeksView } from "@/components/business-plan/QuarterWeeksView";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Goal {
   id: string;
@@ -663,6 +664,7 @@ function PlanSection({
 
 export default function BusinessPlanPage() {
   const { projectId, loading: projectLoading } = useCurrentProject();
+  const { user } = useAuth();
   const [plan, setPlan] = useState<BusinessPlan>(initialPlan);
   const [activeTab, setActiveTab] = useState("annual");
   const [isLoading, setIsLoading] = useState(true);
@@ -1016,6 +1018,8 @@ export default function BusinessPlanPage() {
                   }));
                 }}
                 businessPlanId={dbPlanId}
+                projectId={projectId}
+                userId={user?.id}
               />
             </TabsContent>
           ))}

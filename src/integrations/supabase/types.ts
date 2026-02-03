@@ -741,6 +741,9 @@ export type Database = {
           id: string
           priority: string
           project_id: string | null
+          source_business_plan_id: string | null
+          source_week_number: number | null
+          source_weekly_task_id: string | null
           status: string
           team_name: string | null
           title: string
@@ -756,6 +759,9 @@ export type Database = {
           id?: string
           priority?: string
           project_id?: string | null
+          source_business_plan_id?: string | null
+          source_week_number?: number | null
+          source_weekly_task_id?: string | null
           status?: string
           team_name?: string | null
           title: string
@@ -771,6 +777,9 @@ export type Database = {
           id?: string
           priority?: string
           project_id?: string | null
+          source_business_plan_id?: string | null
+          source_week_number?: number | null
+          source_weekly_task_id?: string | null
           status?: string
           team_name?: string | null
           title?: string
@@ -783,6 +792,20 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_source_business_plan_id_fkey"
+            columns: ["source_business_plan_id"]
+            isOneToOne: false
+            referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_source_weekly_task_id_fkey"
+            columns: ["source_weekly_task_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -978,6 +1001,7 @@ export type Database = {
           estimated_hours: number | null
           id: string
           is_completed: boolean | null
+          linked_task_id: string | null
           priority: string | null
           task_type: Database["public"]["Enums"]["task_type"]
           title: string
@@ -993,6 +1017,7 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           is_completed?: boolean | null
+          linked_task_id?: string | null
           priority?: string | null
           task_type?: Database["public"]["Enums"]["task_type"]
           title: string
@@ -1008,6 +1033,7 @@ export type Database = {
           estimated_hours?: number | null
           id?: string
           is_completed?: boolean | null
+          linked_task_id?: string | null
           priority?: string | null
           task_type?: Database["public"]["Enums"]["task_type"]
           title?: string
@@ -1020,6 +1046,13 @@ export type Database = {
             columns: ["business_plan_id"]
             isOneToOne: false
             referencedRelation: "business_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_tasks_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]

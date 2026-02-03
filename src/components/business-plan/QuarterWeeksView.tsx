@@ -8,6 +8,7 @@ import { ContentPostsSection } from "./ContentPostsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { syncWeeklyTaskToTasks, deleteLinkedTask } from "@/hooks/useWeeklyTaskSync";
 
 interface ContentPost {
   id: string;
@@ -51,6 +52,8 @@ interface QuarterWeeksViewProps {
   weeklyTasks: Record<number, WeeklyTask[]>;
   onWeeklyTasksUpdate: (weekNumber: number, tasks: WeeklyTask[]) => void;
   businessPlanId?: string | null;
+  projectId?: string | null;
+  userId?: string | null;
 }
 
 // Weeks per quarter (approximate)
@@ -79,6 +82,8 @@ export function QuarterWeeksView({
   weeklyTasks,
   onWeeklyTasksUpdate,
   businessPlanId,
+  projectId,
+  userId,
 }: QuarterWeeksViewProps) {
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set());
   const [contentPosts, setContentPosts] = useState<Record<number, ContentPost[]>>({});
@@ -342,9 +347,14 @@ export function QuarterWeeksView({
                           return;
                         }
                         
-                        // Delete removed tasks
+                        // Delete removed tasks and their linked tasks
                         const toDelete = [...existingIds].filter(id => !newTaskIds.has(id));
                         if (toDelete.length > 0) {
+                          // Delete linked tasks first
+                          for (const taskId of toDelete) {
+                            await deleteLinkedTask(taskId);
+                          }
+                          
                           await supabase
                             .from("weekly_tasks")
                             .delete()
@@ -372,6 +382,18 @@ export function QuarterWeeksView({
                           
                           if (error) {
                             console.error("Error syncing tasks:", error);
+                          } else if (projectId && userId) {
+                            // Sync to Tasks page (bidirectional)
+                            for (const task of normalizedTasks) {
+                              await syncWeeklyTaskToTasks(
+                                task,
+                                weekNumber,
+                                year,
+                                businessPlanId,
+                                projectId,
+                                userId
+                              );
+                            }
                           }
                         }
                       } catch (error) {

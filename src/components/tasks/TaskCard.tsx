@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight, Trash2 } from "lucide-react";
+import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight, Trash2, FileText, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddSubtaskDialog } from "./AddSubtaskDialog";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +18,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DbTask, DbSubtask } from "@/hooks/useTasks";
+
+const dayNames: Record<number, string> = {
+  1: "Пон",
+  2: "Вто",
+  3: "Сря",
+  4: "Чет",
+  5: "Пет",
+  6: "Съб",
+  7: "Нед",
+};
 
 interface TaskCardProps {
   task: DbTask;
@@ -109,6 +121,23 @@ export function TaskCard({
           </AlertDialog>
         </div>
       </div>
+
+      {/* Business Plan Source Badge */}
+      {task.source_weekly_task_id && task.source_week_number && (
+        <div className="mt-3 flex items-center gap-2">
+          <Link to="/business-plan" className="inline-flex items-center gap-1.5">
+            <Badge variant="secondary" className="gap-1 hover:bg-secondary/80 cursor-pointer">
+              <FileText className="h-3 w-3" />
+              Бизнес план
+            </Badge>
+          </Link>
+          <Badge variant="outline" className="gap-1">
+            <CalendarDays className="h-3 w-3" />
+            Седмица {task.source_week_number}
+            {task.day_of_week && `, ${dayNames[task.day_of_week] || "Ден " + task.day_of_week}`}
+          </Badge>
+        </div>
+      )}
 
       {/* Subtasks Progress */}
       {subtasks.length > 0 && (
