@@ -71,8 +71,8 @@ export default function PlanPage() {
     }
   }, [activeStepId, steps]);
 
-  const handleConfirmSync = useCallback(async () => {
-    await syncToBusinessPlan(steps);
+  const handleConfirmSync = useCallback(async (editedGoals?: Array<{ id: string; title: string; description: string; category: string; priority: string }>) => {
+    await syncToBusinessPlan(steps, editedGoals);
     setShowSyncPreview(false);
   }, [syncToBusinessPlan, steps]);
 

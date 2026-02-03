@@ -10,6 +10,14 @@ interface PlanStep {
   generated_content: string | null;
 }
 
+interface EditableGoal {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+}
+
 interface WeeklyStrategy {
   weekNumber: number;
   title: string;
@@ -21,8 +29,8 @@ interface WeeklyStrategy {
 export function useSyncBusinessPlan(projectId: string | null) {
   const navigate = useNavigate();
 
-  const syncToBusinessPlan = useCallback(async (steps: PlanStep[]) => {
-    console.log("syncToBusinessPlan called with projectId:", projectId, "steps:", steps);
+  const syncToBusinessPlan = useCallback(async (steps: PlanStep[], editedGoals?: EditableGoal[]) => {
+    console.log("syncToBusinessPlan called with projectId:", projectId, "steps:", steps, "editedGoals:", editedGoals);
     
     if (!projectId) {
       toast.error("Няма избран проект");
@@ -41,23 +49,34 @@ export function useSyncBusinessPlan(projectId: string | null) {
 
       console.log("Steps with content:", stepsContent);
 
-      if (stepsContent.length === 0) {
-        toast.error("Няма генерирано съдържание за синхронизиране");
-        return false;
+      // Use edited goals if provided, otherwise build from steps
+      let annualGoals;
+      if (editedGoals && editedGoals.length > 0) {
+        annualGoals = editedGoals.map(goal => ({
+          ...goal,
+          status: "not_started",
+        }));
+      } else {
+        if (stepsContent.length === 0) {
+          toast.error("Няма генерирано съдържание за синхронизиране");
+          return false;
+        }
+        annualGoals = stepsContent.map((step, index) => ({
+          id: `goal-${Date.now()}-${index}`,
+          title: step.title,
+          description: step.content?.substring(0, 500) || "",
+          category: getCategoryFromTitle(step.title),
+          priority: index < 2 ? "high" : index < 4 ? "medium" : "low",
+          status: "not_started",
+        }));
       }
 
-      // Build annual goals from the content
-      const annualGoals = stepsContent.map((step, index) => ({
-        id: `goal-${Date.now()}-${index}`,
-        title: step.title,
-        description: step.content?.substring(0, 500) || "",
-        category: getCategoryFromTitle(step.title),
-        priority: index < 2 ? "high" : index < 4 ? "medium" : "low",
-        status: "not_started",
+      // Generate weekly strategies based on goals
+      const goalsContent = annualGoals.map(g => ({
+        title: g.title,
+        content: g.description,
       }));
-
-      // Generate weekly strategies for each quarter (13 weeks per quarter)
-      const allWeeklyStrategies = generateWeeklyStrategiesFromContent(stepsContent);
+      const allWeeklyStrategies = generateWeeklyStrategiesFromContent(goalsContent);
 
       // Check if business plan exists for this project
       const { data: existingPlan, error: fetchError } = await supabase
