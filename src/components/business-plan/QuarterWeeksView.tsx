@@ -220,6 +220,16 @@ export function QuarterWeeksView({
     return dbTasks.length > 0 ? dbTasks : localTasks;
   };
 
+  const ensureTaskIds = (tasks: WeeklyTask[]): WeeklyTask[] => {
+    let changed = false;
+    const normalized = tasks.map((t) => {
+      if (t.id) return t;
+      changed = true;
+      return { ...t, id: crypto.randomUUID() };
+    });
+    return changed ? normalized : tasks;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-4 flex flex-row items-center justify-between">
@@ -301,11 +311,13 @@ export function QuarterWeeksView({
                   items={items}
                   tasks={getTasksForWeek(weekNumber)}
                   onTasksUpdate={async (tasks) => {
+                    const normalizedTasks = ensureTaskIds(tasks);
+
                     // Update local state immediately
-                    onWeeklyTasksUpdate(weekNumber, tasks);
+                    onWeeklyTasksUpdate(weekNumber, normalizedTasks);
                     setDbWeeklyTasks(prev => ({
                       ...prev,
-                      [weekNumber]: tasks,
+                      [weekNumber]: normalizedTasks,
                     }));
                     
                     // Sync new/updated tasks to database
@@ -319,7 +331,16 @@ export function QuarterWeeksView({
                           .eq("week_number", weekNumber);
                         
                         const existingIds = new Set((existingTasks || []).map(t => t.id));
-                        const newTaskIds = new Set(tasks.map(t => t.id));
+                        const newTaskIds = new Set(normalizedTasks.map(t => t.id).filter(Boolean));
+
+                        // Safety: avoid accidental full wipe if tasks are temporarily empty
+                        if (normalizedTasks.length === 0 && existingIds.size > 0) {
+                          console.warn(
+                            "Skipping weekly_tasks delete sync to avoid wiping existing tasks. week:",
+                            weekNumber
+                          );
+                          return;
+                        }
                         
                         // Delete removed tasks
                         const toDelete = [...existingIds].filter(id => !newTaskIds.has(id));
@@ -331,7 +352,7 @@ export function QuarterWeeksView({
                         }
                         
                         // Upsert all current tasks
-                        const tasksToUpsert = tasks.map(task => ({
+                        const tasksToUpsert = normalizedTasks.map(task => ({
                           id: task.id,
                           business_plan_id: businessPlanId,
                           week_number: weekNumber,
