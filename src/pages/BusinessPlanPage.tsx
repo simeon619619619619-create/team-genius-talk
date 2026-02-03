@@ -1015,7 +1015,7 @@ export default function BusinessPlanPage() {
                     },
                   }));
                 }}
-                businessPlanId={null}
+                businessPlanId={dbPlanId}
               />
             </TabsContent>
           ))}
