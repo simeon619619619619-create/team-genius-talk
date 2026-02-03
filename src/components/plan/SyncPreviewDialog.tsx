@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, ArrowRight, Loader2, CheckCircle2, Target, Calendar, Sparkles, MessageSquare, Eye } from "lucide-react";
+import { FileText, ArrowRight, Loader2, CheckCircle2, Target, Calendar, Sparkles, MessageSquare, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GoalsEditChat } from "./GoalsEditChat";
 
@@ -79,7 +79,19 @@ export function SyncPreviewDialog({
 }: SyncPreviewDialogProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState("preview");
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
 
+  const toggleGoalExpanded = (goalId: string) => {
+    setExpandedGoals(prev => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
+  };
   const stepsWithContent = useMemo(() => 
     steps
       .filter(s => s.generated_content)
@@ -175,39 +187,69 @@ export function SyncPreviewDialog({
                     Годишни цели ({editableGoals.length})
                   </div>
                   
-                  {editableGoals.map((goal, index) => (
-                    <div
-                      key={goal.id}
-                      className={cn(
-                        "rounded-xl border border-border/50 p-4 space-y-2",
-                        "bg-card/50 transition-colors hover:bg-card"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-semibold shrink-0">
-                            {index + 1}
-                          </span>
-                          <h4 className="font-medium text-sm">{goal.title}</h4>
+                  {editableGoals.map((goal, index) => {
+                    const isExpanded = expandedGoals.has(goal.id);
+                    const hasLongDescription = (goal.description?.length || 0) > 100;
+                    
+                    return (
+                      <div
+                        key={goal.id}
+                        className={cn(
+                          "rounded-xl border border-border/50 p-4 space-y-2",
+                          "bg-card/50 transition-colors hover:bg-card"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-semibold shrink-0">
+                              {index + 1}
+                            </span>
+                            <h4 className="font-medium text-sm">{goal.title}</h4>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge variant="secondary" className={cn("text-xs", 
+                              goal.priority === "high" ? "bg-destructive/10 text-destructive" :
+                              goal.priority === "medium" ? "bg-warning/10 text-warning" :
+                              "bg-muted text-muted-foreground"
+                            )}>
+                              {priorityLabels[goal.priority] || goal.priority}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs bg-secondary">
+                              {categoryLabels[goal.category] || goal.category}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant="secondary" className={cn("text-xs", 
-                            goal.priority === "high" ? "bg-destructive/10 text-destructive" :
-                            goal.priority === "medium" ? "bg-warning/10 text-warning" :
-                            "bg-muted text-muted-foreground"
+                        <div className="pl-8">
+                          <p className={cn(
+                            "text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap",
+                            !isExpanded && hasLongDescription && "line-clamp-2"
                           )}>
-                            {priorityLabels[goal.priority] || goal.priority}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs bg-secondary">
-                            {categoryLabels[goal.category] || goal.category}
-                          </Badge>
+                            {goal.description || "Няма описание"}
+                          </p>
+                          {hasLongDescription && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleGoalExpanded(goal.id)}
+                              className="h-6 px-2 mt-1 text-xs text-primary hover:text-primary/80"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3 mr-1" />
+                                  Скрий
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3 mr-1" />
+                                  Покажи повече
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed pl-8 line-clamp-2">
-                        {goal.description || "Няма описание"}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {editableGoals.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
