@@ -159,13 +159,38 @@ export function WeeklyTasksView({
     }
   };
 
-  const toggleTaskComplete = (taskId: string, e: React.MouseEvent) => {
+  const toggleTaskComplete = async (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onTasksUpdate(
-      tasks.map((t) =>
-        t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t
-      )
+    
+    const taskToUpdate = tasks.find((t) => t.id === taskId);
+    if (!taskToUpdate) return;
+    
+    const newCompletedState = !taskToUpdate.isCompleted;
+    
+    // Update local state immediately for responsive UI
+    const updatedTasks = tasks.map((t) =>
+      t.id === taskId ? { ...t, isCompleted: newCompletedState } : t
     );
+    onTasksUpdate(updatedTasks);
+    
+    // Update in database
+    try {
+      const { error } = await supabase
+        .from("weekly_tasks")
+        .update({ is_completed: newCompletedState })
+        .eq("id", taskId);
+      
+      if (error) {
+        console.error("Error updating task:", error);
+        // Revert on error
+        onTasksUpdate(tasks);
+        toast.error("Грешка при обновяване на задачата");
+      }
+    } catch (error) {
+      console.error("Error updating task:", error);
+      onTasksUpdate(tasks);
+      toast.error("Грешка при обновяване на задачата");
+    }
   };
 
   const handleAddTask = (taskData: Omit<WeeklyTask, "id" | "isCompleted"> & { id?: string }) => {
