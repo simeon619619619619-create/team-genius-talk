@@ -78,7 +78,7 @@ export function SyncPreviewDialog({
   onConfirm,
 }: SyncPreviewDialogProps) {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState("preview");
+  const [activeTab, setActiveTab] = useState("chat");
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
 
   const toggleGoalExpanded = (goalId: string) => {
