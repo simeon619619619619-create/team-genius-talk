@@ -28,22 +28,104 @@ interface GoalsEditChatProps {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/edit-goals-chat`;
 
 export function GoalsEditChat({ goals, onGoalsUpdate }: GoalsEditChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: `Здравейте! Аз съм вашият бизнес консултант. Виждам, че имате **${goals.length} годишни цели** за прехвърляне. 
-
-Мога да ви помогна да:
-• Подобрите формулировката на целите
-• Добавите нови важни цели
-• Промените приоритетите или категориите
-
-Какво бихте искали да направим?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-start AI analysis when component mounts
+  useEffect(() => {
+    if (!hasInitialized && goals.length > 0) {
+      setHasInitialized(true);
+      autoAnalyzeGoals();
+    }
+  }, [goals, hasInitialized]);
+
+  const autoAnalyzeGoals = async () => {
+    setIsLoading(true);
+    
+    const analysisRequest: Message = { 
+      role: "user", 
+      content: "Анализирай целите и предложи подобрения. Направи ги SMART - конкретни, измерими, постижими, релевантни и с времеви рамки." 
+    };
+    
+    try {
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: [analysisRequest].map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          goals,
+        }),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to analyze");
+      }
+
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantContent = "";
+
+      setMessages([{ role: "assistant", content: "" }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              assistantContent += content;
+              setMessages([{ role: "assistant", content: assistantContent }]);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Check for goal changes
+      const changes = parseGoalChanges(assistantContent);
+      if (changes) {
+        applyChanges(changes);
+      }
+    } catch (error) {
+      console.error("Auto-analysis error:", error);
+      setMessages([{
+        role: "assistant",
+        content: `Здравейте! Виждам, че имате **${goals.length} годишни цели**. Мога да ви помогна да ги подобрите - направете ги по-конкретни, измерими и постижими. Какво бихте искали да променим?`,
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
