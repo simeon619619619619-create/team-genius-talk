@@ -300,13 +300,63 @@ export function QuarterWeeksView({
                   goals={goals}
                   items={items}
                   tasks={getTasksForWeek(weekNumber)}
-                  onTasksUpdate={(tasks) => {
-                    // Update local state and also refresh from DB
+                  onTasksUpdate={async (tasks) => {
+                    // Update local state immediately
                     onWeeklyTasksUpdate(weekNumber, tasks);
                     setDbWeeklyTasks(prev => ({
                       ...prev,
                       [weekNumber]: tasks,
                     }));
+                    
+                    // Sync new/updated tasks to database
+                    if (businessPlanId) {
+                      try {
+                        // Get current tasks from DB for this week
+                        const { data: existingTasks } = await supabase
+                          .from("weekly_tasks")
+                          .select("id")
+                          .eq("business_plan_id", businessPlanId)
+                          .eq("week_number", weekNumber);
+                        
+                        const existingIds = new Set((existingTasks || []).map(t => t.id));
+                        const newTaskIds = new Set(tasks.map(t => t.id));
+                        
+                        // Delete removed tasks
+                        const toDelete = [...existingIds].filter(id => !newTaskIds.has(id));
+                        if (toDelete.length > 0) {
+                          await supabase
+                            .from("weekly_tasks")
+                            .delete()
+                            .in("id", toDelete);
+                        }
+                        
+                        // Upsert all current tasks
+                        const tasksToUpsert = tasks.map(task => ({
+                          id: task.id,
+                          business_plan_id: businessPlanId,
+                          week_number: weekNumber,
+                          title: task.title,
+                          description: task.description,
+                          priority: task.priority,
+                          estimated_hours: task.estimatedHours,
+                          day_of_week: task.dayOfWeek,
+                          is_completed: task.isCompleted,
+                          task_type: task.taskType || "action",
+                        }));
+                        
+                        if (tasksToUpsert.length > 0) {
+                          const { error } = await supabase
+                            .from("weekly_tasks")
+                            .upsert(tasksToUpsert, { onConflict: "id" });
+                          
+                          if (error) {
+                            console.error("Error syncing tasks:", error);
+                          }
+                        }
+                      } catch (error) {
+                        console.error("Error syncing tasks to database:", error);
+                      }
+                    }
                   }}
                 />
                 <ContentPostsSection
