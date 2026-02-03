@@ -333,6 +333,8 @@ function GoalCard({
   onUpdate: (goal: Goal) => void;
   onDelete: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  
   const priorityColors = {
     high: "bg-destructive/10 text-destructive",
     medium: "bg-warning/10 text-warning",
@@ -347,12 +349,18 @@ function GoalCard({
     other: "Друго",
   };
 
+  // Check if description is long enough to need expansion
+  const descriptionNeedsExpand = goal.description && goal.description.length > 150;
+  const displayDescription = expanded || !descriptionNeedsExpand 
+    ? goal.description 
+    : goal.description?.substring(0, 150) + "...";
+
   return (
     <Card className="group hover:shadow-md transition-shadow">
       <CardContent className="pt-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priorityColors[goal.priority])}>
                 {priorityOptions.find((p) => p.value === goal.priority)?.label}
               </span>
@@ -362,10 +370,37 @@ function GoalCard({
             </div>
             <h4 className="font-medium text-foreground">{goal.title}</h4>
             {goal.description && (
-              <p className="text-sm text-muted-foreground mt-1">{goal.description}</p>
+              <div className="mt-2">
+                <p className={cn(
+                  "text-sm text-muted-foreground whitespace-pre-wrap",
+                  expanded ? "" : "line-clamp-none"
+                )}>
+                  {displayDescription}
+                </p>
+                {descriptionNeedsExpand && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1 h-6 px-2 text-xs text-primary hover:text-primary/80"
+                    onClick={() => setExpanded(!expanded)}
+                  >
+                    {expanded ? (
+                      <>
+                        <ChevronUp className="h-3 w-3 mr-1" />
+                        Скрий
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-3 w-3 mr-1" />
+                        Покажи повече
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Select
               value={goal.status}
               onValueChange={(v) => onUpdate({ ...goal, status: v as Goal["status"] })}
