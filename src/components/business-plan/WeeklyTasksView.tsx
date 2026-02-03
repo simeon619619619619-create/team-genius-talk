@@ -344,15 +344,16 @@ export function WeeklyTasksView({
                           Няма задачи
                         </p>
                       ) : (
-                        dayTasks.map((task, taskIndex) => {
+                      dayTasks.filter(task => task.id).map((task, taskIndex) => {
                           const taskType = task.taskType || "action";
                           const typeStyle = taskTypeColors[taskType];
                           const Icon = typeStyle.icon;
+                          const taskId = task.id || crypto.randomUUID();
                           
                           return (
                             <Draggable
-                              key={task.id}
-                              draggableId={task.id}
+                              key={taskId}
+                              draggableId={taskId}
                               index={taskIndex}
                             >
                               {(provided, snapshot) => (
