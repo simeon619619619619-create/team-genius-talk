@@ -175,6 +175,21 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Failed to create team member");
     }
 
+    // Create member_permissions with full access by default
+    const { error: permError } = await supabaseAdmin
+      .from("member_permissions")
+      .insert({
+        team_member_id: teamMember.id,
+        can_view_tasks: true,
+        can_view_business_plan: true,
+        can_view_annual_plan: true,
+        can_view_all: true,
+      });
+
+    if (permError) {
+      console.error("Error creating member permissions:", permError);
+    }
+
     // Build list of projects to grant access to
     const allProjectIds = new Set<string>([team.project_id]);
     if (projectIds && Array.isArray(projectIds)) {
