@@ -76,7 +76,7 @@ export function useCurrentProject() {
           setProject(newProject);
         }
       } else {
-        // No organization selected - check for unassigned projects
+        // No organization selected - check for unassigned projects owned by user
         const { data: unassigned, error: unassignedError } = await supabase
           .from("projects")
           .select("*")
@@ -93,7 +93,29 @@ export function useCurrentProject() {
         if (unassigned) {
           setProject(unassigned);
         } else {
-          setProject(null);
+          // No owned project - check for projects accessible via user_roles (team members)
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("project_id")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (roleData?.project_id) {
+            const { data: accessibleProject } = await supabase
+              .from("projects")
+              .select("*")
+              .eq("id", roleData.project_id)
+              .maybeSingle();
+
+            if (accessibleProject) {
+              setProject(accessibleProject);
+            } else {
+              setProject(null);
+            }
+          } else {
+            setProject(null);
+          }
         }
       }
 
