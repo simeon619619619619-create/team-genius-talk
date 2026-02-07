@@ -43,12 +43,11 @@ export function useCurrentProject() {
     try {
       // If we have a current organization, get the project for that organization
       if (currentOrganization) {
-        // Try to find existing project for this organization
+        // Try to find existing project for this organization (owned by user OR accessible via user_roles)
         const { data: existingProject, error: fetchError } = await supabase
           .from("projects")
           .select("*")
           .eq("organization_id", currentOrganization.id)
-          .eq("owner_id", user.id)
           .order("created_at", { ascending: true })
           .limit(1)
           .maybeSingle();
@@ -59,8 +58,8 @@ export function useCurrentProject() {
 
         if (existingProject) {
           setProject(existingProject);
-        } else {
-          // Create a new project for this organization
+        } else if (currentOrganization.owner_id === user.id) {
+          // Only the organization owner creates new projects
           const { data: newProject, error: createError } = await supabase
             .from("projects")
             .insert({
@@ -74,6 +73,9 @@ export function useCurrentProject() {
 
           if (createError) throw createError;
           setProject(newProject);
+        } else {
+          // Member without a project in this org
+          setProject(null);
         }
       } else {
         // No organization selected - check for unassigned projects owned by user
