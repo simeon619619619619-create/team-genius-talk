@@ -11,6 +11,7 @@ export interface ChatAttachment {
   url: string;
   type: 'image' | 'file';
   size: number;
+  storagePath?: string;
 }
 
 interface ChatFileUploadProps {
@@ -93,16 +94,24 @@ export function ChatFileUpload({
           continue;
         }
 
-        const { data: urlData } = supabase.storage
+        // Create a signed URL (valid for 1 hour) since the bucket is private
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from('chat-attachments')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 3600);
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          console.error('Signed URL error:', signedUrlError);
+          toast.error(`Грешка при получаване на URL за ${file.name}`);
+          continue;
+        }
 
         uploaded.push({
           id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
           name: file.name,
-          url: urlData.publicUrl,
+          url: signedUrlData.signedUrl,
           type: isImage ? 'image' : 'file',
           size: file.size,
+          storagePath: fileName,
         });
       }
 
