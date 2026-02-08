@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useProjectTeamMembers } from "@/hooks/useProjectTeamMembers";
 
 interface AddTaskDialogProps {
   onAddTask: (task: {
@@ -31,6 +32,7 @@ interface AddTaskDialogProps {
 }
 
 export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
+  const { members: teamMembers } = useProjectTeamMembers();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -60,6 +62,10 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
     setAssigneeName("");
     setTeamName("");
     setDueDate("");
+  };
+
+  const getMemberDisplayName = (member: { full_name: string | null; email: string }) => {
+    return member.full_name || member.email;
   };
 
   return (
@@ -109,13 +115,27 @@ export function AddTaskDialog({ onAddTask }: AddTaskDialogProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assigneeName">Отговорник</Label>
-              <Input
-                id="assigneeName"
-                value={assigneeName}
-                onChange={(e) => setAssigneeName(e.target.value)}
-                placeholder="Напр. Иван Петров"
-              />
+              <Label>Отговорник</Label>
+              {teamMembers.length > 0 ? (
+                <Select value={assigneeName} onValueChange={setAssigneeName}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Избери от екипа" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={getMemberDisplayName(member)}>
+                        {getMemberDisplayName(member)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={assigneeName}
+                  onChange={(e) => setAssigneeName(e.target.value)}
+                  placeholder="Напр. Иван Петров"
+                />
+              )}
             </div>
           </div>
 

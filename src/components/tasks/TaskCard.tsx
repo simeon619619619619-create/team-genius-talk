@@ -29,8 +29,11 @@ const dayNames: Record<number, string> = {
   7: "Нед",
 };
 
+import { ProjectTeamMember } from "@/hooks/useProjectTeamMembers";
+
 interface TaskCardProps {
   task: DbTask;
+  teamMembers: ProjectTeamMember[];
   onStatusChange: (taskId: string, status: DbTask["status"]) => void;
   onDelete: (taskId: string) => void;
   onAddSubtask: (taskId: string, subtask: { title: string; assignee_name?: string; due_date?: string; handoff_to?: string }) => void;
@@ -52,6 +55,7 @@ const statusColors = {
 
 export function TaskCard({ 
   task, 
+  teamMembers,
   onStatusChange,
   onDelete,
   onAddSubtask,
@@ -187,7 +191,7 @@ export function TaskCard({
             {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             {subtasks.length > 0 ? `${subtasks.length} подзадач${subtasks.length === 1 ? 'а' : 'и'}` : 'Няма подзадачи'}
           </button>
-          <AddSubtaskDialog members={[]} onAddSubtask={handleAddSubtask} />
+          <AddSubtaskDialog teamMembers={teamMembers} onAddSubtask={handleAddSubtask} />
         </div>
 
         {expanded && subtasks.length > 0 && (

@@ -5,6 +5,7 @@ import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
 import { DailyTasksView } from "@/components/tasks/DailyTasksView";
 import { useTasks } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
+import { useProjectTeamMembers } from "@/hooks/useProjectTeamMembers";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,7 @@ import { Loader2, LayoutGrid, Calendar } from "lucide-react";
 export default function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { members: teamMembers } = useProjectTeamMembers();
   const [activeTab, setActiveTab] = useState("kanban");
   const {
     tasks,
@@ -114,6 +116,7 @@ export default function TasksPage() {
                     <TaskCard
                       key={task.id}
                       task={task}
+                      teamMembers={teamMembers}
                       onStatusChange={updateTaskStatus}
                       onDelete={deleteTask}
                       onAddSubtask={addSubtask}
@@ -142,6 +145,7 @@ export default function TasksPage() {
                     <TaskCard
                       key={task.id}
                       task={task}
+                      teamMembers={teamMembers}
                       onStatusChange={updateTaskStatus}
                       onDelete={deleteTask}
                       onAddSubtask={addSubtask}
@@ -170,6 +174,7 @@ export default function TasksPage() {
                     <TaskCard
                       key={task.id}
                       task={task}
+                      teamMembers={teamMembers}
                       onStatusChange={updateTaskStatus}
                       onDelete={deleteTask}
                       onAddSubtask={addSubtask}
