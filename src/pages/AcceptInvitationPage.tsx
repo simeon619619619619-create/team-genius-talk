@@ -118,7 +118,7 @@ export default function AcceptInvitationPage() {
             .insert({
               project_id: team.project_id,
               user_id: user.id,
-              role: "viewer",
+              role: "editor",
               invited_email: invitation.team_members?.email,
             });
 
