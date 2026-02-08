@@ -11,14 +11,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TeamMember } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ProjectTeamMember } from "@/hooks/useProjectTeamMembers";
 
 interface AddSubtaskDialogProps {
-  members: TeamMember[];
+  teamMembers: ProjectTeamMember[];
   onAddSubtask: (subtask: { title: string; assigneeId: string; dueDate?: string; handoffTo?: string }) => void;
 }
 
-export function AddSubtaskDialog({ onAddSubtask }: AddSubtaskDialogProps) {
+export function AddSubtaskDialog({ teamMembers, onAddSubtask }: AddSubtaskDialogProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -42,6 +49,10 @@ export function AddSubtaskDialog({ onAddSubtask }: AddSubtaskDialogProps) {
     setAssigneeName("");
     setDueDate("");
     setHandoffTo("");
+  };
+
+  const getMemberDisplayName = (member: ProjectTeamMember) => {
+    return member.full_name || member.email;
   };
 
   return (
@@ -80,14 +91,27 @@ export function AddSubtaskDialog({ onAddSubtask }: AddSubtaskDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigneeName">Възложи на</Label>
-            <Input
-              id="assigneeName"
-              value={assigneeName}
-              onChange={(e) => setAssigneeName(e.target.value)}
-              placeholder="Напр. Мария Иванова"
-              required
-            />
+            <Label>Възложи на</Label>
+            {teamMembers.length > 0 ? (
+              <Select value={assigneeName} onValueChange={setAssigneeName}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Избери член от екипа" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={getMemberDisplayName(member)}>
+                      {getMemberDisplayName(member)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={assigneeName}
+                onChange={(e) => setAssigneeName(e.target.value)}
+                placeholder="Напр. Мария Иванова"
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -101,13 +125,27 @@ export function AddSubtaskDialog({ onAddSubtask }: AddSubtaskDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="handoffTo">Предай на (след завършване)</Label>
-            <Input
-              id="handoffTo"
-              value={handoffTo}
-              onChange={(e) => setHandoffTo(e.target.value)}
-              placeholder="Напр. Георги Димитров"
-            />
+            <Label>Предай на (след завършване)</Label>
+            {teamMembers.length > 0 ? (
+              <Select value={handoffTo} onValueChange={setHandoffTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Избери член от екипа" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((member) => (
+                    <SelectItem key={member.id} value={getMemberDisplayName(member)}>
+                      {getMemberDisplayName(member)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={handoffTo}
+                onChange={(e) => setHandoffTo(e.target.value)}
+                placeholder="Напр. Георги Димитров"
+              />
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
