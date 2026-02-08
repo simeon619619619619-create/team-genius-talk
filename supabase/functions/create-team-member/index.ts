@@ -200,7 +200,7 @@ serve(async (req: Request): Promise<Response> => {
     const roleInserts = Array.from(allProjectIds).map(pid => ({
       user_id: newUser.user.id,
       project_id: pid,
-      role: "viewer",
+      role: "editor",
     }));
 
     const { error: roleError } = await supabaseAdmin

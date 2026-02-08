@@ -118,8 +118,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       
       // Check member permissions for each section
       if (memberPermissions.canViewAll) {
-        // Can see everything except Teams (which is owner-only for management)
-        return item.path !== "/teams";
+        return true;
       }
       
       // Specific section permissions
