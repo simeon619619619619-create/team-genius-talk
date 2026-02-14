@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, ListTodo, TrendingUp, Menu } from "lucide-react";
+import { LayoutDashboard, MessageSquare, ListTodo, TrendingUp, Menu, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
 import {
@@ -13,7 +13,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
   { icon: MessageSquare, label: "Асистент", path: "/assistant" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
-  { icon: TrendingUp, label: "План", path: "/plan" },
+  { icon: Video, label: "Видео", path: "/video" },
 ];
 
 const allNavItems = [
@@ -22,6 +22,7 @@ const allNavItems = [
   { label: "Задачи", path: "/tasks" },
   { label: "Маркетинг план", path: "/plan" },
   { label: "Бизнес план", path: "/business-plan" },
+  { label: "Видео обработка", path: "/video" },
   { label: "Екипи", path: "/teams" },
   { label: "Настройки", path: "/settings" },
 ];

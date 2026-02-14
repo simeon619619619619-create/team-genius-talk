@@ -22,6 +22,7 @@ import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import MemberLoginPage from "./pages/MemberLoginPage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
+import VideoPage from "./pages/VideoPage";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
                 <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
                 <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
+                <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                 <Route path="/accept-invitation" element={<AcceptInvitationPage />} />

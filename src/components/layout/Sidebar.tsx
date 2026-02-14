@@ -12,7 +12,8 @@ import {
   LogIn,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Video
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -53,6 +54,7 @@ const baseNavItems: NavItem[] = [
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
+  { icon: Video, label: "Видео обработка", path: "/video" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 

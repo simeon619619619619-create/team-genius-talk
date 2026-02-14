@@ -1,0 +1,88 @@
+import { MainLayout } from "@/components/layout/MainLayout";
+import { ChatInterface } from "@/components/chat/ChatInterface";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Upload } from "lucide-react";
+
+const suggestions = [
+  {
+    icon: "✂️",
+    title: "Изрежи клип",
+    prompt:
+      "Имам MP4. Искам да изрежеш от 00:00:10 до 00:00:35. Дай ми командата ffmpeg и настройки за TikTok 1080x1920.",
+  },
+  {
+    icon: "📝",
+    title: "Субтитри",
+    prompt:
+      "Имам MP4. Искам субтитри на български (SRT) + burn-in за Reels. Кажи ми стъпките и нужните команди.",
+  },
+  {
+    icon: "📦",
+    title: "Компресия",
+    prompt:
+      "Имам MP4. Искам да го компресирам за web (H.264, good quality) и да запазя звук AAC. Дай ffmpeg команда.",
+  },
+  {
+    icon: "🖼️",
+    title: "Thumbnails",
+    prompt:
+      "Имам MP4. Извади ми 6 thumbnails равномерно по дължина. Дай ffmpeg команда.",
+  },
+];
+
+export default function VideoPage() {
+  return (
+    <MainLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground truncate">
+              Видео обработка
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Изрязване, преоразмеряване, субтитри, компресия и още — чрез инструкции и ffmpeg.
+            </p>
+          </div>
+        </div>
+
+        <Alert>
+          <Upload className="h-4 w-4" />
+          <AlertTitle>Статус</AlertTitle>
+          <AlertDescription>
+            Тази секция е готова като UI + „видео агент“ за инструкции. Автоматичното изпълнение на
+            обработките (качване → job → резултат) ще добавим като следваща стъпка, след като
+            ffmpeg е наличен на машината/worker-а.
+          </AlertDescription>
+        </Alert>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-1">
+            <Card className="rounded-2xl">
+              <CardHeader>
+                <CardTitle className="text-base">Какво ми трябва от теб</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>1) MP4 файл (или линк/път до файла)</p>
+                <p>2) Каква платформа: TikTok / Reels / YouTube</p>
+                <p>3) Цел: clip / crop / subtitles / compress / thumbnails</p>
+                <p>
+                  Ако имаш конкретни времена — пиши ги (пример: 00:01:12–00:01:45).
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="border-b border-border px-4 py-3">
+              <h2 className="text-base font-semibold text-foreground">Видео агент</h2>
+            </div>
+            <div className="h-[500px]">
+              <ChatInterface suggestions={suggestions} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
