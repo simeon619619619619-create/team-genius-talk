@@ -1,8 +1,11 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload } from "lucide-react";
+import { Upload, Copy, Check } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 const suggestions = [
   {
@@ -44,6 +47,19 @@ const suggestions = [
 ];
 
 export default function VideoPage() {
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  const handleCopyPrompt = async (prompt: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedIdx(index);
+      toast.success("Промптът е копиран в клипборда!");
+      setTimeout(() => setCopiedIdx(null), 2000);
+    } catch {
+      toast.error("Грешка при копиране");
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -75,7 +91,32 @@ export default function VideoPage() {
         </Alert>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
+            <Card className="rounded-2xl">
+              <CardHeader>
+                <CardTitle className="text-base">Бързи команди</CardTitle>
+                <CardDescription>Кликни за копиране на промпт</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {suggestions.map((s, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    className="w-full justify-start text-left h-auto py-3 px-3"
+                    onClick={() => handleCopyPrompt(s.prompt, idx)}
+                  >
+                    <span className="mr-2">{s.icon}</span>
+                    <span className="flex-1">{s.title}</span>
+                    {copiedIdx === idx ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                ))}
+              </CardContent>
+            </Card>
+
             <Card className="rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-base">Какво ми трябва от теб</CardTitle>
@@ -93,7 +134,7 @@ export default function VideoPage() {
 
           <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden">
             <div className="border-b border-border px-4 py-3">
-              <h2 className="text-base font-semibold text-foreground">Видео агент</h2>
+              <h2 className="text-base font-semibold text-foreground">Видео агент (AI чат)</h2>
             </div>
             <div className="h-[500px]">
               <ChatInterface suggestions={suggestions} />
