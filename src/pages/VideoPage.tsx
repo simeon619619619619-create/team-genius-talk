@@ -3,9 +3,10 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Upload, Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const suggestions = [
   {
@@ -73,6 +74,34 @@ export default function VideoPage() {
             </p>
           </div>
         </div>
+
+        {/* Upload Area */}
+        <Card className="rounded-2xl border-dashed border-2 hover:border-primary/50 transition-colors">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <Input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              id="video-upload"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  toast.success(`Избран файл: ${file.name}`);
+                }
+              }}
+            />
+            <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center gap-3">
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Upload className="h-8 w-8 text-primary" />
+              </div>
+              <div className="text-center">
+                <p className="font-medium">Кликни или пусни MP4</p>
+                <p className="text-sm text-muted-foreground">или пусни файла тук</p>
+              </div>
+              <p className="text-xs text-muted-foreground">MP4, MOV, AVI, WebM</p>
+            </label>
+          </CardContent>
+        </Card>
 
         <Alert>
           <Upload className="h-4 w-4" />
