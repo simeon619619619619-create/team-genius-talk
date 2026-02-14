@@ -49,7 +49,7 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    const origin = req.headers.get("origin") || "https://team-genius-talk.lovable.app";
+    const origin = req.headers.get("origin") || "https://simora.lovable.app";
 
     // Create checkout session with 7-day trial for subscriptions
     const sessionParams: Stripe.Checkout.SessionCreateParams = {

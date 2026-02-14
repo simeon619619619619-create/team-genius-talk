@@ -232,7 +232,7 @@ export function PlanPdfDocument({ steps, bots, projectName }: PlanPdfDocumentPro
         })}
 
         <Text style={styles.footer} fixed>
-          Създадено с Team Genius Talk
+          Създадено с Simora
         </Text>
       </Page>
     </Document>

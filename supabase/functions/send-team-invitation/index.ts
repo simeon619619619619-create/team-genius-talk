@@ -94,7 +94,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build invitation URL
-    const appUrl = Deno.env.get("APP_URL") || "https://team-genius-talk.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.lovable.app";
     const invitationUrl = `${appUrl}/accept-invitation?token=${token}`;
 
     // Get inviter's profile for the email
@@ -122,7 +122,7 @@ serve(async (req: Request): Promise<Response> => {
     await client.send({
       from: gmailUser,
       to: email,
-      subject: `Покана за екип "${team.name}" в Team Genius`,
+      subject: `Покана за екип "${team.name}" в Simora`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -144,7 +144,7 @@ serve(async (req: Request): Promise<Response> => {
             </div>
             <div class="content">
               <p>Здравейте${name ? ` ${name}` : ""},</p>
-              <p><strong>${inviterName}</strong> ви кани да се присъедините към екип <strong>"${team.name}"</strong> в Team Genius.</p>
+              <p><strong>${inviterName}</strong> ви кани да се присъедините към екип <strong>"${team.name}"</strong> в Simora.</p>
               <p>Вашата роля: <strong>${role}</strong></p>
               <p style="text-align: center;">
                 <a href="${invitationUrl}" class="button">Приеми поканата</a>
@@ -156,7 +156,7 @@ serve(async (req: Request): Promise<Response> => {
               <p style="font-size: 12px; color: #94a3b8;">Поканата е валидна 7 дни.</p>
             </div>
             <div class="footer">
-              <p>Team Genius - Управление на екипи</p>
+              <p>Simora - Управление на екипи</p>
             </div>
           </div>
         </body>

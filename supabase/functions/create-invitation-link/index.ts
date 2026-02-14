@@ -137,7 +137,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build invitation URL
-    const appUrl = Deno.env.get("APP_URL") || "https://team-genius-talk.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.lovable.app";
     const invitationUrl = `${appUrl}/accept-invitation?token=${token}`;
 
     console.log(`Invitation link created for ${email} to team ${team.name}`);

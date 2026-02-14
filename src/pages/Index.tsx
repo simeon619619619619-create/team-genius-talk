@@ -5,17 +5,29 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DailyPlanWidget } from "@/components/dashboard/DailyPlanWidget";
 import { OverdueTasksSection } from "@/components/dashboard/OverdueTasksSection";
 import { PendingInvitationsWidget } from "@/components/dashboard/PendingInvitationsWidget";
-import { mockTeams, mockTasks, mockMembers } from "@/data/mockData";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuickCreateButton } from "@/components/dashboard/QuickCreateButton";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { useTeams } from "@/hooks/useTeams";
+import { useProjectTeamMembers } from "@/hooks/useProjectTeamMembers";
+import { useTasks } from "@/hooks/useTasks";
 
 const Index = () => {
   const { user } = useAuth();
+  const { projectId } = useCurrentProject();
+  const { teams } = useTeams(projectId);
+  const { members: projectMembers } = useProjectTeamMembers();
+  const { tasks } = useTasks();
+
   const [userName, setUserName] = useState<string | null>(null);
-  const completedTasks = mockTasks.filter(t => t.status === "done").length;
-  const inProgressTasks = mockTasks.filter(t => t.status === "in-progress").length;
+
+  const { completedTasks, inProgressTasks } = useMemo(() => {
+    const completed = tasks.filter((t) => t.status === "done").length;
+    const inProgress = tasks.filter((t) => t.status === "in-progress").length;
+    return { completedTasks: completed, inProgressTasks: inProgress };
+  }, [tasks]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -55,12 +67,12 @@ const Index = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
           <StatCard
             title="Екипи"
-            value={mockTeams.length}
+            value={teams.length}
             icon={Users}
           />
           <StatCard
             title="Членове"
-            value={mockMembers.length}
+            value={projectMembers.length}
             icon={Target}
           />
           <StatCard
@@ -105,29 +117,41 @@ const Index = () => {
               Последни задачи
             </h2>
             <div className="space-y-1.5">
-              {mockTasks.slice(0, 3).map((task) => {
-                const assignee = mockMembers.find(m => m.id === task.assigneeId);
-                return (
+              {tasks.slice(0, 3).map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors"
+                >
                   <div
-                    key={task.id}
-                    className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors"
-                  >
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${
-                      task.status === "done" ? "bg-foreground" :
-                      task.status === "in-progress" ? "bg-foreground/60" : "bg-muted-foreground/40"
-                    }`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{task.title}</p>
-                    </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${
-                      task.priority === "high" ? "bg-secondary text-foreground" :
-                      "bg-secondary/50 text-muted-foreground"
-                    }`}>
-                      {task.priority === "high" ? "Високо" : task.priority === "medium" ? "Средно" : "Ниско"}
-                    </span>
+                    className={`h-2 w-2 rounded-full shrink-0 ${
+                      task.status === "done"
+                        ? "bg-foreground"
+                        : task.status === "in-progress"
+                          ? "bg-foreground/60"
+                          : "bg-muted-foreground/40"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{task.title}</p>
+                    {task.assignee_name ? (
+                      <p className="text-xs text-muted-foreground truncate">{task.assignee_name}</p>
+                    ) : null}
                   </div>
-                );
-              })}
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${
+                      task.priority === "high"
+                        ? "bg-secondary text-foreground"
+                        : "bg-secondary/50 text-muted-foreground"
+                    }`}
+                  >
+                    {task.priority === "high"
+                      ? "Високо"
+                      : task.priority === "medium"
+                        ? "Средно"
+                        : "Ниско"}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -137,22 +161,25 @@ const Index = () => {
               Екипи
             </h2>
             <div className="space-y-1.5">
-              {mockTeams.slice(0, 3).map((team) => (
-                <div
-                  key={team.id}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer"
-                >
-                  <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <Users className="h-4 w-4 text-foreground" />
+              {teams.slice(0, 3).map((team) => {
+                const acceptedCount = team.members.filter((m) => m.status === "accepted").length;
+                return (
+                  <div
+                    key={team.id}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer"
+                  >
+                    <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                      <Users className="h-4 w-4 text-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{team.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {acceptedCount} членове
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{team.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {team.members.length} членове
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

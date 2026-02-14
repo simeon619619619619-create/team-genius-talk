@@ -225,7 +225,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Generate a password recovery link for the user to set their password
-    const appUrl = Deno.env.get("APP_URL") || "https://team-genius-talk.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.lovable.app";
     
     // Create a magic link token for first login
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
