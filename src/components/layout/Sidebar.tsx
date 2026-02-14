@@ -128,6 +128,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       if (item.path === "/business-plan" && memberPermissions.canViewBusinessPlan) return true;
       if (item.path === "/plan" && memberPermissions.canViewAnnualPlan) return true;
       if (item.path === "/assistant" && (memberPermissions.canViewTasks || memberPermissions.canViewBusinessPlan)) return true;
+      if (item.path === "/video") return true; // Video is visible to all workers
       if (item.path === "/settings") return true;
       
       return false;
