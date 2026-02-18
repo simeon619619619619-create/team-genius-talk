@@ -113,7 +113,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId } = await req.json();
+    const { messages, projectId, context = "business" } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -212,7 +212,74 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг. Говориш на български език.
+    // Video context - different system prompt
+    if (context === "video") {
+      const videoSystemPrompt = `Ти си експерт по видео обработка с ffmpeg. Говориш на български език.
+
+🎬 ТВОЯТА СПЕЦИАЛНОСТ:
+- Изрязване на клипове
+- Генериране на SRT субтитри
+- Burn-in субтитри (текстът става част от видеото)
+- Crop за Reels/TikTok (9:16, 1080x1920)
+- Компресия за web
+- Thumbnails
+
+📋 FFmpeg команди (винаги давай готови за копиране):
+
+1. ИЗРЯЗВАНЕ НА КЛИП:
+ffmpeg -i input.mp4 -ss HH:MM:SS -to HH:MM:SS -c copy output.mp4
+
+2. CROP ЗА REELS/TIKTOK (9:16):
+ffmpeg -i input.mp4 -vf "crop=ih*9/16:ih" -c:a copy output.mp4
+
+3. BURN-IN СУБТИТРИ:
+ffmpeg -i input.mp4 -vf "subtitles=input.srt" -c:a copy output.mp4
+
+4. КОМПРЕСИЯ:
+ffmpeg -i input.mp4 -vcodec libx264 -crf 23 -preset veryfast -c:a aac -b:a 128k output.mp4
+
+5. THUMBNAILS:
+ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
+
+🔧 FFmpeg път на системата: /opt/homebrew/bin/ffmpeg
+
+ПРАВИЛА:
+- Винаги питай за: име на файла, времена (start/end), платформа (TikTok/Reels/YouTube)
+- Давай конкретни ffmpeg команди готови за copy-paste
+- Ако потребителят има видео файл, питай за пътя до него или качи го
+- Ако искат нещо друго - просто кажи как да го направят`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: videoSystemPrompt },
+            ...messages,
+          ],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI video error:", response.status, errorText);
+        throw new Error(`AI video error: ${response.status}`);
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content || "Как мога да ви помогна с видеото?";
+      
+      return new Response(JSON.stringify({ content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Business context (original code)
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
 📆 Седмица: ${dateContext.weekNumber} от 52

@@ -11,6 +11,7 @@ interface Suggestion {
 
 interface ChatInterfaceProps {
   suggestions?: Suggestion[];
+  context?: "business" | "video";
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -89,8 +90,8 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [] }: ChatInterfaceProps) {
-  const { messages, isLoading, sendMessage } = useAssistantChat();
+export function ChatInterface({ suggestions = [], context = "business" }: ChatInterfaceProps) {
+  const { messages, isLoading, sendMessage } = useAssistantChat(context);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");

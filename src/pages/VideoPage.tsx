@@ -166,7 +166,7 @@ export default function VideoPage() {
               <h2 className="text-base font-semibold text-foreground">Видео агент (AI чат)</h2>
             </div>
             <div className="h-[500px]">
-              <ChatInterface suggestions={suggestions} />
+              <ChatInterface suggestions={suggestions} context="video" />
             </div>
           </div>
         </div>
