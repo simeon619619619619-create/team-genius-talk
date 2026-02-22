@@ -2,6 +2,19 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { cn } from "@/lib/utils";
 import { useAssistantChat } from "@/hooks/useAssistantChat";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Paperclip, X, FileText, Loader2 } from "lucide-react";
+
+interface PendingFile {
+  id: string;
+  name: string;
+  file: File;
+  preview?: string;
+  type: 'image' | 'file';
+}
+
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 interface Suggestion {
   icon: string;
@@ -95,8 +108,11 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -108,9 +124,13 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
 
   const handleSend = (text?: string) => {
     const messageText = text || input.trim();
-    if (!messageText || isLoading) return;
+    if ((!messageText && pendingFiles.length === 0) || isLoading || isUploading) return;
     
-    sendMessage(messageText);
+    if (pendingFiles.length > 0) {
+      uploadAndSend(messageText || "");
+    } else {
+      sendMessage(messageText);
+    }
     setInput("");
     setInterimTranscript("");
   };
@@ -184,8 +204,87 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
     }
   }, []);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} е твърде голям (макс. 100MB)`);
+        continue;
+      }
+      const isImage = file.type.startsWith('image/');
+      const pending: PendingFile = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        name: file.name,
+        file,
+        type: isImage ? 'image' : 'file',
+        preview: isImage ? URL.createObjectURL(file) : undefined,
+      };
+      setPendingFiles(prev => [...prev, pending]);
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removePendingFile = (id: string) => {
+    setPendingFiles(prev => {
+      const file = prev.find(f => f.id === id);
+      if (file?.preview) URL.revokeObjectURL(file.preview);
+      return prev.filter(f => f.id !== id);
+    });
+  };
+
+  const uploadAndSend = async (text: string) => {
+    if (pendingFiles.length === 0) {
+      sendMessage(text);
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Трябва да сте логнат");
+        return;
+      }
+
+      const uploadedNames: string[] = [];
+      for (const pf of pendingFiles) {
+        const ext = pf.name.split('.').pop();
+        const path = `${user.id}/assistant/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+        const { error } = await supabase.storage.from('chat-attachments').upload(path, pf.file);
+        if (error) {
+          console.error('Upload error:', error);
+          toast.error(`Грешка при качване на ${pf.name}`);
+          continue;
+        }
+        uploadedNames.push(pf.name);
+      }
+
+      const filesList = uploadedNames.map(n => `📎 ${n}`).join('\n');
+      const fullMessage = `${text}\n\n${filesList}`;
+      sendMessage(fullMessage);
+
+      // cleanup previews
+      pendingFiles.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+      setPendingFiles([]);
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Грешка при качване на файловете');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const displayValue = input + (interimTranscript ? (input ? " " : "") + interimTranscript : "");
-  const canSend = (input.trim().length > 0 || interimTranscript.length > 0) && !isLoading;
+  const canSend = ((input.trim().length > 0 || interimTranscript.length > 0) || pendingFiles.length > 0) && !isLoading && !isUploading;
 
   return (
     <div className="flex h-full flex-col">
@@ -221,6 +320,44 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
       {/* Input Area */}
       <div className="shrink-0 pb-3 px-3">
         <div className="mx-auto max-w-3xl">
+          {/* Pending files preview */}
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-3 pb-2">
+              {pendingFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className={cn(
+                    "relative group rounded-xl overflow-hidden border border-border/50 bg-secondary/30",
+                    file.type === 'image' ? "w-16 h-16" : "flex items-center gap-2 px-3 py-2"
+                  )}
+                >
+                  {file.type === 'image' && file.preview ? (
+                    <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate max-w-[100px]">{file.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{formatFileSize(file.file.size)}</p>
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={() => removePendingFile(file.id)}
+                    className={cn(
+                      "absolute bg-destructive text-destructive-foreground rounded-full p-0.5 transition-opacity",
+                      file.type === 'image'
+                        ? "top-1 right-1 opacity-0 group-hover:opacity-100"
+                        : "-top-1 -right-1"
+                    )}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="relative flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-2 transition-colors focus-within:border-primary/50 focus-within:bg-secondary/50">
             {/* Voice Button */}
             <button 
@@ -235,6 +372,25 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
               )}
             >
               {isListening ? <StopIcon className="h-3 w-3" /> : <MicIcon className="h-4 w-4" />}
+            </button>
+
+            {/* Attach Button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || isUploading}
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all text-muted-foreground hover:text-foreground hover:bg-secondary",
+                (isLoading || isUploading) && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
             </button>
 
             {/* Text Input */}
@@ -253,12 +409,12 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
                   handleSend(displayValue);
                 }
               }} 
-              placeholder={isLoading ? "Изчакайте..." : isListening ? "Слушам..." : "Напишете съобщение..."} 
-              disabled={isLoading}
+              placeholder={isLoading ? "Изчакайте..." : isUploading ? "Качване..." : isListening ? "Слушам..." : "Напишете съобщение..."} 
+              disabled={isLoading || isUploading}
               className={cn(
                 "flex-1 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none",
                 isListening && "text-foreground/80",
-                isLoading && "opacity-50"
+                (isLoading || isUploading) && "opacity-50"
               )} 
             />
             

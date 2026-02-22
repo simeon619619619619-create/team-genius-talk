@@ -280,6 +280,7 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
     }
 
     // Business context (original code)
+    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг. Отговаряш САМО на български език.
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
 📆 Седмица: ${dateContext.weekNumber} от 52
