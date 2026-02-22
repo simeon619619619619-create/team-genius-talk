@@ -15,7 +15,7 @@ const initialMessages: Message[] = [{
 }];
 
 export function useAssistantChat(context: "business" | "video" = "business") {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [businessMessages, setBusinessMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const { projectId } = useCurrentProject();
 
@@ -30,16 +30,18 @@ export function useAssistantChat(context: "business" | "video" = "business") {
     return initialMessages[0];
   };
 
-  const [initialMessage] = useState<Message>(getInitialMessage);
-  const [msgs, setMsgs] = useState<Message[]>([initialMessage]);
+  const [videoInitialMessage] = useState<Message>(getInitialMessage);
+  const [videoMessages, setVideoMessages] = useState<Message[]>([videoInitialMessage]);
 
   // Sync internal state with the computed initial message
   useEffect(() => {
-    setMsgs([getInitialMessage()]);
+    if (context === "video") {
+      setVideoMessages([getInitialMessage()]);
+    }
   }, [context]);
 
-  const messages = context === "video" ? msgs : messages;
-  const setMessages = context === "video" ? setMsgs : setMessages;
+  const messages = context === "video" ? videoMessages : businessMessages;
+  const setMessages = context === "video" ? setVideoMessages : setBusinessMessages;
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;

@@ -2,8 +2,8 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Copy, Check } from "lucide-react";
-import { useState, useCallback } from "react";
+import { Upload, Copy, Check, Scissors, Subtitles, Crop, Package, Image as ImageIcon } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,8 +47,37 @@ const suggestions = [
   },
 ];
 
+function fmtFileName(name: string) {
+  // ffmpeg in Terminal is easiest when the user renames the file to a simple name
+  return name.replace(/\s+/g, "_");
+}
+
+async function copyToClipboard(text: string, successMsg = "Копирано!") {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(successMsg);
+  } catch {
+    toast.error("Грешка при копиране");
+  }
+}
+
 export default function VideoPage() {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [cutStart, setCutStart] = useState("00:00:00");
+  const [cutEnd, setCutEnd] = useState("00:00:10");
+  const [srtName, setSrtName] = useState("subtitles.srt");
+
+  const inputName = file ? fmtFileName(file.name) : "input.mp4";
+  const outputName = file ? `out_${fmtFileName(file.name)}` : "output.mp4";
+
+  const commands = {
+    cut: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -ss ${cutStart} -to ${cutEnd} -c copy "cut_${outputName}"`,
+    crop916: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vf "crop=ih*9/16:ih" -c:a copy "crop_9x16_${outputName}"`,
+    compress: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vcodec libx264 -crf 23 -preset veryfast -c:a aac -b:a 128k "compress_${outputName}"`,
+    burnIn: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vf "subtitles=${srtName}:force_style='FontSize=22,Outline=2,Shadow=0,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&'" -c:a copy "burnin_${outputName}"`,
+    thumbs: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vf "fps=1/5,scale=1080:-1" -q:v 2 "thumb_%03d.jpg"`,
+  };
 
   const handleCopyPrompt = async (prompt: string, index: number) => {
     try {
@@ -84,9 +113,10 @@ export default function VideoPage() {
               className="hidden"
               id="video-upload"
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  toast.success(`Избран файл: ${file.name}`);
+                const selected = e.target.files?.[0];
+                if (selected) {
+                  setFile(selected);
+                  toast.success(`Избран файл: ${selected.name}`);
                 }
               }}
             />
@@ -95,11 +125,82 @@ export default function VideoPage() {
                 <Upload className="h-8 w-8 text-primary" />
               </div>
               <div className="text-center">
-                <p className="font-medium">Кликни или пусни MP4</p>
-                <p className="text-sm text-muted-foreground">или пусни файла тук</p>
+                <p className="font-medium">Кликни за избор на видео</p>
+                <p className="text-sm text-muted-foreground">(файлът остава локално при теб)</p>
               </div>
               <p className="text-xs text-muted-foreground">MP4, MOV, AVI, WebM</p>
+              {file && (
+                <p className="text-xs text-foreground/80 mt-1">
+                  Активен файл: <span className="font-medium">{file.name}</span>
+                </p>
+              )}
             </label>
+          </CardContent>
+        </Card>
+
+        {/* Video Processing Commands */}
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="text-base">Видео обработка (готови команди)</CardTitle>
+            <CardDescription>
+              Това са 1-click копиращи се ffmpeg команди. За най-лесно: сложи видеото в папка и го преименувай на <code>{inputName}</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <Scissors className="h-4 w-4" />
+                  <p className="font-medium">Изрежи клип</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={cutStart} onChange={(e) => setCutStart(e.target.value)} placeholder="00:00:00" />
+                  <Input value={cutEnd} onChange={(e) => setCutEnd(e.target.value)} placeholder="00:00:10" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="secondary" className="flex-1" onClick={() => copyToClipboard(commands.cut, "Командата за изрязване е копирана!")}>Копирай команда</Button>
+                </div>
+                <pre className="text-xs whitespace-pre-wrap bg-secondary/40 rounded-lg p-2 overflow-x-auto">{commands.cut}</pre>
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <Crop className="h-4 w-4" />
+                  <p className="font-medium">Crop за Reels/TikTok (9:16)</p>
+                </div>
+                <Button variant="secondary" onClick={() => copyToClipboard(commands.crop916, "Командата за crop е копирана!")}>Копирай команда</Button>
+                <pre className="text-xs whitespace-pre-wrap bg-secondary/40 rounded-lg p-2 overflow-x-auto">{commands.crop916}</pre>
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  <p className="font-medium">Компресия (H.264 + AAC)</p>
+                </div>
+                <Button variant="secondary" onClick={() => copyToClipboard(commands.compress, "Командата за компресия е копирана!")}>Копирай команда</Button>
+                <pre className="text-xs whitespace-pre-wrap bg-secondary/40 rounded-lg p-2 overflow-x-auto">{commands.compress}</pre>
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <Subtitles className="h-4 w-4" />
+                  <p className="font-medium">Burn-in субтитри (SRT → върху видео)</p>
+                </div>
+                <Input value={srtName} onChange={(e) => setSrtName(e.target.value)} placeholder="subtitles.srt" />
+                <Button variant="secondary" onClick={() => copyToClipboard(commands.burnIn, "Командата за burn-in е копирана!")}>Копирай команда</Button>
+                <pre className="text-xs whitespace-pre-wrap bg-secondary/40 rounded-lg p-2 overflow-x-auto">{commands.burnIn}</pre>
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-border p-3 md:col-span-2">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  <p className="font-medium">Thumbnails</p>
+                </div>
+                <Button variant="secondary" onClick={() => copyToClipboard(commands.thumbs, "Командата за thumbnails е копирана!")}>Копирай команда</Button>
+                <pre className="text-xs whitespace-pre-wrap bg-secondary/40 rounded-lg p-2 overflow-x-auto">{commands.thumbs}</pre>
+                <p className="text-xs text-muted-foreground">*fps=1/5 ≈ 1 кадър на 5 секунди (промени при нужда)</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
