@@ -2,11 +2,12 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Copy, Check, Scissors, Subtitles, Crop, Package, Image as ImageIcon } from "lucide-react";
+import { Upload, Copy, Check, Scissors, Subtitles, Crop, Package, Image as ImageIcon, CloudUpload, Link as LinkIcon, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
 const suggestions = [
   {
@@ -64,6 +65,8 @@ async function copyToClipboard(text: string, successMsg = "Копирано!") {
 export default function VideoPage() {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const [cutStart, setCutStart] = useState("00:00:00");
   const [cutEnd, setCutEnd] = useState("00:00:10");
   const [srtName, setSrtName] = useState("subtitles.srt");
@@ -77,6 +80,59 @@ export default function VideoPage() {
     compress: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vcodec libx264 -crf 23 -preset veryfast -c:a aac -b:a 128k "compress_${outputName}"`,
     burnIn: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vf "subtitles=${srtName}:force_style='FontSize=22,Outline=2,Shadow=0,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&'" -c:a copy "burnin_${outputName}"`,
     thumbs: `/opt/homebrew/bin/ffmpeg -i "${inputName}" -vf "fps=1/5,scale=1080:-1" -q:v 2 "thumb_%03d.jpg"`,
+  };
+
+  const uploadToCloud = async () => {
+    if (!file) {
+      toast.error("Първо избери видео файл");
+      return;
+    }
+
+    const maxBytes = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxBytes) {
+      toast.error("Файлът е над 100MB. Компресирай или изрежи клипа.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadedUrl("");
+
+    try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+      const userId = userData.user?.id;
+      if (!userId) throw new Error("Not authenticated");
+
+      const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
+      const safeName = fmtFileName(file.name);
+      const path = `${userId}/${Date.now()}_${safeName}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("chat-attachments")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || `video/${ext}`,
+        });
+
+      if (uploadErr) throw uploadErr;
+
+      const { data: publicData } = supabase.storage
+        .from("chat-attachments")
+        .getPublicUrl(path);
+
+      if (!publicData?.publicUrl) {
+        throw new Error("No public URL returned");
+      }
+
+      setUploadedUrl(publicData.publicUrl);
+      toast.success("Качено! Линкът е готов.");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Грешка при качване");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleCopyPrompt = async (prompt: string, index: number) => {
@@ -130,9 +186,49 @@ export default function VideoPage() {
               </div>
               <p className="text-xs text-muted-foreground">MP4, MOV, AVI, WebM</p>
               {file && (
-                <p className="text-xs text-foreground/80 mt-1">
-                  Активен файл: <span className="font-medium">{file.name}</span>
-                </p>
+                <div className="text-xs text-foreground/80 mt-1 space-y-2">
+                  <p>
+                    Активен файл: <span className="font-medium">{file.name}</span>
+                    <span className="text-muted-foreground"> ({Math.round(file.size / 1024 / 1024)}MB)</span>
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={isUploading}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        uploadToCloud();
+                      }}
+                      className="gap-2"
+                    >
+                      {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                      Качи до 100MB
+                    </Button>
+
+                    {uploadedUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          copyToClipboard(uploadedUrl, "Линкът е копиран!");
+                        }}
+                        className="gap-2"
+                      >
+                        <LinkIcon className="h-4 w-4" />
+                        Копирай линк
+                      </Button>
+                    )}
+                  </div>
+
+                  {uploadedUrl && (
+                    <p className="text-[10px] text-muted-foreground break-all max-w-[320px] mx-auto">
+                      {uploadedUrl}
+                    </p>
+                  )}
+                </div>
               )}
             </label>
           </CardContent>
