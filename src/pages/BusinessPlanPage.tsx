@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3, Loader2 } from "lucide-react";
+import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3, Loader2, RefreshCw, FileText, Sparkles } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
+import ReactMarkdown from "react-markdown";
 
 interface Goal {
   id: string;
@@ -669,6 +670,8 @@ export default function BusinessPlanPage() {
   const [activeTab, setActiveTab] = useState("annual");
   const [isLoading, setIsLoading] = useState(true);
   const [dbPlanId, setDbPlanId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const generateId = () => crypto.randomUUID();
 
@@ -692,7 +695,8 @@ export default function BusinessPlanPage() {
 
       if (data) {
         setDbPlanId(data.id);
-        
+        setSummary(data.summary as string | null);
+
         // Parse the stored data back into our format
         const annualGoals = Array.isArray(data.annual_goals) ? (data.annual_goals as unknown as Goal[]) : [];
         const q1Items = Array.isArray(data.q1_items) ? (data.q1_items as unknown as PlanItem[]) : [];
@@ -859,6 +863,29 @@ export default function BusinessPlanPage() {
     toast.success("Планът е запазен");
   };
 
+  const handleRegenerateSummary = useCallback(async () => {
+    if (!projectId) return;
+
+    setIsGeneratingSummary(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-business-plan-summary", {
+        body: { projectId },
+      });
+
+      if (error) throw error;
+
+      if (data?.summary) {
+        setSummary(data.summary);
+        toast.success("Резюмето е генерирано успешно");
+      }
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      toast.error("Грешка при генериране на резюмето");
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }, [projectId]);
+
   const totalGoals = plan.annualGoals.length + 
     plan.quarters.Q1.goals.length + 
     plan.quarters.Q2.goals.length + 
@@ -956,6 +983,65 @@ export default function BusinessPlanPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Summary Card */}
+        <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/90 dark:from-card/90 dark:to-card/60 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-primary" />
+                Резюме на бизнес плана
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerateSummary}
+                disabled={isGeneratingSummary}
+                className="gap-2 dark:border-border/50 dark:hover:bg-accent/50"
+              >
+                {isGeneratingSummary ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {isGeneratingSummary ? "Генериране..." : summary ? "Регенерирай" : "Генерирай"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isGeneratingSummary ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            ) : summary ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{summary}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Sparkles className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">
+                  Все още няма генерирано резюме. Генерирайте резюме от маркетинговия план.
+                </p>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleRegenerateSummary}
+                  disabled={isGeneratingSummary}
+                  className="gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Генерирай резюме
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

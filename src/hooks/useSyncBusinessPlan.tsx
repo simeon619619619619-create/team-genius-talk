@@ -118,7 +118,18 @@ export function useSyncBusinessPlan(projectId: string | null) {
       }
 
       toast.success("Маркетинг планът е прехвърлен в Бизнес план!");
-      
+
+      // Trigger summary generation in the background (don't block navigation)
+      supabase.functions.invoke("generate-business-plan-summary", {
+        body: { projectId },
+      }).then(({ error }) => {
+        if (error) {
+          console.error("Error generating summary:", error);
+        } else {
+          console.log("Business plan summary generated successfully");
+        }
+      });
+
       // Navigate to business plan page
       navigate("/business-plan");
       return true;

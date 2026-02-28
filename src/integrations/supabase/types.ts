@@ -123,6 +123,7 @@ export type Database = {
           q2_items: Json | null
           q3_items: Json | null
           q4_items: Json | null
+          summary: string | null
           updated_at: string
           year: number
         }
@@ -135,6 +136,7 @@ export type Database = {
           q2_items?: Json | null
           q3_items?: Json | null
           q4_items?: Json | null
+          summary?: string | null
           updated_at?: string
           year?: number
         }
@@ -147,6 +149,7 @@ export type Database = {
           q2_items?: Json | null
           q3_items?: Json | null
           q4_items?: Json | null
+          summary?: string | null
           updated_at?: string
           year?: number
         }
