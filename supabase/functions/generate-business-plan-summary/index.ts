@@ -62,7 +62,7 @@ serve(async (req) => {
     // Fetch all plan steps with generated content
     const { data: planSteps, error: stepsError } = await supabaseClient
       .from("plan_steps")
-      .select("step_number, step_title, generated_content, step_answers, bot_context")
+      .select("step_number, title, generated_content, step_answers, bot_context")
       .eq("project_id", projectId)
       .not("generated_content", "is", null)
       .order("step_number", { ascending: true });
@@ -81,7 +81,7 @@ serve(async (req) => {
 
     // Build user message with all plan step data
     const stepsContent = planSteps
-      .map(step => `--- Стъпка ${step.step_number}: ${step.step_title} ---
+      .map(step => `--- Стъпка ${step.step_number}: ${step.title} ---
 Генерирано съдържание: ${step.generated_content}
 Отговори на въпроси: ${JSON.stringify(step.step_answers)}
 Контекст: ${step.bot_context}`)
