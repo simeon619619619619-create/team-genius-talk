@@ -1,0 +1,25 @@
+project_id = "hsbpvehkucbcericaoym"
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.break-down-task]
+verify_jwt = false
+
+[functions.generate-weekly-tasks]
+verify_jwt = false
+
+[functions.assistant-chat]
+verify_jwt = false
+
+[functions.get-vapid-public-key]
+verify_jwt = false
+
+[functions.send-push-notifications]
+verify_jwt = false
