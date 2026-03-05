@@ -101,6 +101,37 @@ export default function OnboardingPage() {
       return;
     }
 
+    // Hardcoded master promo (bypass checkout)
+    if (enteredCode === "simora69$") {
+      setIsSubmitting(true);
+      try {
+        const success = await updateProfile({
+          user_type: userType || "worker",
+          onboarding_completed: true,
+        });
+
+        if (!success) {
+          toast.error("Грешка при завършване на онбординга");
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (userType === "owner" && organizationName.trim()) {
+          await createOrganization(organizationName.trim());
+        }
+
+        toast.success("Промо кодът е приложен успешно! Имате 100% отстъпка.");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
+      } catch (error) {
+        console.error("Error applying promo code:", error);
+        toast.error("Възникна грешка. Моля, опитайте отново.");
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Check if promo code exists and is valid
