@@ -60,6 +60,12 @@ interface QuarterPlan {
   weeklyTasks: Record<number, WeeklyTask[]>;
 }
 
+interface TimelineRow {
+  id: string;
+  title: string;
+  weeks: string[]; // 52 cells
+}
+
 interface BusinessPlan {
   year: number;
   annualGoals: Goal[];
@@ -70,6 +76,7 @@ interface BusinessPlan {
     Q3: QuarterPlan;
     Q4: QuarterPlan;
   };
+  timelineRows: TimelineRow[];
 }
 
 const emptyQuarter: QuarterPlan = {
@@ -89,6 +96,7 @@ const initialPlan: BusinessPlan = {
     Q3: { ...emptyQuarter },
     Q4: { ...emptyQuarter },
   },
+  timelineRows: [],
 };
 
 const categoryOptions = [
@@ -703,6 +711,9 @@ export default function BusinessPlanPage() {
         const q2Items = Array.isArray(data.q2_items) ? (data.q2_items as unknown as PlanItem[]) : [];
         const q3Items = Array.isArray(data.q3_items) ? (data.q3_items as unknown as PlanItem[]) : [];
         const q4Items = Array.isArray(data.q4_items) ? (data.q4_items as unknown as PlanItem[]) : [];
+        const timelineRows = Array.isArray((data as any).timeline_rows)
+          ? ((data as any).timeline_rows as unknown as TimelineRow[])
+          : [];
 
         setPlan({
           year: data.year,
@@ -714,6 +725,11 @@ export default function BusinessPlanPage() {
             Q3: { ...emptyQuarter, items: q3Items },
             Q4: { ...emptyQuarter, items: q4Items },
           },
+          timelineRows: timelineRows.map((r) => ({
+            id: r.id || crypto.randomUUID(),
+            title: r.title || "",
+            weeks: Array.isArray(r.weeks) ? [...r.weeks].slice(0, 52).concat(Array(52).fill("").slice((r.weeks || []).length)) : Array(52).fill(""),
+          })),
         });
       }
     } catch (error) {
@@ -858,9 +874,34 @@ export default function BusinessPlanPage() {
     toast.success("Елементът е изтрит");
   };
 
-  const handleSave = () => {
-    // TODO: Save to database
-    toast.success("Планът е запазен");
+  const handleSave = async () => {
+    if (!projectId) return;
+
+    try {
+      const payload: any = {
+        project_id: projectId,
+        year: plan.year,
+        annual_goals: plan.annualGoals,
+        q1_items: plan.quarters.Q1.items,
+        q2_items: plan.quarters.Q2.items,
+        q3_items: plan.quarters.Q3.items,
+        q4_items: plan.quarters.Q4.items,
+        timeline_rows: plan.timelineRows,
+      };
+
+      const { data, error } = await supabase
+        .from("business_plans")
+        .upsert(payload, { onConflict: "project_id" })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      setDbPlanId(data?.id ?? null);
+      toast.success("Планът е запазен");
+    } catch (error) {
+      console.error("Error saving business plan:", error);
+      toast.error("Грешка при запис");
+    }
   };
 
   const handleRegenerateSummary = useCallback(async () => {
@@ -983,6 +1024,144 @@ export default function BusinessPlanPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Weekly Timeline Table */}
+        <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/90 dark:from-card/90 dark:to-card/60 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Годишни процеси по седмици
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPlan((prev) => ({
+                    ...prev,
+                    timelineRows: [
+                      ...prev.timelineRows,
+                      { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
+                    ],
+                  }));
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Добави ред
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-xl border border-border/60">
+              <table className="min-w-[1400px] w-full table-fixed">
+                <thead className="sticky top-0 bg-background/95 backdrop-blur">
+                  <tr>
+                    <th className="w-[240px] p-2 text-left text-xs font-medium text-muted-foreground border-b border-border/60">Процес</th>
+                    {(["Q1", "Q2", "Q3", "Q4"] as const).map((q) => (
+                      <th
+                        key={q}
+                        colSpan={13}
+                        className="p-2 text-center text-xs font-semibold text-foreground border-b border-border/60"
+                      >
+                        {q}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    <th className="p-2 text-left text-[11px] font-medium text-muted-foreground border-b border-border/60">Седмица</th>
+                    {Array.from({ length: 52 }).map((_, i) => (
+                      <th
+                        key={i}
+                        className="w-[44px] p-1 text-center text-[10px] font-medium text-muted-foreground border-b border-border/60"
+                      >
+                        {i + 1}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.timelineRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={53} className="p-6 text-center text-sm text-muted-foreground">
+                        Нямаш добавени процеси. Натисни „Добави ред“.
+                      </td>
+                    </tr>
+                  ) : (
+                    plan.timelineRows.map((row, rowIndex) => (
+                      <tr key={row.id} className="align-top">
+                        <td className="p-2 border-b border-border/50">
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              value={row.title}
+                              placeholder="напр. Онбординг / Реклами / Продажби"
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setPlan((prev) => ({
+                                  ...prev,
+                                  timelineRows: prev.timelineRows.map((r) =>
+                                    r.id === row.id ? { ...r, title: v } : r
+                                  ),
+                                }));
+                              }}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => {
+                                setPlan((prev) => ({
+                                  ...prev,
+                                  timelineRows: prev.timelineRows.filter((r) => r.id !== row.id),
+                                }));
+                              }}
+                              title="Изтрий ред"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            Попълвай по седмици. Текстът се пренася автоматично.
+                          </p>
+                        </td>
+                        {Array.from({ length: 52 }).map((_, w) => (
+                          <td key={w} className="p-1 border-b border-border/50">
+                            <textarea
+                              value={row.weeks?.[w] ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setPlan((prev) => ({
+                                  ...prev,
+                                  timelineRows: prev.timelineRows.map((r) => {
+                                    if (r.id !== row.id) return r;
+                                    const weeks = [...(r.weeks || Array(52).fill(""))];
+                                    weeks[w] = v;
+                                    return { ...r, weeks };
+                                  }),
+                                }));
+                              }}
+                              className={cn(
+                                "w-full min-h-[36px] resize-y rounded-md bg-background/50",
+                                "border border-border/60 px-2 py-1 text-xs leading-4",
+                                "focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              )}
+                              style={{ whiteSpace: "pre-wrap" }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button variant="default" onClick={handleSave} className="gap-2">
+                <Save className="h-4 w-4" />
+                Запази таблицата
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Summary Card */}
         <Card className="border-border/50 dark:border-border/30 bg-gradient-to-br from-card to-card/90 dark:from-card/90 dark:to-card/60 shadow-sm">
