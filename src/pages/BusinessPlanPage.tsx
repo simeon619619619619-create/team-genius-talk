@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3, Loader2, RefreshCw, FileText, Sparkles } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -847,9 +847,32 @@ export default function BusinessPlanPage() {
     }
   }, [projectId]);
 
+  const didInitialLoadRef = useRef(false);
+
   useEffect(() => {
-    loadBusinessPlan();
+    loadBusinessPlan().finally(() => {
+      didInitialLoadRef.current = true;
+    });
   }, [loadBusinessPlan]);
+
+  // Auto-save (debounced) so widths persist across sessions
+  useEffect(() => {
+    if (!didInitialLoadRef.current) return;
+    if (!projectId) return;
+
+    const t = window.setTimeout(() => {
+      saveBusinessPlan({ silent: true });
+    }, 900);
+
+    return () => window.clearTimeout(t);
+  }, [
+    projectId,
+    saveBusinessPlan,
+    // important parts to persist
+    plan.timelineWeekWidths,
+    plan.timelineRows,
+    plan.timelineTags,
+  ]);
 
   // Annual handlers
   const handleAddAnnualGoal = (goal: Omit<Goal, "id">) => {
@@ -981,40 +1004,47 @@ export default function BusinessPlanPage() {
     toast.success("Елементът е изтрит");
   };
 
+  const saveBusinessPlan = useCallback(
+    async ({ silent }: { silent: boolean }) => {
+      if (!projectId) return;
+
+      setIsSaving(true);
+      try {
+        const payload: any = {
+          project_id: projectId,
+          year: plan.year,
+          annual_goals: plan.annualGoals,
+          q1_items: plan.quarters.Q1.items,
+          q2_items: plan.quarters.Q2.items,
+          q3_items: plan.quarters.Q3.items,
+          q4_items: plan.quarters.Q4.items,
+          timeline_rows: plan.timelineRows,
+          timeline_week_widths: plan.timelineWeekWidths,
+          timeline_tags: plan.timelineTags,
+        };
+
+        const { data, error } = await supabase
+          .from("business_plans")
+          .upsert(payload, { onConflict: "project_id" })
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        setDbPlanId(data?.id ?? null);
+        if (!silent) toast.success("Планът е запазен");
+      } catch (error: any) {
+        console.error("Error saving business plan:", error);
+        const msg = typeof error?.message === "string" ? error.message : "Грешка при запис";
+        if (!silent) toast.error(msg);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [projectId, plan]
+  );
+
   const handleSave = async () => {
-    if (!projectId) return;
-
-    setIsSaving(true);
-    try {
-      const payload: any = {
-        project_id: projectId,
-        year: plan.year,
-        annual_goals: plan.annualGoals,
-        q1_items: plan.quarters.Q1.items,
-        q2_items: plan.quarters.Q2.items,
-        q3_items: plan.quarters.Q3.items,
-        q4_items: plan.quarters.Q4.items,
-        timeline_rows: plan.timelineRows,
-        timeline_week_widths: plan.timelineWeekWidths,
-        timeline_tags: plan.timelineTags,
-      };
-
-      const { data, error } = await supabase
-        .from("business_plans")
-        .upsert(payload, { onConflict: "project_id" })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      setDbPlanId(data?.id ?? null);
-      toast.success("Планът е запазен");
-    } catch (error: any) {
-      console.error("Error saving business plan:", error);
-      const msg = typeof error?.message === "string" ? error.message : "Грешка при запис";
-      toast.error(msg);
-    } finally {
-      setIsSaving(false);
-    }
+    await saveBusinessPlan({ silent: false });
   };
 
   const handleRegenerateSummary = useCallback(async () => {
