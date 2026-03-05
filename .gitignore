@@ -28,3 +28,7 @@ dist-ssr
 # Claude Code
 .claude/settings.json
 .mcp.json
+
+# Secrets
+.env
+.env.*
