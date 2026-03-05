@@ -7,6 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -1109,22 +1116,56 @@ export default function BusinessPlanPage() {
                 <BarChart3 className="h-5 w-5 text-primary" />
                 Годишни процеси по седмици
               </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setPlan((prev) => ({
-                    ...prev,
-                    timelineRows: [
-                      ...prev.timelineRows,
-                      { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
-                    ],
-                  }));
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Добави ред
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Добави ред
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setPlan((prev) => ({
+                        ...prev,
+                        timelineRows: [
+                          ...prev.timelineRows,
+                          { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
+                        ],
+                      }));
+                    }}
+                  >
+                    Добави празен ред
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setPlan((prev) => ({
+                        ...prev,
+                        timelineRows: Array.from({ length: 15 }).map(() => ({
+                          id: crypto.randomUUID(),
+                          title: "",
+                          weeks: Array(52).fill(""),
+                        })),
+                        timelineWeekWidths: Array(52).fill(72),
+                      }));
+                    }}
+                  >
+                    Ресет: 15 празни реда
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => {
+                      setPlan((prev) => ({
+                        ...prev,
+                        timelineRows: [],
+                      }));
+                    }}
+                  >
+                    Изчисти всички редове
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardHeader>
           <CardContent>
