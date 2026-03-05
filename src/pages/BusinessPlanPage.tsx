@@ -94,6 +94,8 @@ const emptyQuarter: QuarterPlan = {
   weeklyTasks: {},
 };
 
+const DEFAULT_WEEK_WIDTH = 120;
+
 const initialPlan: BusinessPlan = {
   year: new Date().getFullYear(),
   annualGoals: [],
@@ -104,12 +106,8 @@ const initialPlan: BusinessPlan = {
     Q3: { ...emptyQuarter },
     Q4: { ...emptyQuarter },
   },
-  timelineRows: Array.from({ length: 15 }).map(() => ({
-    id: crypto.randomUUID(),
-    title: "",
-    weeks: Array(52).fill(""),
-  })),
-  timelineWeekWidths: Array(52).fill(72),
+  timelineRows: [],
+  timelineWeekWidths: Array(52).fill(DEFAULT_WEEK_WIDTH),
 };
 
 const categoryOptions = [
@@ -786,15 +784,15 @@ export default function BusinessPlanPage() {
           };
         });
 
-        // ensure at least 15 rows visible
-        while (normalizedRows.length < 15) {
+        // ensure at least 1 row visible
+        if (normalizedRows.length === 0) {
           normalizedRows.push({ id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") });
         }
 
         const normalizedWidths: number[] = timelineWeekWidthsRaw
-          .map((w) => (typeof w === "number" ? w : 44))
+          .map((w) => (typeof w === "number" ? w : DEFAULT_WEEK_WIDTH))
           .slice(0, 52)
-          .concat(Array(52).fill(44).slice(timelineWeekWidthsRaw.length));
+          .concat(Array(52).fill(DEFAULT_WEEK_WIDTH).slice(timelineWeekWidthsRaw.length));
 
         setPlan({
           year: data.year,
@@ -1141,16 +1139,14 @@ export default function BusinessPlanPage() {
                     onSelect={() => {
                       setPlan((prev) => ({
                         ...prev,
-                        timelineRows: Array.from({ length: 15 }).map(() => ({
-                          id: crypto.randomUUID(),
-                          title: "",
-                          weeks: Array(52).fill(""),
-                        })),
-                        timelineWeekWidths: Array(52).fill(72),
+                        timelineRows: [
+                          { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
+                        ],
+                        timelineWeekWidths: Array(52).fill(DEFAULT_WEEK_WIDTH),
                       }));
                     }}
                   >
-                    Ресет: 15 празни реда
+                    Ресет: 1 празен ред
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
