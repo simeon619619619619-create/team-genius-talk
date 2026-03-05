@@ -67,9 +67,16 @@ interface QuarterPlan {
   weeklyTasks: Record<number, WeeklyTask[]>;
 }
 
+interface TimelineTag {
+  id: string;
+  label: string;
+  color: string; // hex
+}
+
 interface TimelineRow {
   id: string;
   title: string;
+  tagId?: string | null;
   weeks: string[]; // 52 cells
 }
 
@@ -85,6 +92,7 @@ interface BusinessPlan {
   };
   timelineRows: TimelineRow[];
   timelineWeekWidths: number[]; // 52
+  timelineTags: TimelineTag[];
 }
 
 const emptyQuarter: QuarterPlan = {
@@ -95,6 +103,12 @@ const emptyQuarter: QuarterPlan = {
 };
 
 const DEFAULT_WEEK_WIDTH = 120;
+
+const DEFAULT_TIMELINE_TAGS: TimelineTag[] = [
+  { id: "marketing", label: "Маркетинг", color: "#8B5CF6" },
+  { id: "sales", label: "Продажби", color: "#22C55E" },
+  { id: "events", label: "Събития", color: "#F97316" },
+];
 
 const initialPlan: BusinessPlan = {
   year: new Date().getFullYear(),
@@ -108,6 +122,7 @@ const initialPlan: BusinessPlan = {
   },
   timelineRows: [],
   timelineWeekWidths: Array(52).fill(DEFAULT_WEEK_WIDTH),
+  timelineTags: DEFAULT_TIMELINE_TAGS,
 };
 
 const categoryOptions = [
@@ -699,6 +714,9 @@ export default function BusinessPlanPage() {
 
   const [resizingWeekCol, setResizingWeekCol] = useState<null | { weekIndex: number; startX: number; orig: number }>(null);
 
+  const [newTagLabel, setNewTagLabel] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#60A5FA");
+
   useEffect(() => {
     if (!resizingProcessCol) return;
 
@@ -774,12 +792,16 @@ export default function BusinessPlanPage() {
         const timelineWeekWidthsRaw = Array.isArray((data as any).timeline_week_widths)
           ? ((data as any).timeline_week_widths as unknown as any[])
           : [];
+        const timelineTagsRaw = Array.isArray((data as any).timeline_tags)
+          ? ((data as any).timeline_tags as unknown as any[])
+          : [];
 
         const normalizedRows: TimelineRow[] = timelineRows.map((r: any) => {
           const weeks = Array.isArray(r.weeks) ? (r.weeks as string[]) : [];
           return {
             id: r.id || crypto.randomUUID(),
             title: typeof r.title === "string" ? r.title : "",
+            tagId: typeof r.tagId === "string" ? r.tagId : null,
             weeks: [...weeks].slice(0, 52).concat(Array(52).fill("").slice(weeks.length)),
           };
         });
@@ -794,6 +816,14 @@ export default function BusinessPlanPage() {
           .slice(0, 52)
           .concat(Array(52).fill(DEFAULT_WEEK_WIDTH).slice(timelineWeekWidthsRaw.length));
 
+        const normalizedTags: TimelineTag[] = timelineTagsRaw
+          .filter((t) => t && typeof (t as any).label === "string" && typeof (t as any).color === "string")
+          .map((t: any) => ({
+            id: typeof t.id === "string" ? t.id : crypto.randomUUID(),
+            label: t.label,
+            color: t.color,
+          }));
+
         setPlan({
           year: data.year,
           annualGoals,
@@ -806,6 +836,7 @@ export default function BusinessPlanPage() {
           },
           timelineRows: normalizedRows,
           timelineWeekWidths: normalizedWidths,
+          timelineTags: normalizedTags.length ? normalizedTags : DEFAULT_TIMELINE_TAGS,
         });
       }
     } catch (error) {
@@ -965,6 +996,7 @@ export default function BusinessPlanPage() {
         q4_items: plan.quarters.Q4.items,
         timeline_rows: plan.timelineRows,
         timeline_week_widths: plan.timelineWeekWidths,
+        timeline_tags: plan.timelineTags,
       };
 
       const { data, error } = await supabase
@@ -1222,8 +1254,12 @@ export default function BusinessPlanPage() {
                       </td>
                     </tr>
                   ) : (
-                    plan.timelineRows.map((row, rowIndex) => (
-                      <tr key={row.id} className="align-top">
+                    plan.timelineRows.map((row, rowIndex) => {
+                      const tag = plan.timelineTags.find((t) => t.id === row.tagId);
+                      const rowBg = tag?.color ? `${tag.color}22` : undefined;
+
+                      return (
+                        <tr key={row.id} className="align-top" style={{ backgroundColor: rowBg }}>
                         <td className="p-2 border-b border-border/50" style={{ width: processColPx }}>
                           <div className="flex gap-2 items-start w-full">
                             <Input className="flex-1"
@@ -1254,8 +1290,78 @@ export default function BusinessPlanPage() {
                               ×
                             </Button>
                           </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {plan.timelineTags.map((t) => {
+                              const active = row.tagId === t.id;
+                              return (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  className={cn(
+                                    "px-2 py-1 rounded-full text-[11px] border",
+                                    active ? "text-foreground" : "text-muted-foreground",
+                                    active ? "border-border" : "border-border/60"
+                                  )}
+                                  style={{ backgroundColor: active ? `${t.color}33` : "transparent" }}
+                                  onClick={() => {
+                                    setPlan((prev) => ({
+                                      ...prev,
+                                      timelineRows: prev.timelineRows.map((r) =>
+                                        r.id === row.id
+                                          ? { ...r, tagId: r.tagId === t.id ? null : t.id }
+                                          : r
+                                      ),
+                                    }));
+                                  }}
+                                >
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
+                                    {t.label}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <Input
+                              value={newTagLabel}
+                              onChange={(e) => setNewTagLabel(e.target.value)}
+                              placeholder="нова дума"
+                              className="h-8"
+                            />
+                            <input
+                              type="color"
+                              value={newTagColor}
+                              onChange={(e) => setNewTagColor(e.target.value)}
+                              className="h-8 w-10 rounded-md border border-border bg-transparent"
+                              title="цвят"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => {
+                                const label = newTagLabel.trim();
+                                if (!label) return;
+                                const id = crypto.randomUUID();
+                                setPlan((prev) => ({
+                                  ...prev,
+                                  timelineTags: [...prev.timelineTags, { id, label, color: newTagColor }],
+                                  timelineRows: prev.timelineRows.map((r) =>
+                                    r.id === row.id ? { ...r, tagId: id } : r
+                                  ),
+                                }));
+                                setNewTagLabel("");
+                              }}
+                            >
+                              +
+                            </Button>
+                          </div>
+
                           <p className="text-[11px] text-muted-foreground mt-2">
-                            Попълвай по седмици. Текстът се пренася автоматично.
+                            Избери цвят за реда (маркетинг/продажби/събития) или добави нов.
                           </p>
                         </td>
                         {Array.from({ length: 52 }).map((_, w) => (
@@ -1305,7 +1411,8 @@ export default function BusinessPlanPage() {
                           </td>
                         ))}
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
