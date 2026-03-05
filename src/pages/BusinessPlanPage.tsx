@@ -102,7 +102,7 @@ const initialPlan: BusinessPlan = {
     title: "",
     weeks: Array(52).fill(""),
   })),
-  timelineWeekWidths: Array(52).fill(44),
+  timelineWeekWidths: Array(52).fill(72),
 };
 
 const categoryOptions = [
@@ -718,7 +718,7 @@ export default function BusinessPlanPage() {
       const dx = e.clientX - resizingWeekCol.startX;
       setPlan((prev) => {
         const next = [...prev.timelineWeekWidths];
-        next[resizingWeekCol.weekIndex] = Math.min(200, Math.max(28, resizingWeekCol.orig + dx));
+        next[resizingWeekCol.weekIndex] = Math.min(260, Math.max(36, resizingWeekCol.orig + dx));
         return { ...prev, timelineWeekWidths: next };
       });
     };
@@ -1176,11 +1176,14 @@ export default function BusinessPlanPage() {
                         {i + 1}
                         <button
                           type="button"
-                          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-border/40"
-                          title="Разшири колоната"
+                          className={cn(
+                            "absolute top-0 right-0 h-full w-3 cursor-col-resize",
+                            "hover:bg-border/40"
+                          )}
+                          title="Дръпни за да разшириш колоната"
                           onMouseDown={(e) => {
                             e.preventDefault();
-                            setResizingWeekCol({ weekIndex: i, startX: e.clientX, orig: plan.timelineWeekWidths[i] ?? 44 });
+                            setResizingWeekCol({ weekIndex: i, startX: e.clientX, orig: plan.timelineWeekWidths[i] ?? 72 });
                           }}
                         />
                       </th>
@@ -1237,27 +1240,55 @@ export default function BusinessPlanPage() {
                             className="p-1 border-b border-border/50 align-top"
                             style={{ width: plan.timelineWeekWidths[w] ?? 44 }}
                           >
-                            <textarea
-                              value={row.weeks?.[w] ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setPlan((prev) => ({
-                                  ...prev,
-                                  timelineRows: prev.timelineRows.map((r) => {
-                                    if (r.id !== row.id) return r;
-                                    const weeks = [...(r.weeks || Array(52).fill(""))];
-                                    weeks[w] = v;
-                                    return { ...r, weeks };
-                                  }),
-                                }));
-                              }}
-                              className={cn(
-                                "w-full min-h-[40px] resize-y rounded-md bg-background/50",
-                                "border border-border/60 px-2 py-2 text-xs leading-4",
-                                "focus:outline-none focus:ring-2 focus:ring-primary/40"
-                              )}
-                              style={{ whiteSpace: "pre-wrap" }}
-                            />
+                            <div className="relative">
+                              <textarea
+                                value={row.weeks?.[w] ?? ""}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  // auto-grow height
+                                  const el = e.currentTarget;
+                                  el.style.height = "auto";
+                                  el.style.height = `${el.scrollHeight}px`;
+
+                                  // if text doesn't fit, increase the whole week column (push others)
+                                  const needed = Math.ceil(el.scrollWidth + 8);
+                                  if (needed > (plan.timelineWeekWidths[w] ?? 72)) {
+                                    setPlan((prev) => {
+                                      const next = [...prev.timelineWeekWidths];
+                                      next[w] = Math.min(260, Math.max(next[w] ?? 72, needed));
+                                      return { ...prev, timelineWeekWidths: next };
+                                    });
+                                  }
+
+                                  setPlan((prev) => ({
+                                    ...prev,
+                                    timelineRows: prev.timelineRows.map((r) => {
+                                      if (r.id !== row.id) return r;
+                                      const weeks = [...(r.weeks || Array(52).fill(""))];
+                                      weeks[w] = v;
+                                      return { ...r, weeks };
+                                    }),
+                                  }));
+                                }}
+                                className={cn(
+                                  "w-full min-h-[40px] resize-y rounded-md bg-background/50",
+                                  "border border-border/60 px-2 py-2 text-xs leading-4",
+                                  "focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                )}
+                                style={{ whiteSpace: "pre-wrap", height: 40 }}
+                              />
+
+                              {/* local horizontal resize handle for this week column */}
+                              <button
+                                type="button"
+                                className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-border/40 rounded-r-md"
+                                title="Разшири колоната"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setResizingWeekCol({ weekIndex: w, startX: e.clientX, orig: plan.timelineWeekWidths[w] ?? 72 });
+                                }}
+                              />
+                            </div>
                           </td>
                         ))}
                       </tr>
