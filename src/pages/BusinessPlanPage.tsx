@@ -1105,7 +1105,7 @@ export default function BusinessPlanPage() {
               <table className="min-w-[1400px] w-full table-fixed">
                 <thead className="sticky top-0 bg-background/95 backdrop-blur">
                   <tr>
-                    <th className="w-[240px] p-2 text-left text-xs font-medium text-muted-foreground border-b border-border/60">Процес</th>
+                    <th className="w-[320px] p-2 text-left text-xs font-medium text-muted-foreground border-b border-border/60">Процес</th>
                     {(["Q1", "Q2", "Q3", "Q4"] as const).map((q) => (
                       <th
                         key={q}
@@ -1139,8 +1139,8 @@ export default function BusinessPlanPage() {
                     plan.timelineRows.map((row, rowIndex) => (
                       <tr key={row.id} className="align-top">
                         <td className="p-2 border-b border-border/50">
-                          <div className="flex gap-2 items-start">
-                            <Input
+                          <div className="flex gap-2 items-start w-full">
+                            <Input className="flex-1"
                               value={row.title}
                               placeholder="напр. Онбординг / Реклами / Продажби"
                               onChange={(e) => {
