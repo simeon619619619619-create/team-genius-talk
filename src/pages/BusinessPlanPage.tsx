@@ -63,10 +63,7 @@ interface QuarterPlan {
 interface TimelineRow {
   id: string;
   title: string;
-  // single resizable block per row
-  startWeek: number; // 1..52
-  endWeek: number; // 1..52
-  text: string;
+  weeks: string[]; // 52 cells
 }
 
 interface BusinessPlan {
@@ -80,6 +77,7 @@ interface BusinessPlan {
     Q4: QuarterPlan;
   };
   timelineRows: TimelineRow[];
+  timelineWeekWidths: number[]; // 52
 }
 
 const emptyQuarter: QuarterPlan = {
@@ -99,7 +97,12 @@ const initialPlan: BusinessPlan = {
     Q3: { ...emptyQuarter },
     Q4: { ...emptyQuarter },
   },
-  timelineRows: [],
+  timelineRows: Array.from({ length: 15 }).map(() => ({
+    id: crypto.randomUUID(),
+    title: "",
+    weeks: Array(52).fill(""),
+  })),
+  timelineWeekWidths: Array(52).fill(44),
 };
 
 const categoryOptions = [
@@ -688,13 +691,7 @@ export default function BusinessPlanPage() {
   const [processColPx, setProcessColPx] = useState(320);
   const [resizingProcessCol, setResizingProcessCol] = useState<null | { startX: number; orig: number }>(null);
 
-  const [resizingRow, setResizingRow] = useState<null | {
-    rowId: string;
-    side: "start" | "end";
-    startX: number;
-    origStart: number;
-    origEnd: number;
-  }>(null);
+  const [resizingWeekCol, setResizingWeekCol] = useState<null | { weekIndex: number; startX: number; orig: number }>(null);
 
   useEffect(() => {
     if (!resizingProcessCol) return;
@@ -714,27 +711,18 @@ export default function BusinessPlanPage() {
   }, [resizingProcessCol]);
 
   useEffect(() => {
-    if (!resizingRow) return;
+    if (!resizingWeekCol) return;
 
     const onMove = (e: MouseEvent) => {
-      const dx = e.clientX - resizingRow.startX;
-      const deltaWeeks = Math.round(dx / WEEK_COL_PX);
-
-      setPlan((prev) => ({
-        ...prev,
-        timelineRows: prev.timelineRows.map((r) => {
-          if (r.id !== resizingRow.rowId) return r;
-          if (resizingRow.side === "end") {
-            const nextEnd = Math.min(52, Math.max(r.startWeek, resizingRow.origEnd + deltaWeeks));
-            return { ...r, endWeek: nextEnd };
-          }
-          const nextStart = Math.min(Math.max(1, resizingRow.origStart + deltaWeeks), r.endWeek);
-          return { ...r, startWeek: nextStart };
-        }),
-      }));
+      const dx = e.clientX - resizingWeekCol.startX;
+      setPlan((prev) => {
+        const next = [...prev.timelineWeekWidths];
+        next[resizingWeekCol.weekIndex] = Math.min(200, Math.max(28, resizingWeekCol.orig + dx));
+        return { ...prev, timelineWeekWidths: next };
+      });
     };
 
-    const onUp = () => setResizingRow(null);
+    const onUp = () => setResizingWeekCol(null);
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -742,7 +730,7 @@ export default function BusinessPlanPage() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [resizingRow]);
+  }, [resizingWeekCol]);
 
   const generateId = () => crypto.randomUUID();
 
@@ -775,8 +763,30 @@ export default function BusinessPlanPage() {
         const q3Items = Array.isArray(data.q3_items) ? (data.q3_items as unknown as PlanItem[]) : [];
         const q4Items = Array.isArray(data.q4_items) ? (data.q4_items as unknown as PlanItem[]) : [];
         const timelineRows = Array.isArray((data as any).timeline_rows)
-          ? ((data as any).timeline_rows as unknown as TimelineRow[])
+          ? ((data as any).timeline_rows as unknown as any[])
           : [];
+        const timelineWeekWidthsRaw = Array.isArray((data as any).timeline_week_widths)
+          ? ((data as any).timeline_week_widths as unknown as any[])
+          : [];
+
+        const normalizedRows: TimelineRow[] = timelineRows.map((r: any) => {
+          const weeks = Array.isArray(r.weeks) ? (r.weeks as string[]) : [];
+          return {
+            id: r.id || crypto.randomUUID(),
+            title: typeof r.title === "string" ? r.title : "",
+            weeks: [...weeks].slice(0, 52).concat(Array(52).fill("").slice(weeks.length)),
+          };
+        });
+
+        // ensure at least 15 rows visible
+        while (normalizedRows.length < 15) {
+          normalizedRows.push({ id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") });
+        }
+
+        const normalizedWidths: number[] = timelineWeekWidthsRaw
+          .map((w) => (typeof w === "number" ? w : 44))
+          .slice(0, 52)
+          .concat(Array(52).fill(44).slice(timelineWeekWidthsRaw.length));
 
         setPlan({
           year: data.year,
@@ -788,17 +798,8 @@ export default function BusinessPlanPage() {
             Q3: { ...emptyQuarter, items: q3Items },
             Q4: { ...emptyQuarter, items: q4Items },
           },
-          timelineRows: timelineRows.map((r: any) => {
-            const startWeek = typeof r.startWeek === "number" ? r.startWeek : 1;
-            const endWeek = typeof r.endWeek === "number" ? r.endWeek : startWeek;
-            return {
-              id: r.id || crypto.randomUUID(),
-              title: r.title || "",
-              startWeek: Math.min(52, Math.max(1, startWeek)),
-              endWeek: Math.min(52, Math.max(1, endWeek)),
-              text: typeof r.text === "string" ? r.text : "",
-            } as TimelineRow;
-          }),
+          timelineRows: normalizedRows,
+          timelineWeekWidths: normalizedWidths,
         });
       }
     } catch (error) {
@@ -956,6 +957,7 @@ export default function BusinessPlanPage() {
         q3_items: plan.quarters.Q3.items,
         q4_items: plan.quarters.Q4.items,
         timeline_rows: plan.timelineRows,
+        timeline_week_widths: plan.timelineWeekWidths,
       };
 
       const { data, error } = await supabase
@@ -1110,7 +1112,7 @@ export default function BusinessPlanPage() {
                     ...prev,
                     timelineRows: [
                       ...prev.timelineRows,
-                      { id: crypto.randomUUID(), title: "", startWeek: 1, endWeek: 1, text: "" },
+                      { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
                     ],
                   }));
                 }}
@@ -1122,7 +1124,7 @@ export default function BusinessPlanPage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto rounded-xl border border-border/60">
-              <table className="min-w-[1400px] w-full table-fixed">
+              <table className="w-full table-fixed" style={{ minWidth: processColPx + plan.timelineWeekWidths.reduce((a, b) => a + b, 0) }}>
                 <thead className="sticky top-0 bg-background/95 backdrop-blur">
                   <tr>
                     <th
@@ -1147,6 +1149,7 @@ export default function BusinessPlanPage() {
                         key={q}
                         colSpan={13}
                         className="p-2 text-center text-xs font-semibold text-foreground border-b border-border/60"
+                        style={{ width: plan.timelineWeekWidths.slice((q === "Q1" ? 0 : q === "Q2" ? 13 : q === "Q3" ? 26 : 39), (q === "Q1" ? 13 : q === "Q2" ? 26 : q === "Q3" ? 39 : 52)).reduce((a, b) => a + b, 0) }}
                       >
                         {q}
                       </th>
@@ -1162,9 +1165,19 @@ export default function BusinessPlanPage() {
                     {Array.from({ length: 52 }).map((_, i) => (
                       <th
                         key={i}
-                        className="w-[44px] p-1 text-center text-[10px] font-medium text-muted-foreground border-b border-border/60"
+                        className="p-1 text-center text-[10px] font-medium text-muted-foreground border-b border-border/60 relative"
+                        style={{ width: plan.timelineWeekWidths[i] ?? 44 }}
                       >
                         {i + 1}
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-border/40"
+                          title="Разшири колоната"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setResizingWeekCol({ weekIndex: i, startX: e.clientX, orig: plan.timelineWeekWidths[i] ?? 44 });
+                          }}
+                        />
                       </th>
                     ))}
                   </tr>
@@ -1213,105 +1226,35 @@ export default function BusinessPlanPage() {
                             Попълвай по седмици. Текстът се пренася автоматично.
                           </p>
                         </td>
-                        <td colSpan={52} className="p-2 border-b border-border/50">
-                          <div
-                            className="relative"
-                            style={{ width: WEEK_COL_PX * 52, height: 48 }}
+                        {Array.from({ length: 52 }).map((_, w) => (
+                          <td
+                            key={w}
+                            className="p-1 border-b border-border/50 align-top"
+                            style={{ width: plan.timelineWeekWidths[w] ?? 44 }}
                           >
-                            {/* click targets per week */}
-                            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(52, ${WEEK_COL_PX}px)` }}>
-                              {Array.from({ length: 52 }).map((_, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  className={cn(
-                                    "h-full border border-border/30",
-                                    "hover:bg-secondary/30 transition-colors"
-                                  )}
-                                  onClick={() => {
-                                    const week = i + 1;
-                                    setPlan((prev) => ({
-                                      ...prev,
-                                      timelineRows: prev.timelineRows.map((r) =>
-                                        r.id === row.id
-                                          ? { ...r, startWeek: week, endWeek: week }
-                                          : r
-                                      ),
-                                    }));
-                                  }}
-                                  title={`Седмица ${i + 1}`}
-                                />
-                              ))}
-                            </div>
-
-                            {/* resizable block */}
-                            <div
-                              className={cn(
-                                "absolute top-1 left-0 h-[40px] rounded-lg",
-                                "bg-primary/15 border border-primary/30",
-                                "shadow-sm"
-                              )}
-                              style={{
-                                transform: `translateX(${(row.startWeek - 1) * WEEK_COL_PX}px)`,
-                                width: (row.endWeek - row.startWeek + 1) * WEEK_COL_PX,
+                            <textarea
+                              value={row.weeks?.[w] ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setPlan((prev) => ({
+                                  ...prev,
+                                  timelineRows: prev.timelineRows.map((r) => {
+                                    if (r.id !== row.id) return r;
+                                    const weeks = [...(r.weeks || Array(52).fill(""))];
+                                    weeks[w] = v;
+                                    return { ...r, weeks };
+                                  }),
+                                }));
                               }}
-                            >
-                              <div className="flex h-full">
-                                {/* left handle */}
-                                <div
-                                  className="w-2 cursor-ew-resize hover:bg-primary/20 rounded-l-lg"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setResizingRow({
-                                      rowId: row.id,
-                                      side: "start",
-                                      startX: e.clientX,
-                                      origStart: row.startWeek,
-                                      origEnd: row.endWeek,
-                                    });
-                                  }}
-                                  title="Дръпни наляво/надясно"
-                                />
-
-                                <textarea
-                                  value={row.text}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setPlan((prev) => ({
-                                      ...prev,
-                                      timelineRows: prev.timelineRows.map((r) =>
-                                        r.id === row.id ? { ...r, text: v } : r
-                                      ),
-                                    }));
-                                  }}
-                                  placeholder="Какво се прави в тези седмици…"
-                                  className={cn(
-                                    "flex-1 h-full resize-none bg-transparent",
-                                    "px-2 py-2 text-xs leading-4",
-                                    "outline-none"
-                                  )}
-                                  style={{ whiteSpace: "pre-wrap" }}
-                                />
-
-                                {/* right handle */}
-                                <div
-                                  className="w-2 cursor-ew-resize hover:bg-primary/20 rounded-r-lg"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setResizingRow({
-                                      rowId: row.id,
-                                      side: "end",
-                                      startX: e.clientX,
-                                      origStart: row.startWeek,
-                                      origEnd: row.endWeek,
-                                    });
-                                  }}
-                                  title="Дръпни наляво/надясно"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </td>
+                              className={cn(
+                                "w-full min-h-[40px] resize-y rounded-md bg-background/50",
+                                "border border-border/60 px-2 py-2 text-xs leading-4",
+                                "focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              )}
+                              style={{ whiteSpace: "pre-wrap" }}
+                            />
+                          </td>
+                        ))}
                       </tr>
                     ))
                   )}
