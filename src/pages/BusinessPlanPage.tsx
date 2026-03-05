@@ -686,6 +686,7 @@ export default function BusinessPlanPage() {
   const [dbPlanId, setDbPlanId] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const WEEK_COL_PX = 44;
   const [processColPx, setProcessColPx] = useState(320);
@@ -947,6 +948,7 @@ export default function BusinessPlanPage() {
   const handleSave = async () => {
     if (!projectId) return;
 
+    setIsSaving(true);
     try {
       const payload: any = {
         project_id: projectId,
@@ -969,9 +971,12 @@ export default function BusinessPlanPage() {
       if (error) throw error;
       setDbPlanId(data?.id ?? null);
       toast.success("Планът е запазен");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving business plan:", error);
-      toast.error("Грешка при запис");
+      const msg = typeof error?.message === "string" ? error.message : "Грешка при запис";
+      toast.error(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1022,9 +1027,9 @@ export default function BusinessPlanPage() {
               Годишни и тримесечни цели, проекти, стратегии и действия
             </p>
           </div>
-          <Button onClick={handleSave} className="gap-2">
+          <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
             <Save className="h-4 w-4" />
-            Запази
+            {isSaving ? "Запис..." : "Запази"}
           </Button>
         </div>
 
@@ -1262,9 +1267,9 @@ export default function BusinessPlanPage() {
               </table>
             </div>
             <div className="flex justify-end mt-4">
-              <Button variant="default" onClick={handleSave} className="gap-2">
+              <Button variant="default" onClick={handleSave} className="gap-2" disabled={isSaving}>
                 <Save className="h-4 w-4" />
-                Запази таблицата
+                {isSaving ? "Запис..." : "Запази таблицата"}
               </Button>
             </div>
           </CardContent>
