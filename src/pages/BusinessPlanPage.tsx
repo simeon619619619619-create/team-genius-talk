@@ -63,7 +63,10 @@ interface QuarterPlan {
 interface TimelineRow {
   id: string;
   title: string;
-  weeks: string[]; // 52 cells
+  // single resizable block per row
+  startWeek: number; // 1..52
+  endWeek: number; // 1..52
+  text: string;
 }
 
 interface BusinessPlan {
@@ -681,6 +684,46 @@ export default function BusinessPlanPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
+  const WEEK_COL_PX = 44;
+  const [resizingRow, setResizingRow] = useState<null | {
+    rowId: string;
+    side: "start" | "end";
+    startX: number;
+    origStart: number;
+    origEnd: number;
+  }>(null);
+
+  useEffect(() => {
+    if (!resizingRow) return;
+
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - resizingRow.startX;
+      const deltaWeeks = Math.round(dx / WEEK_COL_PX);
+
+      setPlan((prev) => ({
+        ...prev,
+        timelineRows: prev.timelineRows.map((r) => {
+          if (r.id !== resizingRow.rowId) return r;
+          if (resizingRow.side === "end") {
+            const nextEnd = Math.min(52, Math.max(r.startWeek, resizingRow.origEnd + deltaWeeks));
+            return { ...r, endWeek: nextEnd };
+          }
+          const nextStart = Math.min(Math.max(1, resizingRow.origStart + deltaWeeks), r.endWeek);
+          return { ...r, startWeek: nextStart };
+        }),
+      }));
+    };
+
+    const onUp = () => setResizingRow(null);
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [resizingRow]);
+
   const generateId = () => crypto.randomUUID();
 
   // Load business plan from database
@@ -725,11 +768,17 @@ export default function BusinessPlanPage() {
             Q3: { ...emptyQuarter, items: q3Items },
             Q4: { ...emptyQuarter, items: q4Items },
           },
-          timelineRows: timelineRows.map((r) => ({
-            id: r.id || crypto.randomUUID(),
-            title: r.title || "",
-            weeks: Array.isArray(r.weeks) ? [...r.weeks].slice(0, 52).concat(Array(52).fill("").slice((r.weeks || []).length)) : Array(52).fill(""),
-          })),
+          timelineRows: timelineRows.map((r: any) => {
+            const startWeek = typeof r.startWeek === "number" ? r.startWeek : 1;
+            const endWeek = typeof r.endWeek === "number" ? r.endWeek : startWeek;
+            return {
+              id: r.id || crypto.randomUUID(),
+              title: r.title || "",
+              startWeek: Math.min(52, Math.max(1, startWeek)),
+              endWeek: Math.min(52, Math.max(1, endWeek)),
+              text: typeof r.text === "string" ? r.text : "",
+            } as TimelineRow;
+          }),
         });
       }
     } catch (error) {
@@ -1041,7 +1090,7 @@ export default function BusinessPlanPage() {
                     ...prev,
                     timelineRows: [
                       ...prev.timelineRows,
-                      { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
+                      { id: crypto.randomUUID(), title: "", startWeek: 1, endWeek: 1, text: "" },
                     ],
                   }));
                 }}
@@ -1123,31 +1172,105 @@ export default function BusinessPlanPage() {
                             Попълвай по седмици. Текстът се пренася автоматично.
                           </p>
                         </td>
-                        {Array.from({ length: 52 }).map((_, w) => (
-                          <td key={w} className="p-1 border-b border-border/50">
-                            <textarea
-                              value={row.weeks?.[w] ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setPlan((prev) => ({
-                                  ...prev,
-                                  timelineRows: prev.timelineRows.map((r) => {
-                                    if (r.id !== row.id) return r;
-                                    const weeks = [...(r.weeks || Array(52).fill(""))];
-                                    weeks[w] = v;
-                                    return { ...r, weeks };
-                                  }),
-                                }));
-                              }}
+                        <td colSpan={52} className="p-2 border-b border-border/50">
+                          <div
+                            className="relative"
+                            style={{ width: WEEK_COL_PX * 52, height: 48 }}
+                          >
+                            {/* click targets per week */}
+                            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(52, ${WEEK_COL_PX}px)` }}>
+                              {Array.from({ length: 52 }).map((_, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  className={cn(
+                                    "h-full border border-border/30",
+                                    "hover:bg-secondary/30 transition-colors"
+                                  )}
+                                  onClick={() => {
+                                    const week = i + 1;
+                                    setPlan((prev) => ({
+                                      ...prev,
+                                      timelineRows: prev.timelineRows.map((r) =>
+                                        r.id === row.id
+                                          ? { ...r, startWeek: week, endWeek: week }
+                                          : r
+                                      ),
+                                    }));
+                                  }}
+                                  title={`Седмица ${i + 1}`}
+                                />
+                              ))}
+                            </div>
+
+                            {/* resizable block */}
+                            <div
                               className={cn(
-                                "w-full min-h-[36px] resize-y rounded-md bg-background/50",
-                                "border border-border/60 px-2 py-1 text-xs leading-4",
-                                "focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                "absolute top-1 left-0 h-[40px] rounded-lg",
+                                "bg-primary/15 border border-primary/30",
+                                "shadow-sm"
                               )}
-                              style={{ whiteSpace: "pre-wrap" }}
-                            />
-                          </td>
-                        ))}
+                              style={{
+                                transform: `translateX(${(row.startWeek - 1) * WEEK_COL_PX}px)`,
+                                width: (row.endWeek - row.startWeek + 1) * WEEK_COL_PX,
+                              }}
+                            >
+                              <div className="flex h-full">
+                                {/* left handle */}
+                                <div
+                                  className="w-2 cursor-ew-resize hover:bg-primary/20 rounded-l-lg"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setResizingRow({
+                                      rowId: row.id,
+                                      side: "start",
+                                      startX: e.clientX,
+                                      origStart: row.startWeek,
+                                      origEnd: row.endWeek,
+                                    });
+                                  }}
+                                  title="Дръпни наляво/надясно"
+                                />
+
+                                <textarea
+                                  value={row.text}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setPlan((prev) => ({
+                                      ...prev,
+                                      timelineRows: prev.timelineRows.map((r) =>
+                                        r.id === row.id ? { ...r, text: v } : r
+                                      ),
+                                    }));
+                                  }}
+                                  placeholder="Какво се прави в тези седмици…"
+                                  className={cn(
+                                    "flex-1 h-full resize-none bg-transparent",
+                                    "px-2 py-2 text-xs leading-4",
+                                    "outline-none"
+                                  )}
+                                  style={{ whiteSpace: "pre-wrap" }}
+                                />
+
+                                {/* right handle */}
+                                <div
+                                  className="w-2 cursor-ew-resize hover:bg-primary/20 rounded-r-lg"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setResizingRow({
+                                      rowId: row.id,
+                                      side: "end",
+                                      startX: e.clientX,
+                                      origStart: row.startWeek,
+                                      origEnd: row.endWeek,
+                                    });
+                                  }}
+                                  title="Дръпни наляво/надясно"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
