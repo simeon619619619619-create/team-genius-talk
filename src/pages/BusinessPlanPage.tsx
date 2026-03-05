@@ -718,7 +718,7 @@ export default function BusinessPlanPage() {
       const dx = e.clientX - resizingWeekCol.startX;
       setPlan((prev) => {
         const next = [...prev.timelineWeekWidths];
-        next[resizingWeekCol.weekIndex] = Math.min(260, Math.max(36, resizingWeekCol.orig + dx));
+        next[resizingWeekCol.weekIndex] = Math.min(2000, Math.max(36, resizingWeekCol.orig + dx));
         return { ...prev, timelineWeekWidths: next };
       });
     };
@@ -1249,17 +1249,6 @@ export default function BusinessPlanPage() {
                                   const el = e.currentTarget;
                                   el.style.height = "auto";
                                   el.style.height = `${el.scrollHeight}px`;
-
-                                  // if text doesn't fit, increase the whole week column (push others)
-                                  const needed = Math.ceil(el.scrollWidth + 8);
-                                  if (needed > (plan.timelineWeekWidths[w] ?? 72)) {
-                                    setPlan((prev) => {
-                                      const next = [...prev.timelineWeekWidths];
-                                      next[w] = Math.min(260, Math.max(next[w] ?? 72, needed));
-                                      return { ...prev, timelineWeekWidths: next };
-                                    });
-                                  }
-
                                   setPlan((prev) => ({
                                     ...prev,
                                     timelineRows: prev.timelineRows.map((r) => {
@@ -1275,7 +1264,8 @@ export default function BusinessPlanPage() {
                                   "border border-border/60 px-2 py-2 text-xs leading-4",
                                   "focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 )}
-                                style={{ whiteSpace: "pre-wrap", height: 40 }}
+                                wrap="off"
+                                style={{ whiteSpace: "pre", overflowX: "auto", height: 40 }}
                               />
 
                               {/* local horizontal resize handle for this week column */}
