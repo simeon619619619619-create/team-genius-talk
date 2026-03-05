@@ -685,6 +685,9 @@ export default function BusinessPlanPage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const WEEK_COL_PX = 44;
+  const [processColPx, setProcessColPx] = useState(320);
+  const [resizingProcessCol, setResizingProcessCol] = useState<null | { startX: number; orig: number }>(null);
+
   const [resizingRow, setResizingRow] = useState<null | {
     rowId: string;
     side: "start" | "end";
@@ -692,6 +695,23 @@ export default function BusinessPlanPage() {
     origStart: number;
     origEnd: number;
   }>(null);
+
+  useEffect(() => {
+    if (!resizingProcessCol) return;
+
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - resizingProcessCol.startX;
+      setProcessColPx(Math.min(640, Math.max(240, resizingProcessCol.orig + dx)));
+    };
+    const onUp = () => setResizingProcessCol(null);
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [resizingProcessCol]);
 
   useEffect(() => {
     if (!resizingRow) return;
@@ -1105,7 +1125,23 @@ export default function BusinessPlanPage() {
               <table className="min-w-[1400px] w-full table-fixed">
                 <thead className="sticky top-0 bg-background/95 backdrop-blur">
                   <tr>
-                    <th className="w-[320px] p-2 text-left text-xs font-medium text-muted-foreground border-b border-border/60">Процес</th>
+                    <th
+                      className="p-2 text-left text-xs font-medium text-muted-foreground border-b border-border/60 relative"
+                      style={{ width: processColPx }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Процес</span>
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-border/40"
+                          title="Дръпни за да разшириш колоната"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setResizingProcessCol({ startX: e.clientX, orig: processColPx });
+                          }}
+                        />
+                      </div>
+                    </th>
                     {(["Q1", "Q2", "Q3", "Q4"] as const).map((q) => (
                       <th
                         key={q}
@@ -1117,7 +1153,12 @@ export default function BusinessPlanPage() {
                     ))}
                   </tr>
                   <tr>
-                    <th className="p-2 text-left text-[11px] font-medium text-muted-foreground border-b border-border/60">Седмица</th>
+                    <th
+                      className="p-2 text-left text-[11px] font-medium text-muted-foreground border-b border-border/60"
+                      style={{ width: processColPx }}
+                    >
+                      Седмица
+                    </th>
                     {Array.from({ length: 52 }).map((_, i) => (
                       <th
                         key={i}
@@ -1138,7 +1179,7 @@ export default function BusinessPlanPage() {
                   ) : (
                     plan.timelineRows.map((row, rowIndex) => (
                       <tr key={row.id} className="align-top">
-                        <td className="p-2 border-b border-border/50">
+                        <td className="p-2 border-b border-border/50" style={{ width: processColPx }}>
                           <div className="flex gap-2 items-start w-full">
                             <Input className="flex-1"
                               value={row.title}
