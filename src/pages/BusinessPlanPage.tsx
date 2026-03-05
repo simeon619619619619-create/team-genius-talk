@@ -1135,19 +1135,6 @@ export default function BusinessPlanPage() {
                   >
                     Добави празен ред
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setPlan((prev) => ({
-                        ...prev,
-                        timelineRows: [
-                          { id: crypto.randomUUID(), title: "", weeks: Array(52).fill("") },
-                        ],
-                        timelineWeekWidths: Array(52).fill(DEFAULT_WEEK_WIDTH),
-                      }));
-                    }}
-                  >
-                    Ресет: 1 празен ред
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
