@@ -1305,8 +1305,7 @@ export default function BusinessPlanPage() {
                                   "border border-border/60 px-2 py-2 text-xs leading-4",
                                   "focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 )}
-                                wrap="off"
-                                style={{ whiteSpace: "pre", overflowX: "auto", height: 40 }}
+                                style={{ whiteSpace: "pre-wrap", overflowX: "hidden", wordBreak: "break-word", height: 40 }}
                               />
 
                               {/* local horizontal resize handle for this week column */}
