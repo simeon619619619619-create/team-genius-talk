@@ -181,7 +181,8 @@ export function useCurrentProject() {
       }
     } catch (error) {
       console.error("Error fetching project:", error);
-      // Don't show toast for network errors to avoid spam
+      // Soft-fail: keep app usable even if legacy schema / bad request
+      setProject(null);
     } finally {
       setLoading(false);
       fetchingRef.current = false;

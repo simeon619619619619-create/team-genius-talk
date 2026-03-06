@@ -74,16 +74,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
+        const msg = (error as any)?.message ? String((error as any).message) : "";
+        const status = (error as any)?.context?.status ?? (error as any)?.status;
+
         // If the edge function isn't deployed/configured yet, don't spam the app or break UX.
-        if (error.message?.includes("401") || error.message?.toLowerCase().includes("unauthorized")) {
+        if (status === 401 || msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
           setSubscribed(false);
           setPlanType("free");
           setSubscriptionEnd(null);
           return;
         }
+
+        // Soft-fail any function errors (don't crash app)
         console.error("Error checking subscription:", error);
         setSubscribed(false);
         setPlanType("free");
+        setSubscriptionEnd(null);
         return;
       }
 
