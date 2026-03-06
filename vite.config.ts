@@ -13,6 +13,13 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  build:
+    mode === "production"
+      ? {
+          sourcemap: true,
+          minify: false,
+        }
+      : undefined,
   plugins: [
     react(),
     mode === "development" && componentTagger(),
@@ -57,7 +64,7 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+        maximumFileSizeToCacheInBytes: 20 * 1024 * 1024, // 20MB limit (debug builds can be large)
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
