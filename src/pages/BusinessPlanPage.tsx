@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Save, ChevronDown, ChevronUp, Target, Briefcase, Zap, BarChart3, Loader2, RefreshCw, FileText, Sparkles } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import ReactMarkdown from "react-markdown";
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: any) {
+    console.error("BusinessPlanPage render error:", error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <MainLayout>
+          <div className="p-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Грешка в Бизнес план страницата</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Отвори DevTools → Console и ми прати най-горната грешка.
+                </p>
+                <pre className="text-xs whitespace-pre-wrap break-words rounded-md border border-border/60 bg-background/50 p-3">
+                  {this.state.error.message}
+                </pre>
+              </CardContent>
+            </Card>
+          </div>
+        </MainLayout>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface Goal {
   id: string;
@@ -1083,8 +1123,9 @@ export default function BusinessPlanPage() {
     plan.quarters.Q4.items.length;
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <ErrorBoundary>
+      <MainLayout>
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground">
@@ -1582,7 +1623,8 @@ export default function BusinessPlanPage() {
             </TabsContent>
           ))}
         </Tabs>
-      </div>
-    </MainLayout>
+        </div>
+      </MainLayout>
+    </ErrorBoundary>
   );
 }
