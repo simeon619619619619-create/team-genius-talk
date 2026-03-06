@@ -86,63 +86,90 @@ export function useCurrentProject() {
       // No organization selected (or org schema not available) - check for unassigned projects owned by user
       if (!currentOrganization) {
         // check for unassigned projects owned by user
+        // Try to load an "unassigned" project (legacy schema may not have organization_id)
         const { data: unassigned, error: unassignedError } = await supabase
           .from("projects")
           .select("*")
           .eq("owner_id", user.id)
+          // legacy fallback: if column missing, we will re-query without this filter
           .is("organization_id", null)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (unassignedError && unassignedError.code !== "PGRST116") {
-          throw unassignedError;
-        }
-
-        if (unassigned) {
-          setProject(unassigned);
-        } else {
-          // No owned project - check for projects accessible via user_roles (team members)
-          const { data: roleData } = await supabase
-            .from("user_roles")
-            .select("project_id")
-            .eq("user_id", user.id)
+        if (unassignedError && unassignedError.message?.includes("column projects.organization_id does not exist")) {
+          const { data: legacyProject, error: legacyError } = await supabase
+            .from("projects")
+            .select("*")
+            .eq("owner_id", user.id)
+            .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (roleData?.project_id) {
-            const { data: accessibleProject } = await supabase
-              .from("projects")
-              .select("*")
-              .eq("id", roleData.project_id)
+          if (legacyError && legacyError.code !== "PGRST116") throw legacyError;
+          if (legacyProject) setProject(legacyProject);
+          else setProject(null);
+        } else {
+          if (unassignedError && unassignedError.code !== "PGRST116") {
+            throw unassignedError;
+          }
+
+          if (unassigned) {
+            setProject(unassigned);
+          } else {
+            // No owned project - check for projects accessible via user_roles (team members)
+            const { data: roleData } = await supabase
+              .from("user_roles")
+              .select("project_id")
+              .eq("user_id", user.id)
+              .limit(1)
               .maybeSingle();
 
-            if (accessibleProject) {
-              setProject(accessibleProject);
+            if (roleData?.project_id) {
+              const { data: accessibleProject } = await supabase
+                .from("projects")
+                .select("*")
+                .eq("id", roleData.project_id)
+                .maybeSingle();
+
+              if (accessibleProject) {
+                setProject(accessibleProject);
+              } else {
+                setProject(null);
+              }
             } else {
               setProject(null);
             }
-          } else {
-            setProject(null);
           }
         }
       }
 
       // Check if there are unassigned projects OR orphaned tasks that need migration
-      const [projectsResult, tasksResult] = await Promise.all([
-        supabase
+      // Check if there are unassigned projects OR orphaned tasks that need migration
+      const tasksResult = await supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .is("project_id", null);
+
+      let unassignedProjectsCount = 0;
+      try {
+        const projectsResult = await supabase
           .from("projects")
           .select("*", { count: "exact", head: true })
           .eq("owner_id", user.id)
-          .is("organization_id", null),
-        supabase
-          .from("tasks")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .is("project_id", null)
-      ]);
+          .is("organization_id", null);
 
-      const unassignedProjectsCount = projectsResult.count || 0;
+        if (projectsResult.error?.message?.includes("column projects.organization_id does not exist")) {
+          // legacy schema: can't determine "unassigned", treat as 0
+          unassignedProjectsCount = 0;
+        } else {
+          unassignedProjectsCount = projectsResult.count || 0;
+        }
+      } catch {
+        unassignedProjectsCount = 0;
+      }
+
       const orphanedTasksCount = tasksResult.count || 0;
 
       if (unassignedProjectsCount > 0 || orphanedTasksCount > 0) {
