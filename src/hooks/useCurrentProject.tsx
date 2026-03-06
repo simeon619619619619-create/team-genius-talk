@@ -43,7 +43,7 @@ export function useCurrentProject() {
     try {
       // If we have a current organization, get the project for that organization
       if (currentOrganization) {
-        // Try to find existing project for this organization (owned by user OR accessible via user_roles)
+        // Try to find existing project for this organization
         const { data: existingProject, error: fetchError } = await supabase
           .from("projects")
           .select("*")
@@ -52,7 +52,11 @@ export function useCurrentProject() {
           .limit(1)
           .maybeSingle();
 
-        if (fetchError && fetchError.code !== "PGRST116") {
+        // Back-compat: some Supabase schemas don't have projects.organization_id yet
+        if (fetchError && fetchError.message?.includes("column projects.organization_id does not exist")) {
+          setProject(null);
+          // fall through to unassigned-project flow by treating as no org
+        } else if (fetchError && fetchError.code !== "PGRST116") {
           throw fetchError;
         }
 
@@ -77,8 +81,11 @@ export function useCurrentProject() {
           // Member without a project in this org
           setProject(null);
         }
-      } else {
-        // No organization selected - check for unassigned projects owned by user
+      }
+
+      // No organization selected (or org schema not available) - check for unassigned projects owned by user
+      if (!currentOrganization) {
+        // check for unassigned projects owned by user
         const { data: unassigned, error: unassignedError } = await supabase
           .from("projects")
           .select("*")

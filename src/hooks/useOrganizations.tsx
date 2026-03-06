@@ -113,8 +113,16 @@ export function useOrganizations() {
         setCurrentOrganization(allOrgs[0]);
         localStorage.setItem("currentOrganizationId", allOrgs[0].id);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching organizations:", error);
+
+      // Back-compat: if org tables don't exist in this Supabase project yet, disable org mode.
+      const msg = typeof error?.message === "string" ? error.message : "";
+      if (msg.includes("relation \"organizations\" does not exist") || msg.includes("relation \"organization_members\" does not exist")) {
+        setOrganizations([]);
+        setMemberOrganizations([]);
+        setCurrentOrganization(null);
+      }
     } finally {
       setLoading(false);
     }
