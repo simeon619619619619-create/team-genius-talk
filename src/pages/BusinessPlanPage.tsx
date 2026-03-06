@@ -894,26 +894,6 @@ export default function BusinessPlanPage() {
       didInitialLoadRef.current = true;
     });
   }, [loadBusinessPlan]);
-
-  // Auto-save (debounced) so widths persist across sessions
-  useEffect(() => {
-    if (!didInitialLoadRef.current) return;
-    if (!projectId) return;
-
-    const t = window.setTimeout(() => {
-      saveBusinessPlan({ silent: true });
-    }, 900);
-
-    return () => window.clearTimeout(t);
-  }, [
-    projectId,
-    saveBusinessPlan,
-    // important parts to persist
-    plan.timelineWeekWidths,
-    plan.timelineRows,
-    plan.timelineTags,
-  ]);
-
   // Annual handlers
   const handleAddAnnualGoal = (goal: Omit<Goal, "id">) => {
     setPlan((prev) => ({
@@ -1086,6 +1066,24 @@ export default function BusinessPlanPage() {
   const handleSave = async () => {
     await saveBusinessPlan({ silent: false });
   };
+
+  // Auto-save (debounced) so widths persist across sessions
+  useEffect(() => {
+    if (!didInitialLoadRef.current) return;
+    if (!projectId) return;
+
+    const t = window.setTimeout(() => {
+      saveBusinessPlan({ silent: true });
+    }, 900);
+
+    return () => window.clearTimeout(t);
+  }, [
+    projectId,
+    saveBusinessPlan,
+    plan.timelineWeekWidths,
+    plan.timelineRows,
+    plan.timelineTags,
+  ]);
 
   const handleRegenerateSummary = useCallback(async () => {
     if (!projectId) return;
