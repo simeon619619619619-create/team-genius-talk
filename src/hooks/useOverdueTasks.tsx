@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,6 +18,7 @@ export function useOverdueTasks() {
   const { user } = useAuth();
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const disabledRef = useRef(false);
 
   // Get current week number and day
   const getCurrentWeekAndDay = useCallback(() => {
@@ -37,14 +38,26 @@ export function useOverdueTasks() {
       return;
     }
 
+    if (disabledRef.current) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Get user's project
-      const { data: project } = await supabase
+      const { data: project, error: projectError } = await supabase
         .from("projects")
         .select("id")
         .eq("owner_id", user.id)
         .limit(1)
         .maybeSingle();
+
+      if (projectError) {
+        // Legacy schema / bad request / RLS issues: disable further checks to avoid spam
+        disabledRef.current = true;
+        setIsLoading(false);
+        return;
+      }
 
       if (!project) {
         setIsLoading(false);
