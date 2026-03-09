@@ -48,10 +48,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const checkInProgress = useRef(false);
+  const subscriptionCheckDisabledRef = useRef(false);
 
   const checkSubscription = useCallback(async () => {
     // Prevent concurrent checks
     if (checkInProgress.current) return;
+    if (subscriptionCheckDisabledRef.current) {
+      setLoading(false);
+      return;
+    }
     
     // Don't check if auth is still loading or no valid session
     if (authLoading || !session?.access_token) {
@@ -77,16 +82,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         const msg = (error as any)?.message ? String((error as any).message) : "";
         const status = (error as any)?.context?.status ?? (error as any)?.status;
 
-        // If the edge function isn't deployed/configured yet, don't spam the app or break UX.
+        // If the edge function isn't deployed/configured yet, disable future checks.
         if (status === 401 || msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
+          subscriptionCheckDisabledRef.current = true;
           setSubscribed(false);
           setPlanType("free");
           setSubscriptionEnd(null);
           return;
         }
 
-        // Soft-fail any function errors (don't crash app)
-        console.error("Error checking subscription:", error);
+        // Soft-fail any function errors (don't crash app). Disable further checks to avoid console spam.
+        subscriptionCheckDisabledRef.current = true;
         setSubscribed(false);
         setPlanType("free");
         setSubscriptionEnd(null);
@@ -97,9 +103,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setPlanType(data.plan_type || "free");
       setSubscriptionEnd(data.subscription_end || null);
     } catch (error) {
-      console.error("Error checking subscription:", error);
+      // Network/errors: don't block app or spam. Disable future checks.
+      subscriptionCheckDisabledRef.current = true;
       setSubscribed(false);
       setPlanType("free");
+      setSubscriptionEnd(null);
     } finally {
       setLoading(false);
       checkInProgress.current = false;

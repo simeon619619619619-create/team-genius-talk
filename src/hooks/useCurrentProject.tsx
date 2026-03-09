@@ -22,6 +22,7 @@ export function useCurrentProject() {
   const [unassignedCount, setUnassignedCount] = useState(0);
   const fetchingRef = useRef(false);
   const lastOrgIdRef = useRef<string | null>(null);
+  const projectFetchDisabledRef = useRef(false);
 
   const fetchOrCreateProject = useCallback(async () => {
     if (!user) {
@@ -35,6 +36,11 @@ export function useCurrentProject() {
 
     // Prevent duplicate fetches for same org
     const currentOrgId = currentOrganization?.id || null;
+    if (projectFetchDisabledRef.current) {
+      setProject(null);
+      setLoading(false);
+      return;
+    }
     if (fetchingRef.current && lastOrgIdRef.current === currentOrgId) return;
     
     fetchingRef.current = true;
@@ -179,9 +185,12 @@ export function useCurrentProject() {
         setNeedsMigration(false);
         setUnassignedCount(0);
       }
-    } catch (error) {
-      console.error("Error fetching project:", error);
+    } catch (error: any) {
       // Soft-fail: keep app usable even if legacy schema / bad request
+      const msg = typeof error?.message === "string" ? error.message : "";
+      if (msg.includes("400") || msg.includes("Bad Request") || msg.includes("column") || msg.includes("relation")) {
+        projectFetchDisabledRef.current = true;
+      }
       setProject(null);
     } finally {
       setLoading(false);
