@@ -10,18 +10,15 @@ const corsHeaders = {
 function getDateContext() {
   const now = new Date();
   const bgTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Sofia" }));
-  
+
   const dayNames = ["Неделя", "Понеделник", "Вторник", "Сряда", "Четвъртък", "Петък", "Събота"];
   const monthNames = ["Януари", "Февруари", "Март", "Април", "Май", "Юни", "Юли", "Август", "Септември", "Октомври", "Ноември", "Декември"];
-  
-  // Calculate ISO week number
+
   const startOfYear = new Date(bgTime.getFullYear(), 0, 1);
   const days = Math.floor((bgTime.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
   const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
-  
-  // Calculate quarter
   const quarter = Math.ceil((bgTime.getMonth() + 1) / 3);
-  
+
   return {
     date: bgTime.toISOString().split('T')[0],
     dayOfWeek: bgTime.getDay(),
@@ -36,99 +33,105 @@ function getDateContext() {
   };
 }
 
-// Tools for the assistant
-const assistantTools = [
+// Claude-format tools
+const claudeTools = [
   {
-    type: "function",
-    function: {
-      name: "create_weekly_task",
-      description: "Създай задача в седмичния план на бизнес плана. Използвай за добавяне на маркетинг задачи, кампании, имейли, социални мрежи и др.",
-      parameters: {
-        type: "object",
-        properties: {
-          week_number: {
-            type: "number",
-            description: "Номер на седмицата (1-52)"
-          },
-          title: {
-            type: "string",
-            description: "Заглавие на задачата"
-          },
-          description: {
-            type: "string",
-            description: "Описание с детайли - бюджет, таргет, канал и т.н."
-          },
-          day_of_week: {
-            type: "number",
-            description: "Ден от седмицата (1=Понеделник, 5=Петък). Може да е null за цялата седмица."
-          },
-          task_type: {
-            type: "string",
-            enum: ["project", "strategy", "action"],
-            description: "Тип: project=проект, strategy=стратегия, action=действие"
-          },
-          priority: {
-            type: "string",
-            enum: ["low", "medium", "high"],
-            description: "Приоритет на задачата"
-          },
-          estimated_hours: {
-            type: "number",
-            description: "Очаквано време в часове"
-          }
-        },
-        required: ["week_number", "title", "task_type"]
-      }
+    name: "create_weekly_task",
+    description: "Създай задача в седмичния план на бизнес плана. Използвай за добавяне на маркетинг задачи, кампании, имейли, социални мрежи и др.",
+    input_schema: {
+      type: "object",
+      properties: {
+        week_number: { type: "number", description: "Номер на седмицата (1-52)" },
+        title: { type: "string", description: "Заглавие на задачата" },
+        description: { type: "string", description: "Описание с детайли - бюджет, таргет, канал и т.н." },
+        day_of_week: { type: "number", description: "Ден от седмицата (1=Понеделник, 5=Петък). Може да е null за цялата седмица." },
+        task_type: { type: "string", enum: ["project", "strategy", "action"], description: "Тип: project=проект, strategy=стратегия, action=действие" },
+        priority: { type: "string", enum: ["low", "medium", "high"], description: "Приоритет на задачата" },
+        estimated_hours: { type: "number", description: "Очаквано време в часове" }
+      },
+      required: ["week_number", "title", "task_type"]
     }
   },
   {
-    type: "function",
-    function: {
-      name: "get_overdue_tasks",
-      description: "Вземи списък с пропуснати/незавършени задачи от минали седмици",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
-    }
+    name: "get_overdue_tasks",
+    description: "Вземи списък с пропуснати/незавършени задачи от минали седмици",
+    input_schema: { type: "object", properties: {} }
   },
   {
-    type: "function",
-    function: {
-      name: "get_current_week_tasks",
-      description: "Вземи задачите за текущата седмица",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
-    }
+    name: "get_current_week_tasks",
+    description: "Вземи задачите за текущата седмица",
+    input_schema: { type: "object", properties: {} }
   },
   {
-    type: "function",
-    function: {
-      name: "create_ghl_contact",
-      description: "Добави нов контакт/клиент в GoHighLevel CRM. Използвай когато потребителят иска да добави контакт, лийд или клиент в CRM системата.",
-      parameters: {
-        type: "object",
-        properties: {
-          firstName: { type: "string", description: "Собствено име" },
-          lastName: { type: "string", description: "Фамилно име" },
-          email: { type: "string", description: "Имейл адрес" },
-          phone: { type: "string", description: "Телефонен номер (с код на страната, напр. +359888123456)" },
-          companyName: { type: "string", description: "Фирма/компания" },
-          address1: { type: "string", description: "Адрес" },
-          city: { type: "string", description: "Град" },
-          country: { type: "string", description: "Код на страната (напр. BG, US)" },
-          tags: { type: "array", items: { type: "string" }, description: "Тагове/етикети за контакта" },
-          source: { type: "string", description: "Откъде е дошъл контактът (напр. website, referral)" }
-        },
-        required: ["firstName"]
-      }
+    name: "create_ghl_contact",
+    description: "Добави нов контакт/клиент в GoHighLevel CRM. Използвай когато потребителят иска да добави контакт, лийд или клиент в CRM системата.",
+    input_schema: {
+      type: "object",
+      properties: {
+        firstName: { type: "string", description: "Собствено име" },
+        lastName: { type: "string", description: "Фамилно име" },
+        email: { type: "string", description: "Имейл адрес" },
+        phone: { type: "string", description: "Телефонен номер (с код на страната, напр. +359888123456)" },
+        companyName: { type: "string", description: "Фирма/компания" },
+        address1: { type: "string", description: "Адрес" },
+        city: { type: "string", description: "Град" },
+        country: { type: "string", description: "Код на страната (напр. BG, US)" },
+        tags: { type: "array", items: { type: "string" }, description: "Тагове/етикети за контакта" },
+        source: { type: "string", description: "Откъде е дошъл контактът (напр. website, referral)" }
+      },
+      required: ["firstName"]
     }
   }
 ];
+
+// Helper: call Claude API
+async function callClaude(apiKey: string, system: string, messages: any[], tools?: any[]): Promise<any> {
+  const body: any = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 4096,
+    system,
+    messages,
+  };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+  }
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Claude API error:", response.status, errorText);
+
+    if (response.status === 429) {
+      throw new Error("RATE_LIMIT");
+    }
+    throw new Error(`Claude API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+// Convert frontend messages (OpenAI format) to Claude format
+function convertMessages(messages: Array<{ role: string; content: string }>): any[] {
+  return messages
+    .filter(m => m.role === "user" || m.role === "assistant")
+    .map(m => ({ role: m.role, content: m.content }));
+}
+
+// Extract text content from Claude response
+function getTextContent(response: any): string {
+  if (!response.content) return "Как мога да ви помогна?";
+  const textBlocks = response.content.filter((b: any) => b.type === "text");
+  return textBlocks.map((b: any) => b.text).join("\n") || "Как мога да ви помогна?";
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -137,32 +140,31 @@ serve(async (req) => {
 
   try {
     const { messages, projectId, context = "business", userId, moduleSystemPrompt, sessionId } = await req.json();
-    
-    const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
-    if (!GOOGLE_AI_KEY) {
-      throw new Error("GOOGLE_AI_KEY is not configured");
+
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get date context
     const dateContext = getDateContext();
     console.log("Date context:", dateContext);
 
     // Get business plan for context
     let businessPlanContext = "";
-    let businessPlanId = null;
+    let businessPlanId: string | null = null;
     let marketingPlanContext = "";
-    
+
     if (projectId) {
       const { data: businessPlan } = await supabase
         .from("business_plans")
         .select("*")
         .eq("project_id", projectId)
         .maybeSingle();
-      
+
       if (businessPlan) {
         businessPlanId = businessPlan.id;
         businessPlanContext = `
@@ -175,7 +177,6 @@ serve(async (req) => {
 `;
       }
 
-      // Get marketing plan (plan_steps with generated content)
       const { data: planSteps } = await supabase
         .from("plan_steps")
         .select("title, description, generated_content, completed")
@@ -191,7 +192,6 @@ serve(async (req) => {
         }
       }
 
-      // Get step answers for additional context
       const { data: stepAnswers } = await supabase
         .from("step_answers")
         .select("question_text, answer")
@@ -204,38 +204,38 @@ serve(async (req) => {
         }
       }
 
-      // Get overdue tasks
-      const { data: overdueTasks } = await supabase
-        .from("weekly_tasks")
-        .select("*")
-        .eq("business_plan_id", businessPlanId)
-        .lt("week_number", dateContext.weekNumber)
-        .eq("is_completed", false);
+      if (businessPlanId) {
+        const { data: overdueTasks } = await supabase
+          .from("weekly_tasks")
+          .select("*")
+          .eq("business_plan_id", businessPlanId)
+          .lt("week_number", dateContext.weekNumber)
+          .eq("is_completed", false);
 
-      if (overdueTasks && overdueTasks.length > 0) {
-        businessPlanContext += `\n\n⚠️ ПРОПУСНАТИ ЗАДАЧИ (${overdueTasks.length} броя):\n`;
-        overdueTasks.forEach(task => {
-          businessPlanContext += `- Седмица ${task.week_number}: ${task.title} (${task.priority || 'medium'} приоритет)\n`;
-        });
-      }
+        if (overdueTasks && overdueTasks.length > 0) {
+          businessPlanContext += `\n\n⚠️ ПРОПУСНАТИ ЗАДАЧИ (${overdueTasks.length} броя):\n`;
+          overdueTasks.forEach(task => {
+            businessPlanContext += `- Седмица ${task.week_number}: ${task.title} (${task.priority || 'medium'} приоритет)\n`;
+          });
+        }
 
-      // Get current week tasks
-      const { data: currentTasks } = await supabase
-        .from("weekly_tasks")
-        .select("*")
-        .eq("business_plan_id", businessPlanId)
-        .eq("week_number", dateContext.weekNumber);
+        const { data: currentTasks } = await supabase
+          .from("weekly_tasks")
+          .select("*")
+          .eq("business_plan_id", businessPlanId)
+          .eq("week_number", dateContext.weekNumber);
 
-      if (currentTasks && currentTasks.length > 0) {
-        businessPlanContext += `\n\n📋 ЗАДАЧИ ЗА ТАЗИ СЕДМИЦА (Седмица ${dateContext.weekNumber}):\n`;
-        currentTasks.forEach(task => {
-          const status = task.is_completed ? "✅" : "⏳";
-          businessPlanContext += `${status} ${task.title}${task.day_of_week ? ` (ден ${task.day_of_week})` : ""}\n`;
-        });
+        if (currentTasks && currentTasks.length > 0) {
+          businessPlanContext += `\n\n📋 ЗАДАЧИ ЗА ТАЗИ СЕДМИЦА (Седмица ${dateContext.weekNumber}):\n`;
+          currentTasks.forEach(task => {
+            const status = task.is_completed ? "✅" : "⏳";
+            businessPlanContext += `${status} ${task.title}${task.day_of_week ? ` (ден ${task.day_of_week})` : ""}\n`;
+          });
+        }
       }
     }
 
-    // Load cross-session chat history for this project (so AI knows what was discussed in other chats)
+    // Load cross-session chat history
     let chatHistoryContext = "";
     if (projectId && userId) {
       const { data: recentChats } = await supabase
@@ -247,13 +247,11 @@ serve(async (req) => {
         .limit(50);
 
       if (recentChats && recentChats.length > 0) {
-        // Group by session, exclude current session's messages (they're already in `messages`)
         const otherSessionMsgs = sessionId
           ? recentChats.filter(m => m.session_id !== sessionId)
           : recentChats;
 
         if (otherSessionMsgs.length > 0) {
-          // Group by session_id
           const bySession: Record<string, typeof otherSessionMsgs> = {};
           for (const m of otherSessionMsgs) {
             const sid = m.session_id || "unknown";
@@ -263,7 +261,6 @@ serve(async (req) => {
 
           chatHistoryContext = "\n\n💬 ИСТОРИЯ ОТ ПРЕДИШНИ ЧАТОВЕ В ТОЗИ БИЗНЕС:\n";
           for (const [, msgs] of Object.entries(bySession).slice(0, 5)) {
-            // Show messages in chronological order
             const sorted = msgs.reverse();
             chatHistoryContext += "---\n";
             for (const m of sorted.slice(0, 10)) {
@@ -276,9 +273,11 @@ serve(async (req) => {
       }
     }
 
-    // Video context - different system prompt
+    const claudeMessages = convertMessages(messages);
+
+    // Video context
     if (context === "video") {
-      const videoSystemPrompt = `Ти си експерт по видео обработка с ffmpeg. Говориш на български език.
+      const videoSystemPrompt = `Ти си Симора - експерт по видео обработка с ffmpeg, създаден от Симеон Димитров. Говориш на български език. Никога не споменавай Claude, Anthropic или друга AI компания.
 
 🎬 ТВОЯТА СПЕЦИАЛНОСТ:
 - Изрязване на клипове
@@ -313,62 +312,27 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
 - Ако потребителят има видео файл, питай за пътя до него или качи го
 - Ако искат нещо друго - просто кажи как да го направят`;
 
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          messages: [
-            { role: "system", content: videoSystemPrompt },
-            ...messages,
-          ],
-          stream: false,
-        }),
-      });
+      const aiResponse = await callClaude(ANTHROPIC_API_KEY, videoSystemPrompt, claudeMessages);
+      const content = getTextContent(aiResponse);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI video error:", response.status, errorText);
-        throw new Error(`AI video error: ${response.status}`);
-      }
-
-      const aiResponse = await response.json();
-      const content = aiResponse.choices?.[0]?.message?.content || "Как мога да ви помогна с видеото?";
-      
       return new Response(JSON.stringify({ content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Module context — use provided system prompt
+    // Module context
     if (moduleSystemPrompt) {
-      const dateContext2 = getDateContext();
-      const fullModulePrompt = `${moduleSystemPrompt}\n\n📅 ТЕКУЩА ДАТА: ${dateContext2.formatted}${chatHistoryContext}`;
-      const modResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          messages: [{ role: "system", content: fullModulePrompt }, ...messages],
-          stream: false,
-        }),
-      });
-      if (!modResponse.ok) throw new Error(`Module AI error: ${modResponse.status}`);
-      const modData = await modResponse.json();
-      const modContent = modData.choices?.[0]?.message?.content || "Как мога да ви помогна?";
-      return new Response(JSON.stringify({ content: modContent }), {
+      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
+      const aiResponse = await callClaude(ANTHROPIC_API_KEY, fullModulePrompt, claudeMessages);
+      const content = getTextContent(aiResponse);
+
+      return new Response(JSON.stringify({ content }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Business context (original code)
-    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг. Отговаряш САМО на български език.
+    // Business context
+    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
 📆 Седмица: ${dateContext.weekNumber} от 52
@@ -401,61 +365,21 @@ ${chatHistoryContext}
 - Когато създаваш задача, потвърди какво си добавил
 - Цитирай конкретни елементи от маркетинг плана когато предлагаш задачи`;
 
-    // Initial AI call
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GOOGLE_AI_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        tools: assistantTools,
-        stream: false,
-      }),
-    });
+    // Initial Claude call with tools
+    const aiResponse = await callClaude(ANTHROPIC_API_KEY, systemPrompt, claudeMessages, claudeTools);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Твърде много заявки. Моля, изчакайте малко." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Нужно е допълване на кредити." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
+    // Check if Claude wants to use tools
+    const toolUseBlocks = (aiResponse.content || []).filter((b: any) => b.type === "tool_use");
 
-    const aiResponse = await response.json();
-    const choice = aiResponse.choices?.[0];
-    
-    if (!choice) {
-      throw new Error("No response from AI");
-    }
-
-    // Handle tool calls
-    if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+    if (toolUseBlocks.length > 0) {
       const toolResults: any[] = [];
-      
-      for (const toolCall of choice.message.tool_calls) {
-        const functionName = toolCall.function.name;
-        const args = JSON.parse(toolCall.function.arguments || "{}");
-        
+
+      for (const toolBlock of toolUseBlocks) {
+        const functionName = toolBlock.name;
+        const args = toolBlock.input || {};
+
         console.log(`Executing tool: ${functionName}`, args);
-        
+
         if (functionName === "create_weekly_task" && businessPlanId) {
           const { error } = await supabase
             .from("weekly_tasks")
@@ -470,24 +394,14 @@ ${chatHistoryContext}
               estimated_hours: args.estimated_hours || null,
               is_completed: false,
             });
-          
-          if (error) {
-            console.error("Error creating task:", error);
-            toolResults.push({
-              tool_call_id: toolCall.id,
-              role: "tool",
-              content: JSON.stringify({ success: false, error: error.message })
-            });
-          } else {
-            toolResults.push({
-              tool_call_id: toolCall.id,
-              role: "tool",
-              content: JSON.stringify({ 
-                success: true, 
-                message: `Задачата "${args.title}" е добавена в седмица ${args.week_number}` 
-              })
-            });
-          }
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
+            content: error
+              ? JSON.stringify({ success: false, error: error.message })
+              : JSON.stringify({ success: true, message: `Задачата "${args.title}" е добавена в седмица ${args.week_number}` })
+          });
         } else if (functionName === "get_overdue_tasks" && businessPlanId) {
           const { data: overdue } = await supabase
             .from("weekly_tasks")
@@ -495,14 +409,25 @@ ${chatHistoryContext}
             .eq("business_plan_id", businessPlanId)
             .lt("week_number", dateContext.weekNumber)
             .eq("is_completed", false);
-          
+
           toolResults.push({
-            tool_call_id: toolCall.id,
-            role: "tool",
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
             content: JSON.stringify({ tasks: overdue || [] })
           });
+        } else if (functionName === "get_current_week_tasks" && businessPlanId) {
+          const { data: current } = await supabase
+            .from("weekly_tasks")
+            .select("*")
+            .eq("business_plan_id", businessPlanId)
+            .eq("week_number", dateContext.weekNumber);
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
+            content: JSON.stringify({ tasks: current || [] })
+          });
         } else if (functionName === "create_ghl_contact") {
-          // Fetch GHL integration for this user
           const { data: ghlInt, error: ghlErr } = await supabase
             .from("ghl_integrations")
             .select("api_key, location_id")
@@ -511,8 +436,8 @@ ${chatHistoryContext}
 
           if (ghlErr || !ghlInt) {
             toolResults.push({
-              tool_call_id: toolCall.id,
-              role: "tool",
+              type: "tool_result",
+              tool_use_id: toolBlock.id,
               content: JSON.stringify({ success: false, error: "Няма конфигуриран GoHighLevel API ключ. Моля, добавете го в Настройки → Интеграции." })
             });
           } else {
@@ -534,76 +459,62 @@ ${chatHistoryContext}
             if (ghlRes.ok) {
               const ghlData = await ghlRes.json();
               toolResults.push({
-                tool_call_id: toolCall.id,
-                role: "tool",
+                type: "tool_result",
+                tool_use_id: toolBlock.id,
                 content: JSON.stringify({ success: true, contactId: ghlData.contact?.id, message: `Контактът "${args.firstName} ${args.lastName || ""}" е добавен в GHL CRM.` })
               });
             } else {
               const errText = await ghlRes.text();
               toolResults.push({
-                tool_call_id: toolCall.id,
-                role: "tool",
+                type: "tool_result",
+                tool_use_id: toolBlock.id,
                 content: JSON.stringify({ success: false, error: `GHL API грешка: ${ghlRes.status} - ${errText}` })
               });
             }
           }
-        } else if (functionName === "get_current_week_tasks" && businessPlanId) {
-          const { data: current } = await supabase
-            .from("weekly_tasks")
-            .select("*")
-            .eq("business_plan_id", businessPlanId)
-            .eq("week_number", dateContext.weekNumber);
-          
+        } else {
           toolResults.push({
-            tool_call_id: toolCall.id,
-            role: "tool",
-            content: JSON.stringify({ tasks: current || [] })
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
+            content: JSON.stringify({ error: "Unknown tool or missing context" })
           });
         }
       }
 
       // Second call with tool results
-      const followUpResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-            choice.message,
-            ...toolResults,
-          ],
-          stream: false,
-        }),
-      });
+      const followUpMessages = [
+        ...claudeMessages,
+        { role: "assistant", content: aiResponse.content },
+        { role: "user", content: toolResults },
+      ];
 
-      if (!followUpResponse.ok) {
-        throw new Error("Follow-up AI call failed");
-      }
+      const followUpResponse = await callClaude(ANTHROPIC_API_KEY, systemPrompt, followUpMessages, claudeTools);
+      const finalContent = getTextContent(followUpResponse);
 
-      const followUpData = await followUpResponse.json();
-      const finalContent = followUpData.choices?.[0]?.message?.content || "Готово!";
-      
       return new Response(JSON.stringify({ content: finalContent }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // No tool calls, return direct response
-    const content = choice.message?.content || "Как мога да ви помогна?";
-    
+    const content = getTextContent(aiResponse);
+
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
     console.error("Assistant chat error:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Възникна грешка" 
+
+    if (error instanceof Error && error.message === "RATE_LIMIT") {
+      return new Response(JSON.stringify({ error: "Твърде много заявки. Моля, изчакайте малко." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "Възникна грешка"
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

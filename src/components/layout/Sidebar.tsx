@@ -16,7 +16,8 @@ import {
   Video,
   Zap,
   Rocket,
-  BookOpen
+  BookOpen,
+  GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -59,6 +60,7 @@ const baseNavItems: NavItem[] = [
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: Video, label: "Видео обработка", path: "/video" },
+  { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
@@ -70,6 +72,7 @@ const automationNavItems: NavItem[] = [
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: Users, label: "Екипи", path: "/teams" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
+  { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
@@ -81,6 +84,7 @@ const startupNavItems: NavItem[] = [
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
+  { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
