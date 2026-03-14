@@ -136,11 +136,11 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId, context = "business", userId } = await req.json();
+    const { messages, projectId, context = "business", userId, moduleSystemPrompt } = await req.json();
     
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
+    if (!GOOGLE_AI_KEY) {
+      throw new Error("GOOGLE_AI_KEY is not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -272,14 +272,14 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
 - Ако потребителят има видео файл, питай за пътя до него или качи го
 - Ако искат нещо друго - просто кажи как да го направят`;
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           messages: [
             { role: "system", content: videoSystemPrompt },
             ...messages,
@@ -298,6 +298,30 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
       const content = aiResponse.choices?.[0]?.message?.content || "Как мога да ви помогна с видеото?";
       
       return new Response(JSON.stringify({ content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Module context — use provided system prompt
+    if (moduleSystemPrompt) {
+      const dateContext2 = getDateContext();
+      const fullModulePrompt = `${moduleSystemPrompt}\n\n📅 ТЕКУЩА ДАТА: ${dateContext2.formatted}`;
+      const modResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-2.5-flash",
+          messages: [{ role: "system", content: fullModulePrompt }, ...messages],
+          stream: false,
+        }),
+      });
+      if (!modResponse.ok) throw new Error(`Module AI error: ${modResponse.status}`);
+      const modData = await modResponse.json();
+      const modContent = modData.choices?.[0]?.message?.content || "Как мога да ви помогна?";
+      return new Response(JSON.stringify({ content: modContent }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -336,14 +360,14 @@ ${marketingPlanContext}
 - Цитирай конкретни елементи от маркетинг плана когато предлагаш задачи`;
 
     // Initial AI call
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GOOGLE_AI_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
@@ -497,14 +521,14 @@ ${marketingPlanContext}
       }
 
       // Second call with tool results
-      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const followUpResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${GOOGLE_AI_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             ...messages,

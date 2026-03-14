@@ -84,6 +84,9 @@ export function OrganizationSwitcher({ collapsed = false }: OrganizationSwitcher
       } else {
         toast.error("Грешка при създаване");
       }
+    } catch (error: any) {
+      const msg = error?.message || error?.error_description || JSON.stringify(error);
+      toast.error(`Грешка: ${msg}`);
     } finally {
       setIsCreating(false);
     }

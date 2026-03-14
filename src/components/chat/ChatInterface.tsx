@@ -25,6 +25,10 @@ interface Suggestion {
 interface ChatInterfaceProps {
   suggestions?: Suggestion[];
   context?: "business" | "video";
+  moduleSystemPrompt?: string;
+  moduleInitialMessage?: string;
+  sessionId?: string | null;
+  onFirstMessage?: (text: string) => void;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -103,8 +107,8 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [], context = "business" }: ChatInterfaceProps) {
-  const { messages, isLoading, sendMessage } = useAssistantChat(context);
+export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage }: ChatInterfaceProps) {
+  const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -125,7 +129,13 @@ export function ChatInterface({ suggestions = [], context = "business" }: ChatIn
   const handleSend = (text?: string) => {
     const messageText = text || input.trim();
     if ((!messageText && pendingFiles.length === 0) || isLoading || isUploading) return;
-    
+
+    // Notify parent on first user message (for auto-titling)
+    const userMessages = messages.filter(m => m.role === "user");
+    if (userMessages.length === 0 && messageText && onFirstMessage) {
+      onFirstMessage(messageText);
+    }
+
     if (pendingFiles.length > 0) {
       uploadAndSend(messageText || "");
     } else {

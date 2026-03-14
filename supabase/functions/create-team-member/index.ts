@@ -100,9 +100,9 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", team.project_id)
       .single();
 
-    if (projectError || !project?.organization_id) {
+    if (projectError || !project) {
       return new Response(
-        JSON.stringify({ error: "Project or organization not found" }),
+        JSON.stringify({ error: "Project not found" }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
@@ -211,21 +211,23 @@ serve(async (req: Request): Promise<Response> => {
       console.error("Error creating user roles:", roleError);
     }
 
-    // Add organization_members entry
-    const { error: orgMemberError } = await supabaseAdmin
-      .from("organization_members")
-      .insert({
-        user_id: newUser.user.id,
-        organization_id: project.organization_id,
-        role: "member",
-      });
+    // Add organization_members entry (only if project has an organization)
+    if (project.organization_id) {
+      const { error: orgMemberError } = await supabaseAdmin
+        .from("organization_members")
+        .insert({
+          user_id: newUser.user.id,
+          organization_id: project.organization_id,
+          role: "member",
+        });
 
-    if (orgMemberError) {
-      console.error("Error creating org member:", orgMemberError);
+      if (orgMemberError) {
+        console.error("Error creating org member:", orgMemberError);
+      }
     }
 
     // Generate a password recovery link for the user to set their password
-    const appUrl = Deno.env.get("APP_URL") || "https://simora.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
     
     // Create a magic link token for first login
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({

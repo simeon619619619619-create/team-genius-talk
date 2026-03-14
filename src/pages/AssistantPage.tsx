@@ -1,17 +1,22 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
-import { ChevronDown } from "lucide-react";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
 import { useOverdueTasks } from "@/hooks/useOverdueTasks";
 import { OverdueTasksSection } from "@/components/dashboard/OverdueTasksSection";
-const suggestions = [
+import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useChatSessions } from "@/hooks/useChatSessions";
+
+const defaultSuggestions = [
   {
     icon: "📅",
     title: "Добави задача за тази седмица",
@@ -39,52 +44,127 @@ export default function AssistantPage() {
   const { markAsViewed } = useDailyTasks();
   const { overdueTasks } = useOverdueTasks();
   const [showOverdue, setShowOverdue] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Module state passed via navigation
+  const moduleState = location.state?.module as {
+    id: number;
+    key: string;
+    label: string;
+    systemPrompt: string;
+    initialMessage: string;
+    prompts: { label: string; text: string }[];
+  } | undefined;
+
+  const chatKey = moduleState
+    ? "module:" + moduleState.systemPrompt.substring(0, 80)
+    : "business";
+
+  const {
+    sessions,
+    activeSessionId,
+    setActiveSessionId,
+    createSession,
+    updateSessionTitle,
+    deleteSession,
+    touchSession,
+  } = useChatSessions(chatKey);
 
   // Mark as viewed when page opens
   useEffect(() => {
     markAsViewed();
   }, [markAsViewed]);
 
-  // Hide overdue section after user dismisses it
-  const handleDismissOverdue = () => {
-    setShowOverdue(false);
-  };
+  const handleNewChat = useCallback(async () => {
+    await createSession();
+  }, [createSession]);
+
+  const handleFirstMessage = useCallback(async (text: string) => {
+    if (!activeSessionId) return;
+    const title = text.length > 60 ? text.substring(0, 57) + "..." : text;
+    updateSessionTitle(activeSessionId, title);
+    touchSession(activeSessionId);
+  }, [activeSessionId, updateSessionTitle, touchSession]);
+
+  const suggestions = moduleState
+    ? moduleState.prompts.map((p) => ({ icon: "✨", title: p.label, prompt: p.text }))
+    : defaultSuggestions;
+
   return (
     <MainLayout>
-      <div className="h-[calc(100vh-5rem)] md:h-[calc(100vh-4rem)] flex flex-col">
-        {/* Header with Model Selector - ChatGPT style */}
-        <div className="flex justify-center py-2 md:py-3 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-xl transition-colors focus:outline-none">
-              <span className="font-semibold text-sm">{selectedModel.name}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="min-w-[140px]">
-              {models.map((model) => (
-                <DropdownMenuItem
-                  key={model.id}
-                  onClick={() => setSelectedModel(model)}
-                  className={selectedModel.id === model.id ? "bg-secondary" : ""}
-                >
-                  {model.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="h-[calc(100vh-5rem)] md:h-[calc(100vh-4rem)] flex">
+        {/* Sidebar */}
+        <ChatSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={setActiveSessionId}
+          onNewChat={handleNewChat}
+          onDeleteSession={deleteSession}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(prev => !prev)}
+        />
 
-        {/* Overdue Tasks Alert - Show at top when entering assistant */}
-        {showOverdue && overdueTasks.length > 0 && (
-          <div className="px-3 md:px-4 pb-3 shrink-0">
-            <div className="mx-auto max-w-3xl">
-              <OverdueTasksSection compact maxTasks={3} />
+        {/* Main chat area */}
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          {/* Header */}
+          <div className="flex justify-center items-center py-2 md:py-3 shrink-0 relative">
+            {moduleState && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute left-0 gap-1.5 text-muted-foreground"
+                onClick={() => navigate("/modules")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Модули
+              </Button>
+            )}
+            <div className="flex flex-col items-center gap-0.5">
+              {moduleState && (
+                <span className="text-xs text-muted-foreground font-medium">{moduleState.label}</span>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-1.5 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-xl transition-colors focus:outline-none">
+                  <span className="font-semibold text-sm">{selectedModel.name}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="min-w-[140px]">
+                  {models.map((model) => (
+                    <DropdownMenuItem
+                      key={model.id}
+                      onClick={() => setSelectedModel(model)}
+                      className={selectedModel.id === model.id ? "bg-secondary" : ""}
+                    >
+                      {model.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        )}
 
-        {/* Chat Interface - Full height */}
-        <div className="flex-1 min-h-0">
-          <ChatInterface suggestions={suggestions} />
+          {/* Overdue Tasks Alert - Show only when not in module mode */}
+          {!moduleState && showOverdue && overdueTasks.length > 0 && (
+            <div className="px-3 md:px-4 pb-3 shrink-0">
+              <div className="mx-auto max-w-3xl">
+                <OverdueTasksSection compact maxTasks={3} />
+              </div>
+            </div>
+          )}
+
+          {/* Chat Interface - Full height */}
+          <div className="flex-1 min-h-0">
+            <ChatInterface
+              suggestions={suggestions}
+              context="business"
+              moduleSystemPrompt={moduleState?.systemPrompt}
+              moduleInitialMessage={moduleState?.initialMessage}
+              sessionId={activeSessionId}
+              onFirstMessage={handleFirstMessage}
+            />
+          </div>
         </div>
       </div>
     </MainLayout>

@@ -94,7 +94,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build invitation URL
-    const appUrl = Deno.env.get("APP_URL") || "https://simora.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
     const invitationUrl = `${appUrl}/accept-invitation?token=${token}`;
 
     // Get inviter's profile for the email

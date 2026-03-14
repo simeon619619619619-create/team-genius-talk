@@ -66,10 +66,10 @@ serve(async (req) => {
     }
     
     const { taskDescription, teamContext } = validationResult.data;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GOOGLE_AI_KEY) {
+      throw new Error("GOOGLE_AI_KEY is not configured");
     }
 
     const systemPrompt = `Ти си експерт по проект мениджмънт и разбиване на задачи. Когато получиш описание на голяма задача, ти трябва да я разбиеш на малки, конкретни действия които могат да бъдат възложени на различни членове на екипа.
@@ -96,14 +96,14 @@ ${teamContext ? `Контекст за екипа: ${teamContext}` : ''}
   }
 ]`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GOOGLE_AI_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: taskDescription },

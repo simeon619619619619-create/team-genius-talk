@@ -23,6 +23,9 @@ import MemberLoginPage from "./pages/MemberLoginPage";
 import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import VideoPage from "./pages/VideoPage";
+import AutomationsPage from "./pages/AutomationsPage";
+import StartupPage from "./pages/StartupPage";
+import ModulesPage from "./pages/ModulesPage";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +50,9 @@ const App = () => (
                 <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
                 <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
                 <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
+                <Route path="/automations" element={<ProtectedRoute><AutomationsPage /></ProtectedRoute>} />
+                <Route path="/startup" element={<ProtectedRoute><StartupPage /></ProtectedRoute>} />
+                <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                 <Route path="/accept-invitation" element={<AcceptInvitationPage />} />

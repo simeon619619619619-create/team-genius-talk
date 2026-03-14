@@ -214,6 +214,7 @@ export function useCurrentProject() {
     projectId: project?.id || null,
     projectName: project?.name || "",
     loading: loading || orgsLoading,
+    hasOrgContext: !!currentOrganization,
     needsMigration,
     unassignedCount,
     refetch,

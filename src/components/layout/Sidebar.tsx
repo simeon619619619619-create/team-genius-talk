@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Users, 
-  ListTodo, 
-  MessageSquare, 
+import {
+  LayoutDashboard,
+  Users,
+  ListTodo,
+  MessageSquare,
   Settings,
   TrendingUp,
   FileText,
@@ -13,7 +13,10 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  Video
+  Video,
+  Zap,
+  Rocket,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -49,12 +52,35 @@ interface NavItem {
 
 const baseNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: Video, label: "Видео обработка", path: "/video" },
+  { icon: Settings, label: "Настройки", path: "/settings" },
+];
+
+const automationNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: Zap, label: "Автоматизации", path: "/automations" },
+  { icon: BookOpen, label: "Методология", path: "/modules" },
+  { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
+  { icon: ListTodo, label: "Задачи", path: "/tasks" },
+  { icon: Users, label: "Екипи", path: "/teams" },
+  { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
+  { icon: Settings, label: "Настройки", path: "/settings" },
+];
+
+const startupNavItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: Rocket, label: "Стартиране", path: "/startup" },
+  { icon: BookOpen, label: "Методология", path: "/modules" },
+  { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
+  { icon: FileText, label: "Бизнес план", path: "/business-plan" },
+  { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
+  { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
 
@@ -90,9 +116,17 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     checkAdminStatus();
   }, [user]);
 
-  // Check if user is owner type
+  // Check journey & user type
+  const journeyType = profile?.journey_type;
   const isOwnerType = profile?.user_type === "owner";
   const isWorkerType = profile?.user_type === "worker";
+
+  // Pick nav based on journey
+  const journeyNavItems = journeyType === "automation"
+    ? automationNavItems
+    : journeyType === "startup"
+    ? startupNavItems
+    : baseNavItems;
 
   const handleSignOut = async () => {
     try {
@@ -107,7 +141,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   };
 
   // Filter navigation based on user type and permissions
-  const filteredNavItems = baseNavItems.filter(item => {
+  const filteredNavItems = journeyNavItems.filter(item => {
     // Owners see everything
     if (isOwnerType) {
       return true;

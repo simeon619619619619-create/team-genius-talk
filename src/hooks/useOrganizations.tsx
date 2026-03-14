@@ -135,30 +135,26 @@ export function useOrganizations() {
   const createOrganization = async (name: string): Promise<Organization | null> => {
     if (!user) return null;
 
-    try {
-      const { data, error } = await supabase
-        .from("organizations")
-        .insert({ name, owner_id: user.id })
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("organizations")
+      .insert({ name, owner_id: user.id })
+      .select()
+      .single();
 
-      if (error) throw error;
-
-      // Also add owner as member
-      await supabase
-        .from("organization_members")
-        .insert({ 
-          organization_id: data.id, 
-          user_id: user.id, 
-          role: "owner" 
-        });
-
-      await fetchOrganizations();
-      return data;
-    } catch (error) {
-      console.error("Error creating organization:", error);
-      return null;
+    if (error) {
+      console.error("Create org error:", error);
+      throw error;
     }
+
+    // Add owner as member (best-effort)
+    await supabase
+      .from("organization_members")
+      .insert({ organization_id: data.id, user_id: user.id, role: "owner" })
+      .throwOnError()
+      .then(() => {}, () => {});
+
+    await fetchOrganizations();
+    return data;
   };
 
   const switchOrganization = (org: Organization | null) => {
@@ -168,6 +164,7 @@ export function useOrganizations() {
     } else {
       localStorage.removeItem("currentOrganizationId");
     }
+    setTimeout(() => window.location.reload(), 50);
   };
 
   const updateOrganization = async (orgId: string, name: string): Promise<boolean> => {

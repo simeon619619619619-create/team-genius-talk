@@ -1,10 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Building2, ChevronRight, ChevronLeft, Check, Loader2 } from "lucide-react";
+import {
+  Zap, Rocket, ChevronRight, ChevronLeft, Check, Loader2,
+  Link2, CheckCircle2, ExternalLink, Building2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -14,7 +25,16 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
 
-type UserType = "worker" | "owner";
+type JourneyType = "automation" | "startup";
+
+interface BusinessProfile {
+  industry: string;
+  team_size: string;
+  revenue: string;
+  main_goal: string;
+  ghl_api_key: string;
+  ghl_location_id: string;
+}
 
 interface PlanCardProps {
   name: string;
@@ -29,7 +49,6 @@ interface PlanCardProps {
 function PlanCard({ name, price, interval, features, popular, onSelect, isLoading }: PlanCardProps) {
   return (
     <div className="flex flex-col items-center">
-      {/* Trial badge above each card */}
       <div className="mb-3 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20">
         🎁 7 дена безплатен период
       </div>
@@ -58,16 +77,8 @@ function PlanCard({ name, price, interval, features, popular, onSelect, isLoadin
               </li>
             ))}
           </ul>
-          <Button 
-            className="w-full" 
-            variant={popular ? "default" : "outline"}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Избери план"
-            )}
+          <Button className="w-full" variant={popular ? "default" : "outline"} disabled={isLoading}>
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Избери план"}
           </Button>
         </CardContent>
       </Card>
@@ -81,149 +92,27 @@ export default function OnboardingPage() {
   const { profile, updateProfile, loading: profileLoading } = useProfile();
   const { createOrganization } = useOrganizations();
   const { createCheckout } = useSubscription();
-  
+
   const [step, setStep] = useState(1);
-  const [userType, setUserType] = useState<UserType | null>(null);
+  const [journeyType, setJourneyType] = useState<JourneyType | null>(null);
   const [organizationName, setOrganizationName] = useState("");
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
+    industry: "",
+    team_size: "",
+    revenue: "",
+    main_goal: "",
+    ghl_api_key: "",
+    ghl_location_id: "",
+  });
+  const [ghlSaved, setGhlSaved] = useState(false);
+  const [savingGhl, setSavingGhl] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
 
-  const handlePromoCode = async () => {
-    if (!user) {
-      toast.error("Трябва да сте влезли в системата");
-      return;
-    }
+  // Total steps per journey
+  const totalSteps = journeyType === "automation" ? 4 : 3;
 
-    const enteredCode = promoCode.trim();
-    if (!enteredCode) {
-      toast.error("Моля, въведете промо код");
-      return;
-    }
-
-    // Hardcoded master promo (bypass checkout)
-    if (enteredCode === "simora69$") {
-      setIsSubmitting(true);
-      try {
-        const success = await updateProfile({
-          user_type: userType || "worker",
-          onboarding_completed: true,
-        });
-
-        if (!success) {
-          toast.error("Грешка при завършване на онбординга");
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (userType === "owner" && organizationName.trim()) {
-          await createOrganization(organizationName.trim());
-        }
-
-        toast.success("Промо кодът е приложен успешно! Имате 100% отстъпка.");
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 500);
-      } catch (error) {
-        console.error("Error applying promo code:", error);
-        toast.error("Възникна грешка. Моля, опитайте отново.");
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Check if promo code exists and is valid
-      const { data: promoCodeData, error: promoError } = await supabase
-        .from("promo_codes")
-        .select("*")
-        .eq("code", enteredCode)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (promoError || !promoCodeData) {
-        toast.error("Невалиден промо код");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Check if already used by this user
-      const { data: existingUse } = await supabase
-        .from("used_promo_codes")
-        .select("id")
-        .eq("promo_code_id", promoCodeData.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existingUse) {
-        // Code already used — just complete onboarding
-        const success = await updateProfile({
-          user_type: userType || "worker",
-          onboarding_completed: true
-        });
-        if (success) {
-          if (userType === "owner" && organizationName.trim()) {
-            await createOrganization(organizationName.trim());
-          }
-          toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
-          setTimeout(() => { window.location.href = "/"; }, 500);
-        } else {
-          toast.error("Грешка при завършване на онбординга");
-          setIsSubmitting(false);
-        }
-        return;
-      }
-
-      // Check max uses
-      if (promoCodeData.max_uses !== null && promoCodeData.current_uses >= promoCodeData.max_uses) {
-        toast.error("Този промо код е изчерпан");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Record the promo code usage
-      const { error: useError } = await supabase
-        .from("used_promo_codes")
-        .insert({
-          promo_code_id: promoCodeData.id,
-          user_id: user.id,
-        });
-
-      if (useError) {
-        console.error("Error recording promo code usage:", useError);
-        throw useError;
-      }
-
-      // Update profile with user type and mark as completed
-      const success = await updateProfile({ 
-        user_type: userType || "worker",
-        onboarding_completed: true 
-      });
-
-      if (!success) {
-        throw new Error("Failed to update profile");
-      }
-
-      // Create organization if owner
-      if (userType === "owner" && organizationName.trim()) {
-        await createOrganization(organizationName.trim());
-      }
-
-      toast.success("Промо кодът е приложен успешно! Имате вечен безплатен достъп.");
-      
-      // Small delay to ensure profile state is updated before navigation
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
-    } catch (error) {
-      console.error("Error applying promo code:", error);
-      toast.error("Възникна грешка. Моля, опитайте отново.");
-      setIsSubmitting(false);
-    }
-  };
-
-  // Redirect if already completed onboarding
   useEffect(() => {
     if (!profileLoading && profile?.onboarding_completed) {
       navigate("/", { replace: true });
@@ -238,13 +127,9 @@ export default function OnboardingPage() {
     );
   }
 
-  const handleUserTypeSelect = (type: UserType) => {
-    setUserType(type);
-    if (type === "worker") {
-      setStep(3); // Skip org name for workers
-    } else {
-      setStep(2);
-    }
+  const handleJourneySelect = (type: JourneyType) => {
+    setJourneyType(type);
+    setStep(2);
   };
 
   const handleOrgNameSubmit = () => {
@@ -255,31 +140,103 @@ export default function OnboardingPage() {
     setStep(3);
   };
 
-  const handlePlanSelect = async (planKey: keyof typeof STRIPE_PLANS) => {
-    if (!userType) return;
-    
-    setLoadingPlan(planKey);
+  const handleBusinessProfileSubmit = () => {
+    if (!businessProfile.industry) {
+      toast.error("Моля, изберете индустрия");
+      return;
+    }
+    setStep(4);
+  };
+
+  const handleSaveGhl = async () => {
+    if (!user || !businessProfile.ghl_api_key.trim() || !businessProfile.ghl_location_id.trim()) {
+      toast.error("Попълнете API ключ и Location ID");
+      return;
+    }
+    setSavingGhl(true);
+    const { error } = await supabase
+      .from("ghl_integrations")
+      .upsert(
+        { user_id: user.id, api_key: businessProfile.ghl_api_key.trim(), location_id: businessProfile.ghl_location_id.trim(), updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+    if (error) {
+      toast.error("Грешка при свързване с GoHighLevel");
+    } else {
+      toast.success("GoHighLevel е свързан успешно!");
+      setGhlSaved(true);
+    }
+    setSavingGhl(false);
+  };
+
+  const handlePromoCode = async () => {
+    if (!user) return;
+    const code = promoCode.trim();
+    if (!code) { toast.error("Въведете промо код"); return; }
+
     setIsSubmitting(true);
-
     try {
-      // Update profile with user type
-      await updateProfile({ 
-        user_type: userType,
-        onboarding_completed: true 
-      });
-
-      // Create organization if owner
-      if (userType === "owner" && organizationName.trim()) {
-        await createOrganization(organizationName.trim());
+      if (code === "simora69$") {
+        await completeOnboarding();
+        toast.success("Промо кодът е приложен! 100% отстъпка.");
+        setTimeout(() => { window.location.href = "/"; }, 500);
+        return;
       }
 
-      // Create checkout with trial
+      const { data: promoData, error: promoErr } = await supabase
+        .from("promo_codes").select("*").eq("code", code).eq("is_active", true).maybeSingle();
+      if (promoErr || !promoData) { toast.error("Невалиден промо код"); setIsSubmitting(false); return; }
+
+      const { data: existing } = await supabase
+        .from("used_promo_codes").select("id").eq("promo_code_id", promoData.id).eq("user_id", user.id).maybeSingle();
+
+      if (!existing) {
+        if (promoData.max_uses !== null && promoData.current_uses >= promoData.max_uses) {
+          toast.error("Промо кодът е изчерпан"); setIsSubmitting(false); return;
+        }
+        await supabase.from("used_promo_codes").insert({ promo_code_id: promoData.id, user_id: user.id });
+      }
+
+      await completeOnboarding();
+      toast.success("Промо кодът е приложен! Безплатен достъп.");
+      setTimeout(() => { window.location.href = "/"; }, 500);
+    } catch {
+      toast.error("Грешка. Опитайте отново.");
+      setIsSubmitting(false);
+    }
+  };
+
+  const completeOnboarding = async () => {
+    const profileUpdate: Record<string, unknown> = {
+      user_type: "owner",
+      journey_type: journeyType,
+      onboarding_completed: true,
+    };
+
+    if (journeyType === "automation") {
+      profileUpdate.business_profile = {
+        industry: businessProfile.industry,
+        team_size: businessProfile.team_size,
+        revenue: businessProfile.revenue,
+        main_goal: businessProfile.main_goal,
+      };
+    }
+
+    await updateProfile(profileUpdate as Parameters<typeof updateProfile>[0]);
+    if (organizationName.trim()) {
+      await createOrganization(organizationName.trim());
+    }
+  };
+
+  const handlePlanSelect = async (planKey: keyof typeof STRIPE_PLANS) => {
+    setLoadingPlan(planKey);
+    setIsSubmitting(true);
+    try {
+      await completeOnboarding();
       await createCheckout(planKey);
-      
-      toast.success("Настройката е завършена! Пренасочване към плащане...");
-    } catch (error) {
-      console.error("Error during onboarding:", error);
-      toast.error("Възникна грешка. Моля, опитайте отново.");
+      toast.success("Пренасочване към плащане...");
+    } catch {
+      toast.error("Грешка. Опитайте отново.");
     } finally {
       setIsSubmitting(false);
       setLoadingPlan(null);
@@ -292,24 +249,14 @@ export default function OnboardingPage() {
       name: "Месечен",
       price: "€10.99",
       interval: "/месец",
-      features: [
-        "Неограничени проекти",
-        "AI асистент",
-        "Бизнес планове",
-        "Екипна колаборация",
-      ],
+      features: ["Неограничени проекти", "AI асистент", "Бизнес планове", "Екипна колаборация"],
     },
     {
       key: "yearly" as const,
       name: "Годишен",
       price: "€79.99",
       interval: "/година",
-      features: [
-        "Всичко от Месечен",
-        "Приоритетна поддръжка",
-        "Разширени отчети",
-        "API достъп",
-      ],
+      features: ["Всичко от Месечен", "Приоритетна поддръжка", "Разширени отчети", "API достъп"],
       popular: true,
     },
     {
@@ -317,142 +264,119 @@ export default function OnboardingPage() {
       name: "Lifetime",
       price: "€239.99",
       interval: "еднократно",
-      features: [
-        "Всичко от Годишен",
-        "Бъдещи функции безплатно",
-        "VIP поддръжка",
-        "Ексклузивен достъп",
-      ],
+      features: ["Всичко от Годишен", "Бъдещи функции безплатно", "VIP поддръжка", "Ексклузивен достъп"],
     },
   ];
 
+  // Plan step number: 3 for startup, 4 for automation
+  const planStep = journeyType === "automation" ? 4 : 3;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
-      {/* Header */}
       <header className="p-6">
         <img src={logo} alt="Симора" className="h-10 dark:invert dark:brightness-200" />
       </header>
 
-      {/* Progress indicator */}
+      {/* Progress dots */}
       <div className="flex justify-center gap-2 mb-8">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className={cn(
-              "h-2 rounded-full transition-all duration-300",
-              s <= step ? "bg-primary w-8" : "bg-muted w-2",
-              s === step && "w-12"
-            )}
-          />
-        ))}
+        {Array.from({ length: totalSteps }).map((_, i) => {
+          const s = i + 1;
+          return (
+            <div
+              key={s}
+              className={cn(
+                "h-2 rounded-full transition-all duration-300",
+                s < step ? "bg-primary w-8" : s === step ? "bg-primary w-12" : "bg-muted w-2"
+              )}
+            />
+          );
+        })}
       </div>
 
-      {/* Content */}
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <AnimatePresence mode="wait">
-          {/* Step 1: User Type Selection */}
+
+          {/* STEP 1: Choose journey */}
           {step === 1 && (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-2xl"
-            >
+            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-2xl">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold mb-2">Добре дошли в Симора!</h1>
-                <p className="text-muted-foreground text-lg">
-                  Как ще използвате платформата?
-                </p>
-                <p className="text-sm text-destructive mt-2">
-                  ⚠️ Този избор не може да бъде променен по-късно
-                </p>
+                <p className="text-muted-foreground text-lg">Кое описва твоята ситуация?</p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
-                <Card 
-                  className={cn(
-                    "cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary",
-                    userType === "worker" && "border-primary bg-primary/5"
-                  )}
-                  onClick={() => handleUserTypeSelect("worker")}
+                {/* Startup card */}
+                <Card
+                  className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary group"
+                  onClick={() => handleJourneySelect("startup")}
                 >
                   <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <User className="h-8 w-8 text-primary" />
+                    <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+                      <Rocket className="h-8 w-8 text-green-500" />
                     </div>
-                    <CardTitle className="mb-2">Работник</CardTitle>
-                    <CardDescription>
-                      Използвам Симора за себе си. Ще бъда поканен в организации от други.
+                    <CardTitle className="mb-3 text-xl">Започвам бизнес</CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
+                      Имам идея и искам стъпка по стъпка пътеводител от идея до работещ бизнес
                     </CardDescription>
+                    <div className="mt-5 flex flex-wrap gap-1.5 justify-center">
+                      {["Идея", "Валидация", "Оферта", "Маркетинг"].map(t => (
+                        <span key={t} className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 border border-green-500/20">{t}</span>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card 
-                  className={cn(
-                    "cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary",
-                    userType === "owner" && "border-primary bg-primary/5"
-                  )}
-                  onClick={() => handleUserTypeSelect("owner")}
+                {/* Existing business card */}
+                <Card
+                  className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary group"
+                  onClick={() => handleJourneySelect("automation")}
                 >
                   <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <Building2 className="h-8 w-8 text-primary" />
+                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+                      <Zap className="h-8 w-8 text-blue-500" />
                     </div>
-                    <CardTitle className="mb-2">Собственик на организация</CardTitle>
-                    <CardDescription>
-                      Ще създам организация и ще каня членове на екипа си.
+                    <CardTitle className="mb-3 text-xl">Вече имам бизнес</CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
+                      Искам да автоматизирам процеси, да свържа инструментите си и да скалирам по-бързо
                     </CardDescription>
+                    <div className="mt-5 flex flex-wrap gap-1.5 justify-center">
+                      {["CRM", "Имейли", "Автоматизации", "API"].map(t => (
+                        <span key={t} className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">{t}</span>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
           )}
 
-          {/* Step 2: Organization Name (only for owners) */}
-          {step === 2 && userType === "owner" && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-md"
-            >
+          {/* STEP 2: Business/Idea name */}
+          {step === 2 && (
+            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-md">
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2">Как се казва вашата организация?</h1>
+                <h1 className="text-3xl font-bold mb-2">
+                  {journeyType === "startup" ? "Как ще се казва бизнесът ти?" : "Как се казва бизнесът ти?"}
+                </h1>
                 <p className="text-muted-foreground">
-                  Това име ще виждат членовете на екипа ви
+                  {journeyType === "startup" ? "Може да е работно заглавие — винаги можеш да промениш" : "Това ще бъде името на твоята организация"}
                 </p>
               </div>
-
               <Card>
                 <CardContent className="p-6 space-y-6">
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Име на организацията"
-                      value={organizationName}
-                      onChange={(e) => setOrganizationName(e.target.value)}
-                      className="text-center text-lg h-12"
-                      autoFocus
-                    />
-                  </div>
-
+                  <Input
+                    placeholder={journeyType === "startup" ? "Примерна идея ООД" : "Моята Компания ЕООД"}
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    className="text-center text-lg h-12"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") handleOrgNameSubmit(); }}
+                  />
                   <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1"
-                      onClick={() => setStep(1)}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-2" />
-                      Назад
+                    <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                      <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                     </Button>
-                    <Button 
-                      className="flex-1"
-                      onClick={handleOrgNameSubmit}
-                      disabled={!organizationName.trim()}
-                    >
-                      Продължи
-                      <ChevronRight className="h-4 w-4 ml-2" />
+                    <Button className="flex-1" onClick={handleOrgNameSubmit} disabled={!organizationName.trim()}>
+                      Продължи <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
                   </div>
                 </CardContent>
@@ -460,20 +384,162 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Step 3: Plan Selection */}
-          {step === 3 && (
-            <motion.div
-              key="step3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full max-w-4xl"
-            >
+          {/* STEP 3 for AUTOMATION: Business profile + API connections */}
+          {step === 3 && journeyType === "automation" && (
+            <motion.div key="step3-auto" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-2xl">
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2">Моля изберете вашия абонамент</h1>
-                <p className="text-muted-foreground">
-                  Изберете план, който отговаря на вашите нужди
-                </p>
+                <h1 className="text-3xl font-bold mb-2">Разкажи ни за бизнеса си</h1>
+                <p className="text-muted-foreground">Тази информация помага на AI да те съветва по-добре + свържи инструментите си</p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Business profile form */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Building2 className="h-4 w-4" /> Бизнес профил
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Индустрия</Label>
+                      <Select value={businessProfile.industry} onValueChange={(v) => setBusinessProfile(p => ({ ...p, industry: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Избери индустрия..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["E-commerce / Онлайн магазин", "Услуги (B2C)", "Услуги (B2B)", "Ресторант / Хранителен бизнес", "Здраве и красота", "Недвижими имоти", "Образование / Курсове", "Производство", "Технологии / SaaS", "Маркетинг агенция", "Друго"].map(o => (
+                            <SelectItem key={o} value={o}>{o}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Брой служители</Label>
+                      <Select value={businessProfile.team_size} onValueChange={(v) => setBusinessProfile(p => ({ ...p, team_size: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Размер на екипа..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Само аз", "2-5 човека", "6-15 човека", "16-50 човека", "50+ човека"].map(o => (
+                            <SelectItem key={o} value={o}>{o}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Месечни приходи (приблизително)</Label>
+                      <Select value={businessProfile.revenue} onValueChange={(v) => setBusinessProfile(p => ({ ...p, revenue: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Приходи..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["До €1,000", "€1,000 – €5,000", "€5,000 – €15,000", "€15,000 – €50,000", "€50,000+"].map(o => (
+                            <SelectItem key={o} value={o}>{o}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Основна цел</Label>
+                      <Select value={businessProfile.main_goal} onValueChange={(v) => setBusinessProfile(p => ({ ...p, main_goal: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Какво искаш да постигнеш..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            "Спестяване на време чрез автоматизации",
+                            "Повече продажби / клиенти",
+                            "По-добро управление на екипа",
+                            "Маркетинг и реклама",
+                            "Финансово управление",
+                            "Всичко горе",
+                          ].map(o => (
+                            <SelectItem key={o} value={o}>{o}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* GHL Connection */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Link2 className="h-4 w-4" /> GoHighLevel CRM
+                          {ghlSaved && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                        </CardTitle>
+                        <CardDescription className="text-xs mt-0.5">
+                          Свържи CRM системата за да добавяш контакти директно от AI асистента (незадължително)
+                        </CardDescription>
+                      </div>
+                      <a href="https://app.gohighlevel.com" target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                        GHL <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Private API ключ</Label>
+                        <Input
+                          type="password"
+                          placeholder="eyJhbGciOiJIUz..."
+                          value={businessProfile.ghl_api_key}
+                          onChange={(e) => setBusinessProfile(p => ({ ...p, ghl_api_key: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Location ID</Label>
+                        <Input
+                          placeholder="AbC123xYz..."
+                          value={businessProfile.ghl_location_id}
+                          onChange={(e) => setBusinessProfile(p => ({ ...p, ghl_location_id: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    {!ghlSaved ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveGhl}
+                        disabled={savingGhl || !businessProfile.ghl_api_key || !businessProfile.ghl_location_id}
+                      >
+                        {savingGhl ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Свързване...</> : "Свържи GoHighLevel"}
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-green-600 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> GoHighLevel е свързан успешно
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                    <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+                  </Button>
+                  <Button className="flex-1" onClick={handleBusinessProfileSubmit} disabled={!businessProfile.industry}>
+                    Продължи <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 3 for STARTUP or STEP 4 for AUTOMATION: Plan selection */}
+          {step === planStep && (
+            <motion.div key="plan-step" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-4xl">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold mb-2">Изберете абонамент</h1>
+                <p className="text-muted-foreground">Започнете с 7 дена безплатен период</p>
               </div>
 
               <div className="grid md:grid-cols-3 gap-6 mb-8">
@@ -495,8 +561,6 @@ export default function OnboardingPage() {
                 <p className="text-xs text-muted-foreground">
                   Изисква се регистрация на карта. Отмени по всяко време преди края на периода.
                 </p>
-                
-                {/* Promo code section */}
                 <div className="flex flex-col items-center gap-2">
                   <p className="text-sm text-muted-foreground">Имаш промо код?</p>
                   <div className="flex gap-2 max-w-xs">
@@ -505,31 +569,23 @@ export default function OnboardingPage() {
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       className="text-center"
+                      onKeyDown={(e) => { if (e.key === "Enter") handlePromoCode(); }}
                     />
-                    <Button
-                      variant="outline"
-                      onClick={handlePromoCode}
-                      disabled={isSubmitting || !promoCode.trim()}
-                    >
+                    <Button variant="outline" onClick={handlePromoCode} disabled={isSubmitting || !promoCode.trim()}>
                       {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Приложи"}
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {step === 3 && (
-                <div className="flex justify-center mt-6">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setStep(userType === "owner" ? 2 : 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Назад
-                  </Button>
-                </div>
-              )}
+              <div className="flex justify-center mt-6">
+                <Button variant="ghost" onClick={() => setStep(journeyType === "automation" ? 3 : 2)}>
+                  <ChevronLeft className="h-4 w-4 mr-2" /> Назад
+                </Button>
+              </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
     </div>

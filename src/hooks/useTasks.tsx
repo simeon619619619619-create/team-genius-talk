@@ -37,7 +37,7 @@ export interface DbSubtask {
 
 export function useTasks() {
   const { user } = useAuth();
-  const { projectId } = useCurrentProject();
+  const { projectId, loading: projectLoading, hasOrgContext } = useCurrentProject();
   const [tasks, setTasks] = useState<DbTask[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,16 +48,26 @@ export function useTasks() {
       return;
     }
 
+    // Wait for project to resolve before fetching
+    if (projectLoading) {
+      return;
+    }
+
     try {
       // Build query based on whether we have a project
       let query = supabase.from("tasks").select("*");
-      
+
       if (projectId) {
         // Only show tasks for this specific project
         query = query.eq("project_id", projectId);
-      } else {
-        // No project selected, show only user's tasks without project (orphaned tasks)
+      } else if (!hasOrgContext) {
+        // Personal workspace: show orphaned tasks (no project assigned)
         query = query.eq("user_id", user.id).is("project_id", null);
+      } else {
+        // Org is selected but no project yet — show nothing
+        setTasks([]);
+        setLoading(false);
+        return;
       }
       
       const { data: tasksData, error: tasksError } = await query.order("created_at", { ascending: false });
@@ -96,7 +106,7 @@ export function useTasks() {
     } finally {
       setLoading(false);
     }
-  }, [user, projectId]);
+  }, [user, projectId, projectLoading, hasOrgContext]);
 
   useEffect(() => {
     fetchTasks();

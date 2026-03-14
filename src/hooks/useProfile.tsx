@@ -11,6 +11,8 @@ export interface Profile {
   phone: string | null;
   instagram: string | null;
   user_type: "worker" | "owner" | null;
+  journey_type: "automation" | "startup" | null;
+  business_profile: Record<string, string> | null;
   onboarding_completed: boolean;
   workspace_name: string | null;
   created_at: string;

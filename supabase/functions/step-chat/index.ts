@@ -316,9 +316,9 @@ serve(async (req) => {
       contextKeys = []
     } = validationResult.data;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
+    if (!GOOGLE_AI_KEY) {
+      throw new Error("GOOGLE_AI_KEY is not configured");
     }
 
     // Save user message to conversation
@@ -534,7 +534,7 @@ ${botConfig.enableWeeklyPlanning ? `- ВАЖНО: Когато имаш конк
 
     // Call AI with or without tools based on step configuration
     const requestBody: any = {
-      model: "google/gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       messages,
     };
 
@@ -543,10 +543,10 @@ ${botConfig.enableWeeklyPlanning ? `- ВАЖНО: Когато имаш конк
       requestBody.tool_choice = "auto";
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GOOGLE_AI_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
