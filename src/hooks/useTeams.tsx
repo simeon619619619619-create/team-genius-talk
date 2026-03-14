@@ -191,7 +191,7 @@ export function useTeams(projectId: string | null) {
     role: string,
     email?: string,
     projectIds?: string[]
-  ): Promise<{ accessLink?: string; memberId?: string; memberEmail?: string } | null> => {
+  ): Promise<{ accessLink?: string; memberId?: string; memberEmail?: string; emailSent?: boolean } | null> => {
     try {
       // Use raw fetch for better error handling
       const { data: { session } } = await supabase.auth.getSession();
@@ -227,6 +227,7 @@ export function useTeams(projectId: string | null) {
         accessLink: data?.accessLink,
         memberId: data?.teamMemberId,
         memberEmail: data?.memberEmail,
+        emailSent: data?.emailSent,
       };
     } catch (error: any) {
       console.error("Create member error:", error);

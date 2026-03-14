@@ -145,47 +145,79 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", team.project_id)
       .single();
 
-    // Create user account - use provided email or generate internal one
+    // Create user account
     const memberEmail = email || `member-${crypto.randomUUID().substring(0, 8)}@team.simora.bg`;
-    const tempPassword = crypto.randomUUID();
+    const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
+    const isRealEmail = email && !email.endsWith("@team.simora.bg");
 
-    console.log("Creating user:", memberEmail);
+    console.log("Creating user:", memberEmail, "realEmail:", isRealEmail);
 
-    const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-      email: memberEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: name,
-        created_by_owner: userId,
-        is_team_member: true,
-      },
-    });
+    let newUserId: string;
 
-    if (createUserError || !newUser.user) {
-      console.error("Create user failed:", createUserError?.message);
-      return new Response(
-        JSON.stringify({ error: `Failed to create user: ${createUserError?.message}` }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+    if (isRealEmail) {
+      // Use inviteUserByEmail — sends an actual invitation email
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+        memberEmail,
+        {
+          data: {
+            full_name: name,
+            created_by_owner: userId,
+            is_team_member: true,
+          },
+          redirectTo: `${appUrl}/member-login`,
+        }
       );
-    }
-    console.log("User created:", newUser.user.id);
 
-    // Update profile
+      if (inviteError || !inviteData.user) {
+        console.error("Invite user failed:", inviteError?.message);
+        return new Response(
+          JSON.stringify({ error: `Failed to invite user: ${inviteError?.message}` }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
+      }
+      newUserId = inviteData.user.id;
+      console.log("User invited (email sent):", newUserId);
+    } else {
+      // Internal email — create directly without sending email
+      const tempPassword = crypto.randomUUID();
+      const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email: memberEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: name,
+          created_by_owner: userId,
+          is_team_member: true,
+        },
+      });
+
+      if (createUserError || !newUser.user) {
+        console.error("Create user failed:", createUserError?.message);
+        return new Response(
+          JSON.stringify({ error: `Failed to create user: ${createUserError?.message}` }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
+      }
+      newUserId = newUserId;
+      console.log("User created:", newUserId);
+    }
+
+    // Wait for profile trigger then update
+    await new Promise(r => setTimeout(r, 500));
     await supabaseAdmin
       .from("profiles")
       .update({
         user_type: "worker",
         onboarding_completed: true,
       })
-      .eq("user_id", newUser.user.id);
+      .eq("user_id", newUserId);
 
     // Create team member
     const { data: teamMember, error: memberError } = await supabaseAdmin
       .from("team_members")
       .insert({
         team_id: teamId,
-        user_id: newUser.user.id,
+        user_id: newUserId,
         email: memberEmail,
         role: role,
         status: "accepted",
@@ -197,7 +229,7 @@ serve(async (req: Request): Promise<Response> => {
 
     if (memberError) {
       console.error("Team member insert failed:", memberError.message);
-      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
       return new Response(
         JSON.stringify({ error: `Failed to add member: ${memberError.message}` }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
@@ -226,7 +258,7 @@ serve(async (req: Request): Promise<Response> => {
       .from("user_roles")
       .insert(
         Array.from(allProjectIds).map(pid => ({
-          user_id: newUser.user.id,
+          user_id: newUserId,
           project_id: pid,
           role: "editor",
         }))
@@ -237,38 +269,37 @@ serve(async (req: Request): Promise<Response> => {
       await supabaseAdmin
         .from("organization_members")
         .insert({
-          user_id: newUser.user.id,
+          user_id: newUserId,
           organization_id: project.organization_id,
           role: "member",
         });
     }
 
-    // Generate access link
-    const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
-    let accessLink = `${appUrl}/member-login?email=${encodeURIComponent(memberEmail)}&pw=${encodeURIComponent(tempPassword)}`;
-
+    // Generate access link (for sharing manually)
+    let accessLink = "";
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
         email: memberEmail,
-        options: { redirectTo: `${appUrl}/set-password` },
+        options: { redirectTo: `${appUrl}/member-login` },
       });
 
       if (!linkError && linkData?.properties?.hashed_token) {
         accessLink = `${appUrl}/member-login?token_hash=${linkData.properties.hashed_token}&email=${encodeURIComponent(memberEmail)}`;
       }
     } catch {
-      // fallback link already set
+      // no link available
     }
 
-    console.log("Success! Member:", name, "Team:", team.name);
+    console.log("Success! Member:", name, "Team:", team.name, "emailSent:", isRealEmail);
 
     return new Response(
       JSON.stringify({
         success: true,
         accessLink,
+        emailSent: !!isRealEmail,
         teamMemberId: teamMember.id,
-        userId: newUser.user.id,
+        userId: newUserId,
         teamName: team.name,
         memberName: name,
         memberEmail,

@@ -48,6 +48,8 @@ export default function TeamsPage() {
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [accessLink, setAccessLink] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [createdMemberId, setCreatedMemberId] = useState<string | null>(null);
 
@@ -120,15 +122,19 @@ export default function TeamsPage() {
         newMemberEmail || undefined,
         selectedProjectIds.length > 0 ? selectedProjectIds : undefined
       );
-      if (result?.accessLink && result?.memberId) {
-        // Save permissions for the new member
-        await savePermissions(result.memberId, newMemberPermissions);
-        setCreatedMemberId(result.memberId);
-        setAccessLink(result.accessLink);
-        toast.success("Членът е добавен успешно!");
-      } else if (result?.accessLink) {
-        setAccessLink(result.accessLink);
-        toast.success("Членът е добавен!");
+      if (result) {
+        if (result.memberId) {
+          await savePermissions(result.memberId, newMemberPermissions);
+          setCreatedMemberId(result.memberId);
+        }
+        setAccessLink(result.accessLink || null);
+        setEmailSent(!!(result as any).emailSent);
+        setCreatedEmail((result as any).memberEmail || null);
+        toast.success(
+          (result as any).emailSent
+            ? "Поканата е изпратена на имейла!"
+            : "Членът е добавен успешно!"
+        );
       }
       setNewMemberName("");
       setNewMemberEmail("");
@@ -160,6 +166,8 @@ export default function TeamsPage() {
   const handleCloseAddDialog = () => {
     setNewMemberOpen(false);
     setAccessLink(null);
+    setEmailSent(false);
+    setCreatedEmail(null);
     setCreatedMemberId(null);
     setCopied(false);
   };
@@ -363,39 +371,51 @@ export default function TeamsPage() {
                   <DialogTitle className="font-display">Добавяне на член</DialogTitle>
                 </DialogHeader>
                 
-                {accessLink ? (
+                {accessLink || emailSent ? (
                   <div className="space-y-4 mt-4">
                     <div className="rounded-lg bg-success/10 border border-success/20 p-4">
                       <p className="text-sm text-success font-medium mb-2">✓ Членът е добавен!</p>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Споделете този линк с члена - при първо влизане ще зададе своя парола:
-                      </p>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={accessLink} 
-                          readOnly 
-                          className="text-xs font-mono"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="icon"
-                          onClick={handleCopyLink}
-                        >
-                          {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
+
+                      {emailSent && createdEmail && (
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Изпратена е покана на <strong>{createdEmail}</strong>.
+                          При отваряне на линка от имейла ще зададе парола и ще влезе директно.
+                        </p>
+                      )}
+
+                      {accessLink && (
+                        <>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {emailSent ? "Или споделете този линк директно:" : "Споделете този линк с члена:"}
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              value={accessLink}
+                              readOnly
+                              className="text-xs font-mono"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={handleCopyLink}
+                            >
+                              {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="flex justify-end gap-3">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setAccessLink(null)}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => { setAccessLink(null); setEmailSent(false); setCreatedEmail(null); }}
                       >
                         Добави друг
                       </Button>
-                      <Button 
-                        type="button" 
+                      <Button
+                        type="button"
                         className="gradient-primary text-primary-foreground"
                         onClick={handleCloseAddDialog}
                       >
