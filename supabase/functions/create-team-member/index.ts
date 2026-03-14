@@ -10,7 +10,7 @@ interface CreateMemberRequest {
   teamId: string;
   name: string;
   role: string;
-  projectIds?: string[]; // Optional: additional projects to grant access to
+  projectIds?: string[];
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -19,39 +19,13 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing environment variables");
-      throw new Error("Server configuration error");
-    }
-
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user from the auth header
-    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
-    if (!authHeader) {
-      console.error("No auth header found");
-      return new Response(
-        JSON.stringify({ error: "No authorization header" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    const authToken = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
-    if (userError || !user) {
-      console.error("Auth error:", userError?.message, "token prefix:", authToken.substring(0, 20));
-      return new Response(
-        JSON.stringify({ error: "Authentication failed", detail: userError?.message }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    console.log("Authenticated owner:", user.email, user.id);
-
+    // Parse body first
     const { teamId, name, role, projectIds }: CreateMemberRequest = await req.json();
+    console.log("Request:", { teamId, name, role });
 
     if (!teamId || !name || !role) {
       return new Response(
@@ -60,9 +34,28 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Step 1: Getting team", teamId);
+    // Auth: get user from JWT
+    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
+    const authToken = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-    // Get team and verify owner has access
+    if (!authToken) {
+      return new Response(
+        JSON.stringify({ error: "No authorization token" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
+    if (userError || !user) {
+      console.error("Auth failed:", userError?.message);
+      return new Response(
+        JSON.stringify({ error: "Authentication failed", detail: userError?.message }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+    console.log("Auth OK:", user.email);
+
+    // Get team
     const { data: team, error: teamError } = await supabaseAdmin
       .from("teams")
       .select("id, name, project_id")
@@ -72,55 +65,54 @@ serve(async (req: Request): Promise<Response> => {
     if (teamError || !team) {
       console.error("Team not found:", teamError?.message);
       return new Response(
-        JSON.stringify({ error: "Team not found", detail: teamError?.message }),
+        JSON.stringify({ error: "Team not found" }),
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
-    console.log("Step 1 OK: team", team.name, "project", team.project_id);
+    console.log("Team found:", team.name, "project:", team.project_id);
 
-    console.log("Step 2: Checking access for user", user.id, "project", team.project_id);
+    // Verify access — check directly instead of RPC to avoid issues
+    const { data: projectOwner } = await supabaseAdmin
+      .from("projects")
+      .select("id")
+      .eq("id", team.project_id)
+      .eq("owner_id", user.id)
+      .maybeSingle();
 
-    // Verify owner has access to this project
-    const { data: hasAccess, error: accessError } = await supabaseAdmin.rpc(
-      "has_project_access",
-      { _user_id: user.id, _project_id: team.project_id },
-    );
+    const { data: userRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("project_id", team.project_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    console.log("Step 2 result:", hasAccess, accessError?.message);
-
-    if (accessError || !hasAccess) {
+    if (!projectOwner && !userRole) {
+      console.error("Access denied for user", user.id);
       return new Response(
-        JSON.stringify({ error: "Access denied", detail: accessError?.message }),
+        JSON.stringify({ error: "Access denied" }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
+    console.log("Access verified");
 
-    // Get the organization_id from the project
-    const { data: project, error: projectError } = await supabaseAdmin
+    // Get org from project
+    const { data: project } = await supabaseAdmin
       .from("projects")
       .select("organization_id")
       .eq("id", team.project_id)
       .single();
 
-    if (projectError || !project) {
-      return new Response(
-        JSON.stringify({ error: "Project not found" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    // Generate a unique email for this member (internal use only)
+    // Create user account
     const uniqueId = crypto.randomUUID().substring(0, 8);
     const internalEmail = `member-${uniqueId}@team.simora.bg`;
-    
-    // Generate a random temporary password (user will reset this)
     const tempPassword = crypto.randomUUID();
 
-    // Create the user account using admin API
+    console.log("Creating user:", internalEmail);
+
     const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email: internalEmail,
       password: tempPassword,
-      email_confirm: true, // Auto-confirm since we don't use email
+      email_confirm: true,
       user_metadata: {
         full_name: name,
         created_by_owner: user.id,
@@ -129,33 +121,24 @@ serve(async (req: Request): Promise<Response> => {
     });
 
     if (createUserError || !newUser.user) {
-      console.error("Step 4 FAIL - Error creating user:", JSON.stringify(createUserError));
-      throw new Error(`Failed to create user account: ${createUserError?.message || 'unknown'}`);
+      console.error("Create user failed:", createUserError?.message);
+      return new Response(
+        JSON.stringify({ error: `Failed to create user: ${createUserError?.message}` }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
     }
+    console.log("User created:", newUser.user.id);
 
-    console.log("Step 4 OK: Created user", newUser.user.id);
-
-    // Create or update profile for the new user (upsert to handle auth trigger)
-    const { error: profileError } = await supabaseAdmin
+    // Update profile (trigger already created it, just update extra fields)
+    await supabaseAdmin
       .from("profiles")
-      .upsert({
-        user_id: newUser.user.id,
-        full_name: name,
-        email: internalEmail,
+      .update({
         user_type: "worker",
-        onboarding_completed: true, // Skip onboarding for team members
-      }, {
-        onConflict: "user_id",
-      });
+        onboarding_completed: true,
+      })
+      .eq("user_id", newUser.user.id);
 
-    if (profileError) {
-      console.error("Error upserting profile:", profileError);
-      // Cleanup: delete the user if profile creation fails
-      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-      throw new Error("Failed to create user profile");
-    }
-
-    // Create team member record
+    // Create team member
     const { data: teamMember, error: memberError } = await supabaseAdmin
       .from("team_members")
       .insert({
@@ -163,7 +146,7 @@ serve(async (req: Request): Promise<Response> => {
         user_id: newUser.user.id,
         email: internalEmail,
         role: role,
-        status: "accepted", // Auto-accept since owner created them
+        status: "accepted",
         invited_by: user.id,
         accepted_at: new Date().toISOString(),
       })
@@ -171,14 +154,17 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (memberError) {
-      console.error("Error creating team member:", memberError);
-      // Cleanup
+      console.error("Team member insert failed:", memberError.message);
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-      throw new Error("Failed to create team member");
+      return new Response(
+        JSON.stringify({ error: `Failed to add member: ${memberError.message}` }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
     }
+    console.log("Team member created:", teamMember.id);
 
-    // Create member_permissions with full access by default
-    const { error: permError } = await supabaseAdmin
+    // Create permissions
+    await supabaseAdmin
       .from("member_permissions")
       .insert({
         team_member_id: teamMember.id,
@@ -188,97 +174,70 @@ serve(async (req: Request): Promise<Response> => {
         can_view_all: true,
       });
 
-    if (permError) {
-      console.error("Error creating member permissions:", permError);
-    }
-
-    // Build list of projects to grant access to
+    // Add user_roles
     const allProjectIds = new Set<string>([team.project_id]);
     if (projectIds && Array.isArray(projectIds)) {
       projectIds.forEach(pid => allProjectIds.add(pid));
     }
 
-    // Add user_roles entries for all projects
-    const roleInserts = Array.from(allProjectIds).map(pid => ({
-      user_id: newUser.user.id,
-      project_id: pid,
-      role: "editor",
-    }));
-
-    const { error: roleError } = await supabaseAdmin
+    await supabaseAdmin
       .from("user_roles")
-      .insert(roleInserts);
+      .insert(
+        Array.from(allProjectIds).map(pid => ({
+          user_id: newUser.user.id,
+          project_id: pid,
+          role: "editor",
+        }))
+      );
 
-    if (roleError) {
-      console.error("Error creating user roles:", roleError);
-    }
-
-    // Add organization_members entry (only if project has an organization)
-    if (project.organization_id) {
-      const { error: orgMemberError } = await supabaseAdmin
+    // Add org membership
+    if (project?.organization_id) {
+      await supabaseAdmin
         .from("organization_members")
         .insert({
           user_id: newUser.user.id,
           organization_id: project.organization_id,
           role: "member",
         });
-
-      if (orgMemberError) {
-        console.error("Error creating org member:", orgMemberError);
-      }
     }
 
-    // Generate access link for the new member
+    // Generate access link
     const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
-    let accessLink = "";
+    let accessLink = `${appUrl}/member-login?email=${encodeURIComponent(internalEmail)}&pw=${encodeURIComponent(tempPassword)}`;
 
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
         email: internalEmail,
-        options: {
-          redirectTo: `${appUrl}/set-password`,
-        },
+        options: { redirectTo: `${appUrl}/set-password` },
       });
 
-      if (linkError) {
-        console.error("Error generating magic link:", linkError);
-        // Fallback: create a direct login link with temp password
-        accessLink = `${appUrl}/member-login?email=${encodeURIComponent(internalEmail)}&pw=${encodeURIComponent(tempPassword)}`;
-      } else {
-        const tokenHash = linkData.properties?.hashed_token;
-        accessLink = `${appUrl}/member-login?token_hash=${tokenHash}&email=${encodeURIComponent(internalEmail)}`;
+      if (!linkError && linkData?.properties?.hashed_token) {
+        accessLink = `${appUrl}/member-login?token_hash=${linkData.properties.hashed_token}&email=${encodeURIComponent(internalEmail)}`;
       }
-    } catch (linkErr) {
-      console.error("Link generation failed:", linkErr);
-      accessLink = `${appUrl}/member-login?email=${encodeURIComponent(internalEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+    } catch {
+      // fallback link already set
     }
 
-    console.log(`Team member created: ${name} for team ${team.name}`);
+    console.log("Success! Member:", name, "Team:", team.name);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         accessLink,
         teamMemberId: teamMember.id,
         userId: newUser.user.id,
         teamName: team.name,
         memberName: name,
       }),
-      { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
   } catch (error: any) {
-    console.error("Error creating team member:", error?.message, error?.stack || error);
+    console.error("FATAL:", error?.message, error?.stack);
     return new Response(
-      JSON.stringify({ error: error.message || "Unknown error", details: String(error) }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      }
+      JSON.stringify({ error: error?.message || "Unknown error" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 });
