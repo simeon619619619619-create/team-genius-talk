@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle2, Briefcase, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoIcon from "@/assets/logo-icon.png";
 
@@ -26,6 +26,7 @@ export default function AuthPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupName, setSignupName] = useState("");
+  const [signupUserType, setSignupUserType] = useState<"owner" | "worker" | null>(null);
 
   const redirect = searchParams.get("redirect") || "/";
 
@@ -65,21 +66,42 @@ export default function AuthPage() {
       toast.error("Моля, попълнете имейл и парола");
       return;
     }
-
+    if (!signupUserType) {
+      toast.error("Моля, изберете тип акаунт");
+      return;
+    }
     if (signupPassword.length < 6) {
       toast.error("Паролата трябва да е поне 6 символа");
       return;
     }
 
     setLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, signupName);
-    setLoading(false);
+    const { error, data } = await signUp(signupEmail, signupPassword, signupName);
 
     if (error) {
+      setLoading(false);
       toast.error("Грешка при регистрация: " + error.message);
+      return;
+    }
+
+    // Set user_type in profile after signup
+    if (data?.user) {
+      const profileUpdate: Record<string, unknown> = { user_type: signupUserType };
+      if (signupUserType === "worker") {
+        profileUpdate.onboarding_completed = true;
+      }
+      // Wait a moment for the trigger to create the profile
+      await new Promise(r => setTimeout(r, 1000));
+      const { supabase } = await import("@/integrations/supabase/client");
+      await supabase.from("profiles").update(profileUpdate).eq("user_id", data.user.id);
+    }
+
+    setLoading(false);
+    toast.success("Регистрацията е успешна!");
+    if (signupUserType === "worker") {
+      navigate("/");
     } else {
-      toast.success("Регистрацията е успешна! Вече сте влезли.");
-      navigate(redirect);
+      navigate("/onboarding");
     }
   };
 
@@ -195,6 +217,37 @@ export default function AuthPage() {
               <TabsContent value="signup" className="mt-0 space-y-5 animate-fade-in">
                 <form onSubmit={handleSignup} className="space-y-5">
                   <div className="space-y-4">
+                    {/* User type selector */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSignupUserType("owner")}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
+                          signupUserType === "owner"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/60 bg-muted/30 text-muted-foreground hover:border-border"
+                        )}
+                      >
+                        <Briefcase className="h-6 w-6" />
+                        <span className="text-sm font-medium">Собственик</span>
+                        <span className="text-[11px] opacity-70">Имам бизнес</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSignupUserType("worker")}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
+                          signupUserType === "worker"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/60 bg-muted/30 text-muted-foreground hover:border-border"
+                        )}
+                      >
+                        <Users className="h-6 w-6" />
+                        <span className="text-sm font-medium">Работник</span>
+                        <span className="text-[11px] opacity-70">Член на екип</span>
+                      </button>
+                    </div>
                     <div className="group relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <Input
