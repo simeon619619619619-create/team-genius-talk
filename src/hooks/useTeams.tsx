@@ -196,7 +196,15 @@ export function useTeams(projectId: string | null) {
         body: { teamId, name, role, projectIds },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract the actual error from the response
+        const detail = data?.error || data?.detail || error.message;
+        throw new Error(detail);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       await fetchTeams(); // Refresh teams
       return {
@@ -204,6 +212,7 @@ export function useTeams(projectId: string | null) {
         memberId: data?.teamMemberId,
       };
     } catch (error: any) {
+      console.error("Create member error:", error);
       toast.error(`Грешка при добавяне на член: ${error.message}`);
       return null;
     }
