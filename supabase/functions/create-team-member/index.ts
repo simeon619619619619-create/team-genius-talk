@@ -154,8 +154,10 @@ serve(async (req: Request): Promise<Response> => {
 
     let newUserId: string;
 
+    let existingUser = false;
+
     if (isRealEmail) {
-      // Use inviteUserByEmail — sends an actual invitation email
+      // Try invite first — sends an actual invitation email for new users
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
         memberEmail,
         {
@@ -168,15 +170,49 @@ serve(async (req: Request): Promise<Response> => {
         }
       );
 
-      if (inviteError || !inviteData.user) {
-        console.error("Invite user failed:", inviteError?.message);
-        return new Response(
-          JSON.stringify({ error: `Failed to invite user: ${inviteError?.message}` }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
-        );
+      if (inviteError) {
+        // User already exists — find them and send a magic link instead
+        if (inviteError.message?.includes("already been registered")) {
+          console.log("User already exists, looking up and sending magic link...");
+          const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+          const found = existingUsers?.users?.find((u: any) => u.email === memberEmail);
+          if (!found) {
+            return new Response(
+              JSON.stringify({ error: "Потребителят не е намерен" }),
+              { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } },
+            );
+          }
+          newUserId = found.id;
+          existingUser = true;
+
+          // Send magic link email so they can access the project
+          try {
+            await supabaseAdmin.auth.admin.generateLink({
+              type: "magiclink",
+              email: memberEmail,
+              options: { redirectTo: `${appUrl}/` },
+            });
+            // Use the auth API to actually send the email
+            const { error: otpError } = await supabaseAdmin.auth.signInWithOtp({
+              email: memberEmail,
+              options: { shouldCreateUser: false, emailRedirectTo: `${appUrl}/` },
+            });
+            if (otpError) console.log("OTP send note:", otpError.message);
+          } catch (e: any) {
+            console.log("Magic link send note:", e.message);
+          }
+          console.log("Existing user found:", newUserId, "magic link sent");
+        } else {
+          console.error("Invite user failed:", inviteError.message);
+          return new Response(
+            JSON.stringify({ error: `Failed to invite user: ${inviteError.message}` }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+          );
+        }
+      } else {
+        newUserId = inviteData.user!.id;
+        console.log("User invited (email sent):", newUserId);
       }
-      newUserId = inviteData.user.id;
-      console.log("User invited (email sent):", newUserId);
     } else {
       // Internal email — create directly without sending email
       const tempPassword = crypto.randomUUID();
@@ -198,12 +234,14 @@ serve(async (req: Request): Promise<Response> => {
           { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
         );
       }
-      newUserId = newUserId;
+      newUserId = newUser.user.id;
       console.log("User created:", newUserId);
     }
 
-    // Wait for profile trigger then update
-    await new Promise(r => setTimeout(r, 500));
+    // Update profile — for new users wait for trigger, for existing just update
+    if (!existingUser) {
+      await new Promise(r => setTimeout(r, 500));
+    }
     await supabaseAdmin
       .from("profiles")
       .update({
