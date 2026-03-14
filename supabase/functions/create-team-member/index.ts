@@ -34,7 +34,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Auth: get user from JWT
+    // Auth: verify user via direct auth API call (bypasses JS client issues with ES256)
     const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
     const authToken = authHeader.replace(/^Bearer\s+/i, "").trim();
 
@@ -45,11 +45,27 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
-    if (userError || !user) {
-      console.error("Auth failed:", userError?.message);
+    // Call auth API directly to verify the JWT and get user info
+    const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        "Authorization": `Bearer ${authToken}`,
+        "apikey": supabaseServiceKey,
+      },
+    });
+
+    if (!authRes.ok) {
+      const authBody = await authRes.text();
+      console.error("Auth failed:", authRes.status, authBody);
       return new Response(
-        JSON.stringify({ error: "Authentication failed", detail: userError?.message }),
+        JSON.stringify({ error: "Authentication failed", detail: authBody }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    const user = await authRes.json();
+    if (!user?.id) {
+      return new Response(
+        JSON.stringify({ error: "Authentication failed", detail: "No user ID" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
