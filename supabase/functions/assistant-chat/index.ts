@@ -136,7 +136,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId, context = "business", userId, moduleSystemPrompt } = await req.json();
+    const { messages, projectId, context = "business", userId, moduleSystemPrompt, sessionId } = await req.json();
     
     const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
     if (!GOOGLE_AI_KEY) {
@@ -235,6 +235,47 @@ serve(async (req) => {
       }
     }
 
+    // Load cross-session chat history for this project (so AI knows what was discussed in other chats)
+    let chatHistoryContext = "";
+    if (projectId && userId) {
+      const { data: recentChats } = await supabase
+        .from("chat_messages")
+        .select("role, content, session_id, created_at")
+        .eq("user_id", userId)
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (recentChats && recentChats.length > 0) {
+        // Group by session, exclude current session's messages (they're already in `messages`)
+        const otherSessionMsgs = sessionId
+          ? recentChats.filter(m => m.session_id !== sessionId)
+          : recentChats;
+
+        if (otherSessionMsgs.length > 0) {
+          // Group by session_id
+          const bySession: Record<string, typeof otherSessionMsgs> = {};
+          for (const m of otherSessionMsgs) {
+            const sid = m.session_id || "unknown";
+            if (!bySession[sid]) bySession[sid] = [];
+            bySession[sid].push(m);
+          }
+
+          chatHistoryContext = "\n\n💬 ИСТОРИЯ ОТ ПРЕДИШНИ ЧАТОВЕ В ТОЗИ БИЗНЕС:\n";
+          for (const [, msgs] of Object.entries(bySession).slice(0, 5)) {
+            // Show messages in chronological order
+            const sorted = msgs.reverse();
+            chatHistoryContext += "---\n";
+            for (const m of sorted.slice(0, 10)) {
+              const prefix = m.role === "user" ? "Потребител" : "Асистент";
+              chatHistoryContext += `${prefix}: ${m.content.substring(0, 300)}\n`;
+            }
+          }
+          chatHistoryContext += "---\nИзползвай тази история за контекст. Потребителят може да се позовава на неща от предишни разговори.\n";
+        }
+      }
+    }
+
     // Video context - different system prompt
     if (context === "video") {
       const videoSystemPrompt = `Ти си експерт по видео обработка с ffmpeg. Говориш на български език.
@@ -305,7 +346,7 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
     // Module context — use provided system prompt
     if (moduleSystemPrompt) {
       const dateContext2 = getDateContext();
-      const fullModulePrompt = `${moduleSystemPrompt}\n\n📅 ТЕКУЩА ДАТА: ${dateContext2.formatted}`;
+      const fullModulePrompt = `${moduleSystemPrompt}\n\n📅 ТЕКУЩА ДАТА: ${dateContext2.formatted}${chatHistoryContext}`;
       const modResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
         headers: {
@@ -336,6 +377,7 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
 
 ${businessPlanContext}
 ${marketingPlanContext}
+${chatHistoryContext}
 
 ТВОИТЕ ВЪЗМОЖНОСТИ:
 1. Можеш да добавяш задачи директно в бизнес плана чрез create_weekly_task

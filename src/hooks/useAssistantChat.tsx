@@ -133,6 +133,7 @@ export function useAssistantChat(
           projectId,
           context,
           userId: user?.id,
+          sessionId: sessionId || undefined,
           moduleSystemPrompt: moduleSystemPrompt || undefined,
         },
       });
