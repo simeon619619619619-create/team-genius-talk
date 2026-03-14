@@ -73,10 +73,10 @@ export default function TeamsPage() {
   const [newMemberRole, setNewMemberRole] = useState("");
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [newMemberPermissions, setNewMemberPermissions] = useState<MemberPermissions>({
-    can_view_tasks: false,
-    can_view_business_plan: false,
-    can_view_annual_plan: false,
-    can_view_all: false,
+    can_view_tasks: true,
+    can_view_business_plan: true,
+    can_view_annual_plan: true,
+    can_view_all: true,
   });
 
   const colors = [
