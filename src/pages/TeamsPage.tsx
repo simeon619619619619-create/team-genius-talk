@@ -65,8 +65,9 @@ export default function TeamsPage() {
   const [editTeamName, setEditTeamName] = useState("");
   const [editTeamDescription, setEditTeamDescription] = useState("");
 
-  // New member form state (simplified - only name and role)
+  // New member form state
   const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState("");
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [newMemberPermissions, setNewMemberPermissions] = useState<MemberPermissions>({
@@ -113,9 +114,10 @@ export default function TeamsPage() {
     setAdding(true);
     try {
       const result = await createMemberDirectly(
-        selectedTeam.id, 
-        newMemberName, 
+        selectedTeam.id,
+        newMemberName,
         newMemberRole,
+        newMemberEmail || undefined,
         selectedProjectIds.length > 0 ? selectedProjectIds : undefined
       );
       if (result?.accessLink && result?.memberId) {
@@ -129,6 +131,7 @@ export default function TeamsPage() {
         toast.success("Членът е добавен!");
       }
       setNewMemberName("");
+      setNewMemberEmail("");
       setNewMemberRole("");
       setSelectedProjectIds([]);
       setNewMemberPermissions({
@@ -413,6 +416,19 @@ export default function TeamsPage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="memberEmail">Имейл</Label>
+                      <Input
+                        id="memberEmail"
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        placeholder="email@example.com"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Имейлът на члена — ще получи линк за достъп
+                      </p>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="memberRole">Роля</Label>
                       <Input
                         id="memberRole"
@@ -422,7 +438,7 @@ export default function TeamsPage() {
                         required
                       />
                     </div>
-                    
+
                     {/* Project Access Selector */}
                     {orgProjects.length > 1 && (
                       <div className="space-y-2">

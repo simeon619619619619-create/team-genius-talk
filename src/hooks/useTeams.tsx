@@ -189,8 +189,9 @@ export function useTeams(projectId: string | null) {
     teamId: string,
     name: string,
     role: string,
+    email?: string,
     projectIds?: string[]
-  ): Promise<{ accessLink?: string; memberId?: string } | null> => {
+  ): Promise<{ accessLink?: string; memberId?: string; memberEmail?: string } | null> => {
     try {
       // Use raw fetch for better error handling
       const { data: { session } } = await supabase.auth.getSession();
@@ -208,7 +209,7 @@ export function useTeams(projectId: string | null) {
           "Authorization": `Bearer ${session.access_token}`,
           "apikey": anonKey,
         },
-        body: JSON.stringify({ teamId, name, role, projectIds }),
+        body: JSON.stringify({ teamId, name, role, email, projectIds }),
       });
 
       const data = await response.json();
@@ -225,6 +226,7 @@ export function useTeams(projectId: string | null) {
       return {
         accessLink: data?.accessLink,
         memberId: data?.teamMemberId,
+        memberEmail: data?.memberEmail,
       };
     } catch (error: any) {
       console.error("Create member error:", error);

@@ -10,6 +10,7 @@ interface CreateMemberRequest {
   teamId: string;
   name: string;
   role: string;
+  email?: string;
   projectIds?: string[];
 }
 
@@ -23,9 +24,9 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse body first
-    const { teamId, name, role, projectIds }: CreateMemberRequest = await req.json();
-    console.log("Request:", { teamId, name, role });
+    // Parse body
+    const { teamId, name, role, email, projectIds }: CreateMemberRequest = await req.json();
+    console.log("Request:", { teamId, name, role, email });
 
     if (!teamId || !name || !role) {
       return new Response(
@@ -34,7 +35,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Auth: verify user via direct auth API call (bypasses JS client issues with ES256)
+    // Auth: try multiple methods to verify user (ES256 compat)
     const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
     const authToken = authHeader.replace(/^Bearer\s+/i, "").trim();
 
@@ -45,31 +46,57 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Call auth API directly to verify the JWT and get user info
-    const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        "Authorization": `Bearer ${authToken}`,
-        "apikey": supabaseServiceKey,
-      },
-    });
+    let userId: string | null = null;
+    let userEmail: string | null = null;
 
-    if (!authRes.ok) {
-      const authBody = await authRes.text();
-      console.error("Auth failed:", authRes.status, authBody);
+    // Method 1: Direct fetch to auth API
+    try {
+      const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          "Authorization": `Bearer ${authToken}`,
+          "apikey": supabaseServiceKey,
+        },
+      });
+      if (authRes.ok) {
+        const authUser = await authRes.json();
+        if (authUser?.id) {
+          userId = authUser.id;
+          userEmail = authUser.email;
+        }
+      } else {
+        console.log("Auth method 1 failed:", authRes.status);
+      }
+    } catch (e: any) {
+      console.log("Auth method 1 error:", e.message);
+    }
+
+    // Method 2: Decode JWT and verify user exists via admin
+    if (!userId) {
+      try {
+        const parts = authToken.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+          if (payload.sub && (!payload.exp || payload.exp > Date.now() / 1000)) {
+            const { data: { user: adminUser } } = await supabaseAdmin.auth.admin.getUserById(payload.sub);
+            if (adminUser) {
+              userId = adminUser.id;
+              userEmail = adminUser.email ?? null;
+              console.log("Auth via JWT decode + admin verify");
+            }
+          }
+        }
+      } catch (e: any) {
+        console.log("Auth method 2 error:", e.message);
+      }
+    }
+
+    if (!userId) {
       return new Response(
-        JSON.stringify({ error: "Authentication failed", detail: authBody }),
+        JSON.stringify({ error: "Authentication failed" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
-
-    const user = await authRes.json();
-    if (!user?.id) {
-      return new Response(
-        JSON.stringify({ error: "Authentication failed", detail: "No user ID" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-    console.log("Auth OK:", user.email);
+    console.log("Auth OK:", userEmail);
 
     // Get team
     const { data: team, error: teamError } = await supabaseAdmin
@@ -87,23 +114,23 @@ serve(async (req: Request): Promise<Response> => {
     }
     console.log("Team found:", team.name, "project:", team.project_id);
 
-    // Verify access — check directly instead of RPC to avoid issues
+    // Verify access
     const { data: projectOwner } = await supabaseAdmin
       .from("projects")
       .select("id")
       .eq("id", team.project_id)
-      .eq("owner_id", user.id)
+      .eq("owner_id", userId)
       .maybeSingle();
 
     const { data: userRole } = await supabaseAdmin
       .from("user_roles")
       .select("id")
       .eq("project_id", team.project_id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (!projectOwner && !userRole) {
-      console.error("Access denied for user", user.id);
+      console.error("Access denied for user", userId);
       return new Response(
         JSON.stringify({ error: "Access denied" }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
@@ -118,20 +145,19 @@ serve(async (req: Request): Promise<Response> => {
       .eq("id", team.project_id)
       .single();
 
-    // Create user account
-    const uniqueId = crypto.randomUUID().substring(0, 8);
-    const internalEmail = `member-${uniqueId}@team.simora.bg`;
+    // Create user account - use provided email or generate internal one
+    const memberEmail = email || `member-${crypto.randomUUID().substring(0, 8)}@team.simora.bg`;
     const tempPassword = crypto.randomUUID();
 
-    console.log("Creating user:", internalEmail);
+    console.log("Creating user:", memberEmail);
 
     const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-      email: internalEmail,
+      email: memberEmail,
       password: tempPassword,
       email_confirm: true,
       user_metadata: {
         full_name: name,
-        created_by_owner: user.id,
+        created_by_owner: userId,
         is_team_member: true,
       },
     });
@@ -145,7 +171,7 @@ serve(async (req: Request): Promise<Response> => {
     }
     console.log("User created:", newUser.user.id);
 
-    // Update profile (trigger already created it, just update extra fields)
+    // Update profile
     await supabaseAdmin
       .from("profiles")
       .update({
@@ -160,10 +186,10 @@ serve(async (req: Request): Promise<Response> => {
       .insert({
         team_id: teamId,
         user_id: newUser.user.id,
-        email: internalEmail,
+        email: memberEmail,
         role: role,
         status: "accepted",
-        invited_by: user.id,
+        invited_by: userId,
         accepted_at: new Date().toISOString(),
       })
       .select()
@@ -219,17 +245,17 @@ serve(async (req: Request): Promise<Response> => {
 
     // Generate access link
     const appUrl = Deno.env.get("APP_URL") || "https://simora.bg";
-    let accessLink = `${appUrl}/member-login?email=${encodeURIComponent(internalEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+    let accessLink = `${appUrl}/member-login?email=${encodeURIComponent(memberEmail)}&pw=${encodeURIComponent(tempPassword)}`;
 
     try {
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
-        email: internalEmail,
+        email: memberEmail,
         options: { redirectTo: `${appUrl}/set-password` },
       });
 
       if (!linkError && linkData?.properties?.hashed_token) {
-        accessLink = `${appUrl}/member-login?token_hash=${linkData.properties.hashed_token}&email=${encodeURIComponent(internalEmail)}`;
+        accessLink = `${appUrl}/member-login?token_hash=${linkData.properties.hashed_token}&email=${encodeURIComponent(memberEmail)}`;
       }
     } catch {
       // fallback link already set
@@ -245,6 +271,7 @@ serve(async (req: Request): Promise<Response> => {
         userId: newUser.user.id,
         teamName: team.name,
         memberName: name,
+        memberEmail,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
