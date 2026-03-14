@@ -109,7 +109,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Generate a unique email for this member (internal use only)
     const uniqueId = crypto.randomUUID().substring(0, 8);
-    const internalEmail = `member-${uniqueId}@team.local`;
+    const internalEmail = `member-${uniqueId}@team.simora.bg`;
     
     // Generate a random temporary password (user will reset this)
     const tempPassword = crypto.randomUUID();
@@ -265,12 +265,12 @@ serve(async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error creating team member:", error);
+    console.error("Error creating team member:", error?.message, error?.stack || error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      JSON.stringify({ error: error.message || "Unknown error", details: String(error) }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
       }
     );
   }
