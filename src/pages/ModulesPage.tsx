@@ -3,9 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Eye, Search, Gift, FileText, Zap, ChevronRight, Lock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Eye, Search, Gift, FileText, Zap, ChevronRight, Lock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export interface ModuleConfig {
   id: number;
@@ -235,8 +236,18 @@ export const MODULES: ModuleConfig[] = [
 
 export default function ModulesPage() {
   const navigate = useNavigate();
+  const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
 
-  const handleStartModule = (module: ModuleConfig) => {
+  const toggleExpanded = (moduleId: number) => {
+    setExpandedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) next.delete(moduleId);
+      else next.add(moduleId);
+      return next;
+    });
+  };
+
+  const handleStartModule = (module: ModuleConfig, promptIndex?: number) => {
     navigate("/assistant", {
       state: {
         module: {
@@ -246,6 +257,7 @@ export default function ModulesPage() {
           systemPrompt: module.systemPrompt,
           initialMessage: module.initialMessage,
           prompts: module.prompts,
+          startPromptIndex: promptIndex,
         },
       },
     });
@@ -277,6 +289,10 @@ export default function ModulesPage() {
         <div className="grid gap-4">
           {MODULES.map((module, i) => {
             const Icon = module.icon;
+            const isExpanded = expandedModules.has(module.id);
+            const visiblePrompts = isExpanded ? module.prompts : module.prompts.slice(0, 3);
+            const hasMore = module.prompts.length > 3;
+
             return (
               <motion.div
                 key={module.key}
@@ -303,20 +319,30 @@ export default function ModulesPage() {
                           </div>
                         </div>
 
-                        {/* Prompt pills */}
+                        {/* Prompt pills — clickable */}
                         <div className="flex flex-wrap gap-1.5 mt-3">
-                          {module.prompts.slice(0, 3).map((p, pi) => (
-                            <span
+                          {visiblePrompts.map((p, pi) => (
+                            <button
                               key={pi}
-                              className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground"
+                              onClick={() => handleStartModule(module, pi)}
+                              className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors cursor-pointer text-left"
                             >
                               {p.label}
-                            </span>
+                            </button>
                           ))}
-                          {module.prompts.length > 3 && (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
-                              +{module.prompts.length - 3} още
-                            </span>
+                          {hasMore && (
+                            <button
+                              onClick={() => toggleExpanded(module.id)}
+                              className={cn(
+                                "text-xs px-2.5 py-1 rounded-full bg-secondary text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors flex items-center gap-1"
+                              )}
+                            >
+                              {isExpanded ? (
+                                <>Скрий <ChevronDown className="h-3 w-3 rotate-180" /></>
+                              ) : (
+                                <>+{module.prompts.length - 3} още <ChevronDown className="h-3 w-3" /></>
+                              )}
+                            </button>
                           )}
                         </div>
 

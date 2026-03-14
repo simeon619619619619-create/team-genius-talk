@@ -29,6 +29,8 @@ interface ChatInterfaceProps {
   moduleInitialMessage?: string;
   sessionId?: string | null;
   onFirstMessage?: (text: string) => void;
+  autoSendPrompt?: string | null;
+  onSuggestionUsed?: (promptText: string) => void;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -107,8 +109,9 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage }: ChatInterfaceProps) {
+export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, autoSendPrompt, onSuggestionUsed }: ChatInterfaceProps) {
   const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId);
+  const autoSentRef = useRef(false);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -125,6 +128,15 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Auto-send prompt when arriving from modules page with a specific prompt
+  useEffect(() => {
+    if (autoSendPrompt && !autoSentRef.current && !isLoading && sessionId) {
+      autoSentRef.current = true;
+      sendMessage(autoSendPrompt);
+      onSuggestionUsed?.(autoSendPrompt);
+    }
+  }, [autoSendPrompt, isLoading, sessionId]);
 
   const handleSend = (text?: string) => {
     const messageText = text || input.trim();
@@ -147,6 +159,7 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
 
   const handleSuggestionClick = (prompt: string) => {
     handleSend(prompt);
+    onSuggestionUsed?.(prompt);
   };
 
   const startListening = useCallback(() => {
