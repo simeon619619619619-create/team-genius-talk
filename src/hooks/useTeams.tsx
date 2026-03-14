@@ -186,20 +186,35 @@ export function useTeams(projectId: string | null) {
 
   // New function: Create team member directly (without email)
   const createMemberDirectly = async (
-    teamId: string, 
-    name: string, 
+    teamId: string,
+    name: string,
     role: string,
     projectIds?: string[]
   ): Promise<{ accessLink?: string; memberId?: string } | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke("create-team-member", {
-        body: { teamId, name, role, projectIds },
+      // Use raw fetch for better error handling
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Не сте влезли в профила си");
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/create-team-member`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": anonKey,
+        },
+        body: JSON.stringify({ teamId, name, role, projectIds }),
       });
 
-      if (error) {
-        // Try to extract the actual error from the response
-        const detail = data?.error || data?.detail || error.message;
-        throw new Error(detail);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
       }
 
       if (data?.error) {
