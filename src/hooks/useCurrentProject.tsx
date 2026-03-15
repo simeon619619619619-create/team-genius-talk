@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useOrganizations } from "./useOrganizations";
@@ -13,7 +13,19 @@ export interface Project {
   updated_at: string;
 }
 
-export function useCurrentProject() {
+interface CurrentProjectContextType {
+  project: Project | null;
+  projectId: string | null;
+  projectName: string;
+  loading: boolean;
+  needsMigration: boolean;
+  unassignedCount: number;
+  refetch: () => void;
+}
+
+const CurrentProjectContext = createContext<CurrentProjectContextType | undefined>(undefined);
+
+export function CurrentProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { currentOrganization, loading: orgsLoading } = useOrganizations();
   const [project, setProject] = useState<Project | null>(null);
@@ -42,7 +54,7 @@ export function useCurrentProject() {
       return;
     }
     if (fetchingRef.current && lastOrgIdRef.current === currentOrgId) return;
-    
+
     fetchingRef.current = true;
     lastOrgIdRef.current = currentOrgId;
 
@@ -191,6 +203,7 @@ export function useCurrentProject() {
       if (msg.includes("400") || msg.includes("Bad Request") || msg.includes("column") || msg.includes("relation")) {
         projectFetchDisabledRef.current = true;
       }
+      console.error("Error fetching project:", error);
       setProject(null);
     } finally {
       setLoading(false);
@@ -209,14 +222,25 @@ export function useCurrentProject() {
     fetchOrCreateProject();
   }, [fetchOrCreateProject]);
 
-  return {
-    project,
-    projectId: project?.id || null,
-    projectName: project?.name || "",
-    loading: loading || orgsLoading,
-    hasOrgContext: !!currentOrganization,
-    needsMigration,
-    unassignedCount,
-    refetch,
-  };
+  return (
+    <CurrentProjectContext.Provider value={{
+      project,
+      projectId: project?.id || null,
+      projectName: project?.name || "",
+      loading: loading || orgsLoading,
+      needsMigration,
+      unassignedCount,
+      refetch,
+    }}>
+      {children}
+    </CurrentProjectContext.Provider>
+  );
+}
+
+export function useCurrentProject() {
+  const context = useContext(CurrentProjectContext);
+  if (context === undefined) {
+    throw new Error("useCurrentProject must be used within a CurrentProjectProvider");
+  }
+  return context;
 }

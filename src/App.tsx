@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
+import { OrganizationProvider } from "@/hooks/useOrganizations";
+import { CurrentProjectProvider } from "@/hooks/useCurrentProject";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -35,34 +37,38 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SubscriptionProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <ScrollToTop />
-              <Routes>
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-                <Route path="/install" element={<InstallPage />} />
-                <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
-                <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
-                <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-                <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
-                <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
-                <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
-                <Route path="/automations" element={<ProtectedRoute><AutomationsPage /></ProtectedRoute>} />
-                <Route path="/startup" element={<ProtectedRoute><StartupPage /></ProtectedRoute>} />
-                <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
-                <Route path="/mindmap" element={<ProtectedRoute><MindMapPage /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-                <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-                <Route path="/member-login" element={<MemberLoginPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <OrganizationProvider>
+            <CurrentProjectProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <ScrollToTop />
+                  <Routes>
+                    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                    <Route path="/install" element={<InstallPage />} />
+                    <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
+                    <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+                    <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
+                    <Route path="/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+                    <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
+                    <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
+                    <Route path="/automations" element={<ProtectedRoute><AutomationsPage /></ProtectedRoute>} />
+                    <Route path="/startup" element={<ProtectedRoute><StartupPage /></ProtectedRoute>} />
+                    <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
+                    <Route path="/mindmap" element={<ProtectedRoute><MindMapPage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
+                    <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+                    <Route path="/member-login" element={<MemberLoginPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </CurrentProjectProvider>
+          </OrganizationProvider>
         </SubscriptionProvider>
       </AuthProvider>
     </QueryClientProvider>

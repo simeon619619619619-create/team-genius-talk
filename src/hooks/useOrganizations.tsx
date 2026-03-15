@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -18,7 +18,24 @@ export interface OrganizationMember {
   created_at: string;
 }
 
-export function useOrganizations() {
+interface OrganizationContextType {
+  organizations: Organization[];
+  memberOrganizations: Organization[];
+  currentOrganization: Organization | null;
+  loading: boolean;
+  createOrganization: (name: string) => Promise<Organization | null>;
+  updateOrganization: (orgId: string, name: string) => Promise<boolean>;
+  deleteOrganization: (orgId: string) => Promise<boolean>;
+  switchOrganization: (org: Organization | null) => void;
+  isOrganizationOwner: (orgId: string) => boolean;
+  canCreateOrganization: () => boolean;
+  getAllOrganizations: () => Organization[];
+  refetch: () => Promise<void>;
+}
+
+const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
+
+export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [memberOrganizations, setMemberOrganizations] = useState<Organization[]>([]);
@@ -52,7 +69,7 @@ export function useOrganizations() {
       if (memberError) throw memberError;
 
       const memberOrgIds = membershipData?.map(m => m.organization_id) || [];
-      
+
       // Also check for organizations via user_roles + projects
       const { data: userRolesData, error: rolesError } = await supabase
         .from("user_roles")
@@ -82,7 +99,7 @@ export function useOrganizations() {
       const ownedOrgIds = ownedOrgs?.map(o => o.id) || [];
       const allMemberOrgIds = [...new Set([...memberOrgIds, ...projectOrgIds])]
         .filter(id => !ownedOrgIds.includes(id));
-      
+
       let memberOrgs: Organization[] = [];
       if (allMemberOrgIds.length > 0) {
         const { data: orgs, error: orgsError } = await supabase
@@ -100,7 +117,7 @@ export function useOrganizations() {
       // Set current organization from localStorage or first owned
       const storedOrgId = localStorage.getItem("currentOrganizationId");
       const allOrgs = [...(ownedOrgs || []), ...memberOrgs];
-      
+
       if (storedOrgId) {
         const found = allOrgs.find(o => o.id === storedOrgId);
         if (found) {
@@ -178,7 +195,7 @@ export function useOrganizations() {
         .eq("owner_id", user.id);
 
       if (error) throw error;
-      
+
       await fetchOrganizations();
       return true;
     } catch (error) {
@@ -205,7 +222,7 @@ export function useOrganizations() {
         .eq("owner_id", user.id);
 
       if (error) throw error;
-      
+
       // If deleted org was current, switch to first available or null
       if (currentOrganization?.id === orgId) {
         const remaining = organizations.filter(o => o.id !== orgId);
@@ -216,7 +233,7 @@ export function useOrganizations() {
           switchOrganization(null);
         }
       }
-      
+
       await fetchOrganizations();
       return true;
     } catch (error) {
@@ -237,18 +254,30 @@ export function useOrganizations() {
     return [...organizations, ...memberOrganizations];
   };
 
-  return {
-    organizations,
-    memberOrganizations,
-    currentOrganization,
-    loading,
-    createOrganization,
-    updateOrganization,
-    deleteOrganization,
-    switchOrganization,
-    isOrganizationOwner,
-    canCreateOrganization,
-    getAllOrganizations,
-    refetch: fetchOrganizations,
-  };
+  return (
+    <OrganizationContext.Provider value={{
+      organizations,
+      memberOrganizations,
+      currentOrganization,
+      loading,
+      createOrganization,
+      updateOrganization,
+      deleteOrganization,
+      switchOrganization,
+      isOrganizationOwner,
+      canCreateOrganization,
+      getAllOrganizations,
+      refetch: fetchOrganizations,
+    }}>
+      {children}
+    </OrganizationContext.Provider>
+  );
+}
+
+export function useOrganizations() {
+  const context = useContext(OrganizationContext);
+  if (context === undefined) {
+    throw new Error("useOrganizations must be used within an OrganizationProvider");
+  }
+  return context;
 }

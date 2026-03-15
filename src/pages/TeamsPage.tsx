@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ import { toast } from "sonner";
 import { Team, TeamMember } from "@/types";
 import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
 import { useMemberPermissions } from "@/hooks/useMemberPermissions";
+import { VirtualOffice, AiBot } from "@/components/teams/VirtualOffice";
+import { AiBotCard } from "@/components/teams/AiBotCard";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TeamsPage() {
   const { user } = useAuth();
@@ -58,6 +61,95 @@ export default function TeamsPage() {
   const [editingMember, setEditingMember] = useState<DbTeamMember | null>(null);
   const [editingPermissions, setEditingPermissions] = useState<MemberPermissions | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
+
+  // ─── AI BOTS STATE ───
+  const AI_BOTS_KEY = "simora_ai_bots";
+  const DEFAULT_AI_BOTS: AiBot[] = [
+    { id: "bot-1", name: "Елена", role: "Уеб Разработчик", process: "eufashioninstitute.com", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: ["Поддръжка на сайта", "Оптимизация"], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "working" },
+    { id: "bot-2", name: "Мария", role: "Email & Комуникации", process: "Resend Notifications", frequency: "При заявка", automations: ["Apply Forms", "Book Forms", "Newsletter"], tasks: ["Обработка на формуляри", "Email нотификации"], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "working" },
+    { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: ["Създаване на съдържание", "Планиране"], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
+    { id: "bot-4", name: "Софи", role: "Модел Мениджмънт", process: "Model Database", frequency: "При нужда", automations: ["Profiles", "Photos", "Casting"], tasks: ["Управление на профили", "Кастинг"], skinColor: "#f0c8a0", hairColor: "#2c1608", shirtColor: "#fbbf24", state: "idle" },
+    { id: "bot-5", name: "Дара", role: "Анализи & Мониторинг", process: "Site Monitoring", frequency: "На всеки 24ч", automations: ["Uptime", "Performance", "Reports"], tasks: ["Проверка на сайта", "Доклади"], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#60a5fa", state: "idle" },
+    { id: "bot-6", name: "Лина", role: "Продажби & Клиенти", process: "Social Empire", frequency: "При нужда", automations: ["Stripe", "Leads", "Follow-up"], tasks: ["Обработка на поръчки", "Следване на лийдове"], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
+  ];
+
+  const [aiBots, setAiBots] = useState<AiBot[]>(() => {
+    try {
+      const saved = localStorage.getItem(AI_BOTS_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_AI_BOTS;
+    } catch {
+      return DEFAULT_AI_BOTS;
+    }
+  });
+  const [selectedAiBot, setSelectedAiBot] = useState<string | null>(null);
+  const [aiBotModalOpen, setAiBotModalOpen] = useState(false);
+  const [editingAiBot, setEditingAiBot] = useState<AiBot | null>(null);
+
+  // AI Bot form state
+  const [abName, setAbName] = useState("");
+  const [abRole, setAbRole] = useState("");
+  const [abProcess, setAbProcess] = useState("");
+  const [abFrequency, setAbFrequency] = useState("");
+  const [abAutomations, setAbAutomations] = useState("");
+  const [abTasks, setAbTasks] = useState("");
+  const [abShirt, setAbShirt] = useState("#818cf8");
+  const [abHair, setAbHair] = useState("#4a2810");
+  const [abSkin, setAbSkin] = useState("#f5c6a0");
+
+  const saveAiBots = useCallback((bots: AiBot[]) => {
+    setAiBots(bots);
+    localStorage.setItem(AI_BOTS_KEY, JSON.stringify(bots));
+  }, []);
+
+  const openAiBotModal = (bot?: AiBot) => {
+    if (bot) {
+      setEditingAiBot(bot);
+      setAbName(bot.name);
+      setAbRole(bot.role);
+      setAbProcess(bot.process);
+      setAbFrequency(bot.frequency);
+      setAbAutomations(bot.automations.join(", "));
+      setAbTasks(bot.tasks.join("\n"));
+      setAbShirt(bot.shirtColor);
+      setAbHair(bot.hairColor);
+      setAbSkin(bot.skinColor);
+    } else {
+      setEditingAiBot(null);
+      setAbName(""); setAbRole(""); setAbProcess(""); setAbFrequency("");
+      setAbAutomations(""); setAbTasks("");
+      setAbShirt("#818cf8"); setAbHair("#4a2810"); setAbSkin("#f5c6a0");
+    }
+    setAiBotModalOpen(true);
+  };
+
+  const handleSaveAiBot = (e: React.FormEvent) => {
+    e.preventDefault();
+    const data: AiBot = {
+      id: editingAiBot?.id || "bot-" + Date.now(),
+      name: abName,
+      role: abRole,
+      process: abProcess,
+      frequency: abFrequency,
+      automations: abAutomations.split(",").map(s => s.trim()).filter(Boolean),
+      tasks: abTasks.split("\n").map(s => s.trim()).filter(Boolean),
+      shirtColor: abShirt,
+      hairColor: abHair,
+      skinColor: abSkin,
+      state: editingAiBot?.state || "idle",
+    };
+    if (editingAiBot) {
+      saveAiBots(aiBots.map(b => b.id === editingAiBot.id ? data : b));
+    } else {
+      saveAiBots([...aiBots, data]);
+    }
+    setAiBotModalOpen(false);
+    toast.success(editingAiBot ? "Ботът е обновен!" : "Ботът е добавен!");
+  };
+
+  const handleDeleteAiBot = (id: string) => {
+    saveAiBots(aiBots.filter(b => b.id !== id));
+    toast.success("Ботът е изтрит");
+  };
 
   // New team form state
   const [newTeamName, setNewTeamName] = useState("");
@@ -706,14 +798,122 @@ export default function TeamsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
             {teams.map((team) => (
-              <TeamCard 
-                key={team.id} 
-                team={convertToUiTeam(team)} 
-                onSelect={() => setSelectedTeam(team)} 
+              <TeamCard
+                key={team.id}
+                team={convertToUiTeam(team)}
+                onSelect={() => setSelectedTeam(team)}
               />
             ))}
           </div>
         )}
+
+        {/* ─── AI VIRTUAL OFFICE ─── */}
+        <div className="pt-4 md:pt-8 border-t border-border mt-6">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-display font-semibold flex items-center gap-2">
+                <Bot className="h-5 w-5 text-purple-500" />
+                AI Екип
+              </h2>
+              <p className="text-sm text-muted-foreground hidden md:block">
+                Виртуални асистенти и техните автоматизации
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
+              onClick={() => openAiBotModal()}
+            >
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Нов бот</span>
+            </Button>
+          </div>
+
+          <VirtualOffice
+            bots={aiBots}
+            selectedBotId={selectedAiBot}
+            onSelectBot={setSelectedAiBot}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+            {aiBots.map((bot) => (
+              <AiBotCard
+                key={bot.id}
+                bot={bot}
+                onEdit={openAiBotModal}
+                onDelete={handleDeleteAiBot}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ─── AI BOT MODAL ─── */}
+        <Dialog open={aiBotModalOpen} onOpenChange={setAiBotModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-display">
+                {editingAiBot ? "Редактирай бот" : "Нов бот"}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveAiBot} className="space-y-4 mt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ab-name">Име</Label>
+                  <Input id="ab-name" value={abName} onChange={e => setAbName(e.target.value)} placeholder="Елена" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ab-role">Роля</Label>
+                  <Input id="ab-role" value={abRole} onChange={e => setAbRole(e.target.value)} placeholder="Уеб Разработчик" required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ab-process">Процес</Label>
+                  <Input id="ab-process" value={abProcess} onChange={e => setAbProcess(e.target.value)} placeholder="eufashioninstitute.com" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ab-freq">Честота</Label>
+                  <Input id="ab-freq" value={abFrequency} onChange={e => setAbFrequency(e.target.value)} placeholder="На всеки 24ч" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ab-auto">Автоматизации</Label>
+                <Input id="ab-auto" value={abAutomations} onChange={e => setAbAutomations(e.target.value)} placeholder="Deploy, SEO Check, Build" />
+                <p className="text-[11px] text-muted-foreground">Разделени със запетая</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ab-tasks">Задачи</Label>
+                <Textarea id="ab-tasks" value={abTasks} onChange={e => setAbTasks(e.target.value)} placeholder={"Поддръжка на сайта\nОптимизация"} rows={3} />
+                <p className="text-[11px] text-muted-foreground">Всяка задача на нов ред</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Визуализация</Label>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={abShirt} onChange={e => setAbShirt(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" />
+                    <span className="text-xs text-muted-foreground">Блуза</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={abHair} onChange={e => setAbHair(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" />
+                    <span className="text-xs text-muted-foreground">Коса</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={abSkin} onChange={e => setAbSkin(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0" />
+                    <span className="text-xs text-muted-foreground">Кожа</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setAiBotModalOpen(false)}>
+                  Отказ
+                </Button>
+                <Button type="submit" className="gradient-primary text-primary-foreground shadow-lg">
+                  {editingAiBot ? "Запази" : "Добави"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
