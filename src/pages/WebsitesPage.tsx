@@ -3,29 +3,51 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Globe, Plus, ExternalLink, Settings, Palette, FileCode, Search, Zap,
-  Layout, Type, Image as ImageIcon, Smartphone, Monitor, Code2,
-  Layers, Rocket, ChevronDown, Copy, Check, Eye, Trash2,
-  PenTool, Shield, BarChart3, RefreshCw, Star
+  Layout, Type, Smartphone, Monitor, Code2,
+  Layers, Rocket, ChevronDown, Copy, Check, Trash2,
+  PenTool, Shield, BarChart3, Star, Loader2,
+  Users, Eye, Clock, ArrowUpRight, MapPin, TrendingUp, Activity
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ─── Types ─── */
 interface Website {
   id: string;
   name: string;
   url: string;
-  status: "active" | "building" | "maintenance";
+  status: "online" | "offline" | "checking" | "building" | "maintenance";
   template: string;
   createdAt: string;
   lastUpdate: string;
+  lastCheck?: string;
+  responseTime?: number;
+}
+
+interface PageviewRow {
+  site_id: string;
+  path: string;
+  referrer: string;
+  country: string;
+  created_at: string;
+  screen: string;
+  language: string;
+}
+
+interface AnalyticsData {
+  totalViews: number;
+  todayViews: number;
+  uniquePaths: { path: string; count: number }[];
+  referrers: { referrer: string; count: number }[];
+  countries: { country: string; count: number }[];
+  hourly: { hour: string; count: number }[];
+  recentViews: PageviewRow[];
 }
 
 /* ─── Suggestion prompts for Elena ─── */
@@ -65,6 +87,7 @@ const QUICK_TOOLS = [
 
 /* ─── Storage ─── */
 const WEBSITES_KEY = "simora_elena_websites";
+const SUPABASE_URL = "https://hsbpvehkucbcericaoym.supabase.co";
 
 function loadWebsites(): Website[] {
   try {
@@ -73,18 +96,19 @@ function loadWebsites(): Website[] {
   } catch { return []; }
 }
 
-function saveWebsites(sites: Website[]) {
+function saveWebsitesStorage(sites: Website[]) {
   localStorage.setItem(WEBSITES_KEY, JSON.stringify(sites));
 }
 
 /* ─── Collapsible Section ─── */
-function Section({ title, icon, children, defaultOpen = true }: { title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }) {
+function Section({ title, icon, children, defaultOpen = true, badge }: { title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean; badge?: string }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/30 transition-colors">
         <div className="text-primary">{icon}</div>
         <span className="font-semibold text-sm flex-1">{title}</span>
+        {badge && <Badge variant="secondary" className="text-[10px] h-5">{badge}</Badge>}
         <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
       {open && <div className="px-4 pb-4">{children}</div>}
@@ -114,6 +138,26 @@ function CodeBlock({ code, label }: { code: string; label?: string }) {
   );
 }
 
+/* ─── Mini Bar Chart ─── */
+function MiniBar({ data, max }: { data: { label: string; value: number }[]; max: number }) {
+  return (
+    <div className="space-y-1.5">
+      {data.map((d, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-16 truncate text-right">{d.label}</span>
+          <div className="flex-1 h-4 bg-secondary/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
+              style={{ width: `${max > 0 ? (d.value / max) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono text-muted-foreground w-8">{d.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function WebsitesPage() {
   const [websites, setWebsites] = useState<Website[]>(loadWebsites);
@@ -121,19 +165,163 @@ export default function WebsitesPage() {
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newTemplate, setNewTemplate] = useState("");
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [showTrackingCode, setShowTrackingCode] = useState<string | null>(null);
+  const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
-  const updateWebsites = useCallback((sites: Website[]) => {
-    setWebsites(sites);
-    saveWebsites(sites);
+  const updateWebsites = useCallback((sitesOrFn: Website[] | ((prev: Website[]) => Website[])) => {
+    setWebsites(prev => {
+      const next = typeof sitesOrFn === "function" ? sitesOrFn(prev) : sitesOrFn;
+      saveWebsitesStorage(next);
+      return next;
+    });
+  }, []);
+
+  /* ─── Check site status (real HTTP check) ─── */
+  const checkSiteStatus = useCallback(async (siteId: string, url: string) => {
+    if (!url || url === "#") return;
+    updateWebsites(prev => prev.map(w => w.id === siteId ? { ...w, status: "checking" as const } : w));
+    try {
+      const start = Date.now();
+      const res = await fetch(url, { method: "HEAD", mode: "no-cors", signal: AbortSignal.timeout(10000) });
+      const responseTime = Date.now() - start;
+      updateWebsites(prev => prev.map(w =>
+        w.id === siteId ? {
+          ...w,
+          status: "online" as const,
+          responseTime,
+          lastCheck: new Date().toLocaleTimeString("bg-BG"),
+          lastUpdate: new Date().toLocaleDateString("bg-BG"),
+        } : w
+      ));
+    } catch {
+      updateWebsites(prev => prev.map(w =>
+        w.id === siteId ? {
+          ...w,
+          status: "offline" as const,
+          lastCheck: new Date().toLocaleTimeString("bg-BG"),
+        } : w
+      ));
+    }
+  }, [updateWebsites]);
+
+  const checkAllSites = useCallback(() => {
+    websites.forEach(site => {
+      if (site.url && site.url !== "#") {
+        checkSiteStatus(site.id, site.url);
+      }
+    });
+  }, [websites, checkSiteStatus]);
+
+  // Auto-check on mount
+  useEffect(() => {
+    const sitesWithUrls = websites.filter(s => s.url && s.url !== "#");
+    if (sitesWithUrls.length > 0) {
+      sitesWithUrls.forEach(s => checkSiteStatus(s.id, s.url));
+    }
+    // Check every 60s
+    checkIntervalRef.current = setInterval(() => {
+      const current = loadWebsites();
+      current.filter(s => s.url && s.url !== "#").forEach(s => checkSiteStatus(s.id, s.url));
+    }, 60000);
+    return () => { if (checkIntervalRef.current) clearInterval(checkIntervalRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ─── Load analytics for selected site ─── */
+  const loadAnalytics = useCallback(async (siteId: string) => {
+    setLoadingAnalytics(true);
+    setSelectedSiteId(siteId);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("site_pageviews")
+        .select("site_id, path, referrer, country, created_at, screen, language")
+        .eq("site_id", siteId)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+
+      const rows = (data || []) as PageviewRow[];
+      const today = new Date().toDateString();
+      const todayRows = rows.filter(r => new Date(r.created_at).toDateString() === today);
+
+      // Path counts
+      const pathMap: Record<string, number> = {};
+      rows.forEach(r => { pathMap[r.path] = (pathMap[r.path] || 0) + 1; });
+      const uniquePaths = Object.entries(pathMap)
+        .map(([path, count]) => ({ path, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      // Referrer counts
+      const refMap: Record<string, number> = {};
+      rows.filter(r => r.referrer).forEach(r => {
+        try {
+          const host = new URL(r.referrer).hostname;
+          refMap[host] = (refMap[host] || 0) + 1;
+        } catch {
+          refMap[r.referrer] = (refMap[r.referrer] || 0) + 1;
+        }
+      });
+      const referrers = Object.entries(refMap)
+        .map(([referrer, count]) => ({ referrer, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // Country counts
+      const countryMap: Record<string, number> = {};
+      rows.filter(r => r.country).forEach(r => {
+        countryMap[r.country] = (countryMap[r.country] || 0) + 1;
+      });
+      const countries = Object.entries(countryMap)
+        .map(([country, count]) => ({ country, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // Hourly distribution (last 24h)
+      const hourMap: Record<string, number> = {};
+      const now = new Date();
+      for (let i = 23; i >= 0; i--) {
+        const h = new Date(now.getTime() - i * 3600000);
+        const key = `${h.getHours().toString().padStart(2, "0")}:00`;
+        hourMap[key] = 0;
+      }
+      rows.forEach(r => {
+        const d = new Date(r.created_at);
+        if (now.getTime() - d.getTime() < 86400000) {
+          const key = `${d.getHours().toString().padStart(2, "0")}:00`;
+          if (key in hourMap) hourMap[key]++;
+        }
+      });
+      const hourly = Object.entries(hourMap).map(([hour, count]) => ({ hour, count }));
+
+      setAnalytics({
+        totalViews: rows.length,
+        todayViews: todayRows.length,
+        uniquePaths,
+        referrers,
+        countries,
+        hourly,
+        recentViews: rows.slice(0, 20),
+      });
+    } catch (e) {
+      console.error("Analytics error:", e);
+      setAnalytics({ totalViews: 0, todayViews: 0, uniquePaths: [], referrers: [], countries: [], hourly: [], recentViews: [] });
+    }
+    setLoadingAnalytics(false);
   }, []);
 
   const addWebsite = () => {
     if (!newName.trim()) { toast.error("Въведете име на сайта"); return; }
+    const cleanUrl = newUrl.trim();
     const site: Website = {
       id: `site-${Date.now()}`,
       name: newName.trim(),
-      url: newUrl.trim() || "#",
-      status: "building",
+      url: cleanUrl || "#",
+      status: cleanUrl ? "checking" : "building",
       template: newTemplate || "custom",
       createdAt: new Date().toLocaleDateString("bg-BG"),
       lastUpdate: new Date().toLocaleDateString("bg-BG"),
@@ -141,28 +329,38 @@ export default function WebsitesPage() {
     updateWebsites([...websites, site]);
     setNewName(""); setNewUrl(""); setNewTemplate(""); setShowNewSite(false);
     toast.success(`${site.name} е добавен!`);
+    if (cleanUrl) {
+      setTimeout(() => checkSiteStatus(site.id, cleanUrl), 500);
+    }
   };
 
   const removeWebsite = (id: string) => {
     updateWebsites(websites.filter(w => w.id !== id));
+    if (selectedSiteId === id) { setSelectedSiteId(null); setAnalytics(null); }
     toast.success("Сайтът е премахнат");
   };
 
-  const toggleStatus = (id: string) => {
-    updateWebsites(websites.map(w => {
-      if (w.id !== id) return w;
-      const next = w.status === "active" ? "maintenance" : w.status === "maintenance" ? "building" : "active";
-      return { ...w, status: next, lastUpdate: new Date().toLocaleDateString("bg-BG") };
-    }));
+  const statusConfig = (s: Website["status"]) => {
+    switch (s) {
+      case "online": return { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Онлайн", dot: "bg-green-500" };
+      case "offline": return { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Офлайн", dot: "bg-red-500" };
+      case "checking": return { color: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: "Проверка...", dot: "bg-blue-500" };
+      case "building": return { color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: "В процес", dot: "bg-yellow-500" };
+      case "maintenance": return { color: "bg-orange-500/20 text-orange-400 border-orange-500/30", label: "Поддръжка", dot: "bg-orange-500" };
+    }
   };
 
-  const statusColor = (s: Website["status"]) =>
-    s === "active" ? "bg-green-500/20 text-green-400 border-green-500/30" :
-    s === "building" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
-    "bg-orange-500/20 text-orange-400 border-orange-500/30";
+  const getTrackingScript = (siteId: string) =>
+    `<script>
+(function(){
+  var s="${SUPABASE_URL}/functions/v1/track-pageview";
+  var d={site_id:"${siteId}",url:location.href,path:location.pathname,referrer:document.referrer,screen:screen.width+"x"+screen.height,language:navigator.language};
+  fetch(s,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d),keepalive:true}).catch(function(){});
+})();
+</script>`;
 
-  const statusLabel = (s: Website["status"]) =>
-    s === "active" ? "Активен" : s === "building" ? "В процес" : "Поддръжка";
+  const selectedSite = websites.find(w => w.id === selectedSiteId);
+  const onlineSites = websites.filter(w => w.status === "online").length;
 
   const elenaInitialMessage = "Здравейте! 👋 Аз съм Елена — вашият уеб разработчик.\n\nМога да ви помогна с:\n\n🌐 Създаване на уебсайтове от нулата\n🎨 Дизайн концепции и UI/UX\n📱 Responsive дизайн\n⚡ Оптимизация на скоростта\n🔍 SEO одит и настройка\n🚀 Deploy и CI/CD\n💻 Генериране на код\n\nКакъв сайт искате да създадем?";
 
@@ -192,7 +390,7 @@ export default function WebsitesPage() {
     <MainLayout>
       <div className="max-w-[1600px] mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
             <Globe className="w-6 h-6 text-white" />
           </div>
@@ -200,47 +398,88 @@ export default function WebsitesPage() {
             <h1 className="text-2xl font-bold">Създаване на уебсайтове</h1>
             <p className="text-sm text-muted-foreground">Елена — Уеб Разработчик</p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-muted-foreground">Онлайн</span>
+          <div className="ml-auto flex items-center gap-4">
+            {websites.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Activity className="w-3.5 h-3.5" />
+                <span>{onlineSites}/{websites.length} онлайн</span>
+              </div>
+            )}
+            <Button size="sm" variant="outline" onClick={checkAllSites} className="h-8 text-xs gap-1.5">
+              <Activity className="w-3.5 h-3.5" /> Провери всички
+            </Button>
           </div>
         </div>
 
-        {/* Two column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left column — tools & sites */}
-          <div className="lg:col-span-2 space-y-4">
+        {/* Three column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left column — sites & tools */}
+          <div className="lg:col-span-3 space-y-4">
 
             {/* My Websites */}
-            <Section title="Моите сайтове" icon={<Globe className="w-4 h-4" />}>
-              <div className="space-y-3">
+            <Section title="Моите сайтове" icon={<Globe className="w-4 h-4" />} badge={`${websites.length}`}>
+              <div className="space-y-2">
                 {websites.length === 0 && !showNewSite && (
                   <p className="text-sm text-muted-foreground py-2">Все още нямате добавени сайтове.</p>
                 )}
-                {websites.map(site => (
-                  <div key={site.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 group">
-                    <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{site.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{site.url !== "#" ? site.url : "Няма URL"}</p>
+                {websites.map(site => {
+                  const sc = statusConfig(site.status);
+                  const isSelected = selectedSiteId === site.id;
+                  return (
+                    <div
+                      key={site.id}
+                      className={cn(
+                        "p-3 rounded-lg transition-all cursor-pointer group",
+                        isSelected ? "bg-primary/10 border border-primary/30" : "bg-secondary/30 hover:bg-secondary/50"
+                      )}
+                      onClick={() => loadAnalytics(site.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-2 h-2 rounded-full flex-shrink-0", sc.dot, site.status === "online" && "animate-pulse")} />
+                        <p className="text-sm font-medium truncate flex-1">{site.name}</p>
+                        <Badge variant="outline" className={cn("text-[10px]", sc.color)} onClick={e => { e.stopPropagation(); checkSiteStatus(site.id, site.url); }}>
+                          {site.status === "checking" ? <Loader2 className="w-3 h-3 animate-spin" /> : sc.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <p className="text-[10px] text-muted-foreground truncate flex-1">{site.url !== "#" ? site.url : "Няма URL"}</p>
+                        {site.responseTime && <span className="text-[10px] text-green-400">{site.responseTime}ms</span>}
+                      </div>
+                      <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {site.url !== "#" && (
+                          <a href={site.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-1 rounded hover:bg-white/10">
+                            <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                          </a>
+                        )}
+                        <button onClick={e => { e.stopPropagation(); setShowTrackingCode(showTrackingCode === site.id ? null : site.id); }} className="p-1 rounded hover:bg-white/10">
+                          <Code2 className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); loadAnalytics(site.id); }} className="p-1 rounded hover:bg-white/10">
+                          <BarChart3 className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                        <div className="flex-1" />
+                        <button onClick={e => { e.stopPropagation(); removeWebsite(site.id); }} className="p-1 rounded hover:bg-red-500/20">
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                        </button>
+                      </div>
+                      {showTrackingCode === site.id && (
+                        <div className="mt-2" onClick={e => e.stopPropagation()}>
+                          <p className="text-[10px] text-muted-foreground mb-1">Постави този код преди &lt;/body&gt;:</p>
+                          <CodeBlock code={getTrackingScript(site.id)} />
+                        </div>
+                      )}
+                      {site.lastCheck && (
+                        <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" /> Последна проверка: {site.lastCheck}
+                        </p>
+                      )}
                     </div>
-                    <Badge variant="outline" className={cn("text-[10px] cursor-pointer", statusColor(site.status))} onClick={() => toggleStatus(site.id)}>
-                      {statusLabel(site.status)}
-                    </Badge>
-                    {site.url !== "#" && (
-                      <a href={site.url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ExternalLink className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                      </a>
-                    )}
-                    <button onClick={() => removeWebsite(site.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="w-3.5 h-3.5 text-red-400 hover:text-red-300" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
                 {showNewSite ? (
                   <div className="space-y-2 p-3 rounded-lg border border-dashed border-border">
                     <Input placeholder="Име на сайта" value={newName} onChange={e => setNewName(e.target.value)} className="h-8 text-sm" />
-                    <Input placeholder="URL (по избор)" value={newUrl} onChange={e => setNewUrl(e.target.value)} className="h-8 text-sm" />
+                    <Input placeholder="https://example.com" value={newUrl} onChange={e => setNewUrl(e.target.value)} className="h-8 text-sm" />
                     <Select value={newTemplate} onValueChange={setNewTemplate}>
                       <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Шаблон (по избор)" /></SelectTrigger>
                       <SelectContent>
@@ -261,6 +500,123 @@ export default function WebsitesPage() {
                 )}
               </div>
             </Section>
+
+            {/* Analytics Panel */}
+            {selectedSiteId && (
+              <Section title={`Анализи — ${selectedSite?.name || ""}`} icon={<BarChart3 className="w-4 h-4" />}>
+                {loadingAnalytics ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : analytics ? (
+                  <div className="space-y-4">
+                    {/* Stats cards */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 rounded-lg bg-secondary/30 text-center">
+                        <Eye className="w-4 h-4 mx-auto text-purple-400 mb-1" />
+                        <p className="text-lg font-bold">{analytics.totalViews}</p>
+                        <p className="text-[10px] text-muted-foreground">Общо прегледи</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-secondary/30 text-center">
+                        <TrendingUp className="w-4 h-4 mx-auto text-green-400 mb-1" />
+                        <p className="text-lg font-bold">{analytics.todayViews}</p>
+                        <p className="text-[10px] text-muted-foreground">Днес</p>
+                      </div>
+                    </div>
+
+                    {/* Hourly chart */}
+                    {analytics.hourly.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5 text-indigo-400" /> Последни 24 часа</p>
+                        <div className="flex items-end gap-[2px] h-16">
+                          {analytics.hourly.map((h, i) => {
+                            const max = Math.max(...analytics.hourly.map(x => x.count), 1);
+                            return (
+                              <div key={i} className="flex-1 flex flex-col items-center group relative">
+                                <div
+                                  className="w-full bg-gradient-to-t from-purple-600 to-indigo-400 rounded-t-sm transition-all hover:from-purple-500 hover:to-indigo-300 min-h-[2px]"
+                                  style={{ height: `${(h.count / max) * 100}%` }}
+                                />
+                                <div className="absolute -top-6 bg-popover border border-border rounded px-1.5 py-0.5 text-[9px] hidden group-hover:block whitespace-nowrap z-10">
+                                  {h.hour} — {h.count} прегледа
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-[9px] text-muted-foreground">{analytics.hourly[0]?.hour}</span>
+                          <span className="text-[9px] text-muted-foreground">{analytics.hourly[analytics.hourly.length - 1]?.hour}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top pages */}
+                    {analytics.uniquePaths.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5 text-blue-400" /> Най-гледани страници</p>
+                        <MiniBar
+                          data={analytics.uniquePaths.slice(0, 5).map(p => ({ label: p.path, value: p.count }))}
+                          max={analytics.uniquePaths[0]?.count || 1}
+                        />
+                      </div>
+                    )}
+
+                    {/* Referrers */}
+                    {analytics.referrers.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><ArrowUpRight className="w-3.5 h-3.5 text-green-400" /> Източници</p>
+                        <MiniBar
+                          data={analytics.referrers.map(r => ({ label: r.referrer, value: r.count }))}
+                          max={analytics.referrers[0]?.count || 1}
+                        />
+                      </div>
+                    )}
+
+                    {/* Countries */}
+                    {analytics.countries.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-orange-400" /> Държави</p>
+                        <MiniBar
+                          data={analytics.countries.map(c => ({ label: c.country, value: c.count }))}
+                          max={analytics.countries[0]?.count || 1}
+                        />
+                      </div>
+                    )}
+
+                    {/* Recent visits */}
+                    {analytics.recentViews.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-yellow-400" /> Последни посещения</p>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {analytics.recentViews.slice(0, 10).map((v, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                              <span className="font-mono">{new Date(v.created_at).toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit" })}</span>
+                              <span className="truncate flex-1">{v.path}</span>
+                              {v.country && <span>{v.country}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {analytics.totalViews === 0 && (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-muted-foreground">Все още няма данни.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Добавете tracking кода в сайта си.</p>
+                        <Button size="sm" variant="outline" className="mt-2 h-7 text-xs" onClick={() => setShowTrackingCode(selectedSiteId)}>
+                          <Code2 className="w-3 h-3 mr-1" /> Покажи кода
+                        </Button>
+                      </div>
+                    )}
+
+                    <Button size="sm" variant="ghost" className="w-full h-7 text-xs" onClick={() => loadAnalytics(selectedSiteId)}>
+                      <Activity className="w-3 h-3 mr-1" /> Обнови данните
+                    </Button>
+                  </div>
+                ) : null}
+              </Section>
+            )}
 
             {/* Templates */}
             <Section title="Шаблони" icon={<Layout className="w-4 h-4" />} defaultOpen={false}>
@@ -294,7 +650,7 @@ export default function WebsitesPage() {
               </div>
             </Section>
 
-            {/* Quick Code Snippets */}
+            {/* Code Snippets */}
             <Section title="Готови шаблони код" icon={<Code2 className="w-4 h-4" />} defaultOpen={false}>
               <div className="space-y-3">
                 <div>
@@ -332,12 +688,8 @@ export default function WebsitesPage() {
       Описание на вашия продукт или услуга.
     </p>
     <div class="mt-8 flex gap-4 justify-center">
-      <a href="#" class="px-8 py-3 bg-purple-600 hover:bg-purple-500 rounded-full font-medium transition">
-        Започнете
-      </a>
-      <a href="#" class="px-8 py-3 border border-gray-700 hover:border-gray-500 rounded-full transition">
-        Научете повече
-      </a>
+      <a href="#" class="px-8 py-3 bg-purple-600 hover:bg-purple-500 rounded-full font-medium transition">Започнете</a>
+      <a href="#" class="px-8 py-3 border border-gray-700 hover:border-gray-500 rounded-full transition">Научете повече</a>
     </div>
   </div>
 </section>`} />
@@ -355,11 +707,10 @@ export default function WebsitesPage() {
                 </div>
               </div>
             </Section>
-
           </div>
 
           {/* Right column — AI Chat with Elena */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-9">
             <Card className="h-[calc(100vh-180px)] flex flex-col">
               <CardHeader className="pb-2 flex-shrink-0">
                 <div className="flex items-center gap-3">

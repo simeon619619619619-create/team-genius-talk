@@ -24,11 +24,5 @@ verify_jwt = false
 [functions.send-push-notifications]
 verify_jwt = false
 
-[functions.check-subscription]
-verify_jwt = false
-
-[functions.create-checkout]
-verify_jwt = false
-
-[functions.customer-portal]
+[functions.track-pageview]
 verify_jwt = false
