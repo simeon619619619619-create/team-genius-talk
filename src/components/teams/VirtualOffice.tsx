@@ -1,5 +1,17 @@
 import { useRef, useEffect, useCallback } from "react";
 
+export interface AiBotSubtask {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface AiBotTaskGroup {
+  id: string;
+  title: string;
+  subtasks: AiBotSubtask[];
+}
+
 export interface AiBot {
   id: string;
   name: string;
@@ -8,6 +20,7 @@ export interface AiBot {
   frequency: string;
   automations: string[];
   tasks: string[];
+  taskGroups?: AiBotTaskGroup[];
   shirtColor: string;
   hairColor: string;
   skinColor: string;

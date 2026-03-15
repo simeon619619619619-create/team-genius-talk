@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { Team, TeamMember } from "@/types";
 import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
 import { useMemberPermissions } from "@/hooks/useMemberPermissions";
-import { VirtualOffice, AiBot } from "@/components/teams/VirtualOffice";
+import { VirtualOffice, type AiBot } from "@/components/teams/VirtualOffice";
 import { AiBotCard } from "@/components/teams/AiBotCard";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -65,12 +65,49 @@ export default function TeamsPage() {
   // ─── AI BOTS STATE ───
   const AI_BOTS_KEY = "simora_ai_bots";
   const DEFAULT_AI_BOTS: AiBot[] = [
-    { id: "bot-1", name: "Елена", role: "Уеб Разработчик", process: "eufashioninstitute.com", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: ["Поддръжка на сайта", "Оптимизация"], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "working" },
-    { id: "bot-2", name: "Мария", role: "Email & Комуникации", process: "Resend Notifications", frequency: "При заявка", automations: ["Apply Forms", "Book Forms", "Newsletter"], tasks: ["Обработка на формуляри", "Email нотификации"], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "working" },
-    { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: ["Създаване на съдържание", "Планиране"], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
-    { id: "bot-4", name: "Софи", role: "Модел Мениджмънт", process: "Model Database", frequency: "При нужда", automations: ["Profiles", "Photos", "Casting"], tasks: ["Управление на профили", "Кастинг"], skinColor: "#f0c8a0", hairColor: "#2c1608", shirtColor: "#fbbf24", state: "idle" },
-    { id: "bot-5", name: "Дара", role: "Анализи & Мониторинг", process: "Site Monitoring", frequency: "На всеки 24ч", automations: ["Uptime", "Performance", "Reports"], tasks: ["Проверка на сайта", "Доклади"], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#60a5fa", state: "idle" },
-    { id: "bot-6", name: "Лина", role: "Продажби & Клиенти", process: "Social Empire", frequency: "При нужда", automations: ["Stripe", "Leads", "Follow-up"], tasks: ["Обработка на поръчки", "Следване на лийдове"], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
+    { id: "bot-1", name: "Елена", role: "Уеб Разработчик", process: "eufashioninstitute.com", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: [], taskGroups: [
+      { id: "tg-1a", title: "Поддръжка на сайта", subtasks: [
+        { id: "st-1a1", text: "Проверка за грешки в конзолата", done: false },
+        { id: "st-1a2", text: "Оптимизация на скоростта", done: false },
+        { id: "st-1a3", text: "Актуализация на съдържанието", done: false },
+      ]},
+    ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "working" },
+    { id: "bot-2", name: "Мария", role: "Email & Комуникации", process: "Resend Notifications", frequency: "При заявка", automations: ["Apply Forms", "Book Forms", "Newsletter"], tasks: [], taskGroups: [
+      { id: "tg-2a", title: "Обработка на формуляри", subtasks: [
+        { id: "st-2a1", text: "Проверка за нови кандидатури", done: false },
+        { id: "st-2a2", text: "Изпращане на потвърждения", done: false },
+        { id: "st-2a3", text: "Обработка на booking заявки", done: false },
+      ]},
+    ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "working" },
+    { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: [], taskGroups: [
+      { id: "tg-3a", title: "Създаване на съдържание", subtasks: [
+        { id: "st-3a1", text: "Планиране на месечен контент календар", done: false },
+        { id: "st-3a2", text: "Снимане/заснемане на Reels (3-5 бр./седмица)", done: false },
+        { id: "st-3a3", text: "Подготовка на Stories (ежедневни)", done: false },
+        { id: "st-3a4", text: "Дизайн на карусел постове (2 бр./седмица)", done: false },
+        { id: "st-3a5", text: "Написване на copywriting за всеки пост", done: false },
+      ]},
+    ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
+    { id: "bot-4", name: "Софи", role: "Модел Мениджмънт", process: "Model Database", frequency: "При нужда", automations: ["Profiles", "Photos", "Casting"], tasks: [], taskGroups: [
+      { id: "tg-4a", title: "Управление на профили", subtasks: [
+        { id: "st-4a1", text: "Обновяване на портфолио снимки", done: false },
+        { id: "st-4a2", text: "Организиране на кастинги", done: false },
+      ]},
+    ], skinColor: "#f0c8a0", hairColor: "#2c1608", shirtColor: "#fbbf24", state: "idle" },
+    { id: "bot-5", name: "Дара", role: "Анализи & Мониторинг", process: "Site Monitoring", frequency: "На всеки 24ч", automations: ["Uptime", "Performance", "Reports"], tasks: [], taskGroups: [
+      { id: "tg-5a", title: "Проверка на сайта", subtasks: [
+        { id: "st-5a1", text: "Мониторинг на uptime", done: false },
+        { id: "st-5a2", text: "Проверка на Core Web Vitals", done: false },
+        { id: "st-5a3", text: "Седмичен доклад", done: false },
+      ]},
+    ], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#60a5fa", state: "idle" },
+    { id: "bot-6", name: "Лина", role: "Продажби & Клиенти", process: "Social Empire", frequency: "При нужда", automations: ["Stripe", "Leads", "Follow-up"], tasks: [], taskGroups: [
+      { id: "tg-6a", title: "Обработка на поръчки", subtasks: [
+        { id: "st-6a1", text: "Проверка на Stripe плащания", done: false },
+        { id: "st-6a2", text: "Следване на лийдове", done: false },
+        { id: "st-6a3", text: "Follow-up имейли", done: false },
+      ]},
+    ], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
   ];
 
   const [aiBots, setAiBots] = useState<AiBot[]>(() => {
@@ -144,6 +181,10 @@ export default function TeamsPage() {
     }
     setAiBotModalOpen(false);
     toast.success(editingAiBot ? "Ботът е обновен!" : "Ботът е добавен!");
+  };
+
+  const handleUpdateAiBot = (updated: AiBot) => {
+    saveAiBots(aiBots.map(b => b.id === updated.id ? updated : b));
   };
 
   const handleDeleteAiBot = (id: string) => {
@@ -842,6 +883,7 @@ export default function TeamsPage() {
                 bot={bot}
                 onEdit={openAiBotModal}
                 onDelete={handleDeleteAiBot}
+                onUpdate={handleUpdateAiBot}
               />
             ))}
           </div>
