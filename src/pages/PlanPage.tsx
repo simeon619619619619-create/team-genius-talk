@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Check, ChevronRight, Lock, Bot, Users } from "lucide-react";
+import { Check, ChevronRight, Lock, Bot, Users, Plus, ListTodo, Calendar } from "lucide-react";
 import type { AiBot } from "@/components/teams/VirtualOffice";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
@@ -10,14 +10,25 @@ import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { useSyncBusinessPlan } from "@/hooks/useSyncBusinessPlan";
+import { useTasks } from "@/hooks/useTasks";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import confetti from "canvas-confetti";
 
 export default function PlanPage() {
   const { projectId, projectName, loading: projectLoading } = useCurrentProject();
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [showSyncPreview, setShowSyncPreview] = useState(false);
+  const { tasks, addTask } = useTasks();
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high">("medium");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [openPopover, setOpenPopover] = useState<string | null>(null);
   const {
     steps,
     loading,
@@ -153,20 +164,131 @@ export default function PlanPage() {
               <Users className="h-4 w-4 text-purple-500" />
               <span className="text-xs font-semibold text-muted-foreground">Екип:</span>
             </div>
-            {marketingTeam.map(bot => (
-              <div key={bot.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-secondary/40 shrink-0">
-                <div
-                  className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-                  style={{ background: bot.shirtColor }}
-                >
-                  {bot.name[0]}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium">{bot.name}</p>
-                  <p className="text-[9px] text-muted-foreground leading-tight">{bot.role}</p>
-                </div>
-              </div>
-            ))}
+            {marketingTeam.map(bot => {
+              const botTasks = tasks.filter(t => t.assignee_name === bot.name && t.status !== "done");
+              return (
+                <Popover key={bot.id} open={openPopover === bot.id} onOpenChange={(open) => {
+                  setOpenPopover(open ? bot.id : null);
+                  if (!open) { setTaskTitle(""); setTaskPriority("medium"); setTaskDueDate(""); }
+                }}>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-secondary/40 shrink-0 hover:bg-secondary/70 transition-colors relative group">
+                      <div
+                        className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+                        style={{ background: bot.shirtColor }}
+                      >
+                        {bot.name[0]}
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <p className="text-xs font-medium">{bot.name}</p>
+                        <p className="text-[9px] text-muted-foreground leading-tight">{bot.role}</p>
+                      </div>
+                      {botTasks.length > 0 && (
+                        <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[9px] font-bold">
+                          {botTasks.length}
+                        </Badge>
+                      )}
+                      <Plus className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-3" align="start">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold text-white"
+                          style={{ background: bot.shirtColor }}
+                        >
+                          {bot.name[0]}
+                        </div>
+                        <span className="text-sm font-semibold">{bot.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{bot.role}</span>
+                      </div>
+
+                      {/* Existing tasks for this member */}
+                      {botTasks.length > 0 && (
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {botTasks.map(t => (
+                            <div key={t.id} className="flex items-center gap-2 text-xs py-1 px-2 rounded-lg bg-secondary/30">
+                              <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="flex-1 truncate">{t.title}</span>
+                              <Badge variant="outline" className={cn("text-[9px] px-1 py-0 h-4",
+                                t.priority === "high" ? "border-red-300 text-red-600" :
+                                t.priority === "medium" ? "border-amber-300 text-amber-600" : "border-green-300 text-green-600"
+                              )}>
+                                {t.priority === "high" ? "!" : t.priority === "medium" ? "•" : "○"}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Add new task form */}
+                      <div className="border-t border-border pt-2 space-y-2">
+                        <Input
+                          placeholder="Нова задача..."
+                          value={taskTitle}
+                          onChange={e => setTaskTitle(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && taskTitle.trim()) {
+                              addTask({
+                                title: taskTitle.trim(),
+                                assignee_name: bot.name,
+                                priority: taskPriority,
+                                due_date: taskDueDate || undefined,
+                              });
+                              setTaskTitle("");
+                              setTaskPriority("medium");
+                              setTaskDueDate("");
+                            }
+                          }}
+                          className="h-8 text-xs"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Select value={taskPriority} onValueChange={(v) => setTaskPriority(v as "low" | "medium" | "high")}>
+                            <SelectTrigger className="h-7 text-[11px] flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">Високо</SelectItem>
+                              <SelectItem value="medium">Средно</SelectItem>
+                              <SelectItem value="low">Ниско</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="date"
+                            value={taskDueDate}
+                            onChange={e => setTaskDueDate(e.target.value)}
+                            className="h-7 text-[11px] flex-1"
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full h-7 text-xs"
+                          disabled={!taskTitle.trim()}
+                          onClick={() => {
+                            if (taskTitle.trim()) {
+                              addTask({
+                                title: taskTitle.trim(),
+                                assignee_name: bot.name,
+                                priority: taskPriority,
+                                due_date: taskDueDate || undefined,
+                              });
+                              setTaskTitle("");
+                              setTaskPriority("medium");
+                              setTaskDueDate("");
+                            }
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Добави задача
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              );
+            })}
           </div>
         )}
 
