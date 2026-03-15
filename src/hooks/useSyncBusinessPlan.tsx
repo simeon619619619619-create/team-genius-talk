@@ -130,8 +130,13 @@ export function useSyncBusinessPlan(projectId: string | null) {
         }
       });
 
-      // Navigate to business plan page
-      navigate("/business-plan");
+      // Store plan context for website generation
+      try {
+        const planContext = stepsContent.map(s => `${s.title}:\n${s.content}`).join("\n\n---\n\n");
+        localStorage.setItem("simora_website_plan_context", planContext);
+        localStorage.setItem("simora_website_plan_goals", JSON.stringify(annualGoals));
+      } catch { /* ignore */ }
+
       return true;
     } catch (error) {
       console.error("Error syncing to business plan:", error);

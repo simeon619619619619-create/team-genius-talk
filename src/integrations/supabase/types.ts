@@ -163,6 +163,39 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          id: string
+          user_id: string
+          project_id: string | null
+          chat_key: string
+          session_id: string
+          role: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          project_id?: string | null
+          chat_key: string
+          session_id: string
+          role: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          project_id?: string | null
+          chat_key?: string
+          session_id?: string
+          role?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       content_posts: {
         Row: {
           business_plan_id: string
@@ -215,6 +248,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ghl_integrations: {
+        Row: {
+          id: string
+          user_id: string
+          api_key: string
+          location_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          api_key: string
+          location_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          api_key?: string
+          location_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       global_bots: {
         Row: {
@@ -519,6 +579,30 @@ export type Database = {
           id?: string
           is_active?: boolean
           max_uses?: number | null
+        }
+        Relationships: []
+      }
+      resend_integrations: {
+        Row: {
+          id: string
+          user_id: string
+          api_key: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          api_key: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          api_key?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

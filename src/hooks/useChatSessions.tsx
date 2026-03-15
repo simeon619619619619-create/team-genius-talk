@@ -18,6 +18,11 @@ export function useChatSessions(chatKey: string) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Reset active session when chatKey changes (e.g., switching bots)
+  useEffect(() => {
+    setActiveSessionId(null);
+  }, [chatKey]);
+
   const fetchSessions = useCallback(async () => {
     if (!user) {
       setSessions([]);

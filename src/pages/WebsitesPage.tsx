@@ -12,7 +12,8 @@ import {
   PenTool, Shield, BarChart3, Star, Loader2,
   Users, Eye, Clock, ArrowUpRight, MapPin, TrendingUp, Activity
 } from "lucide-react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -158,8 +159,73 @@ function MiniBar({ data, max }: { data: { label: string; value: number }[]; max:
   );
 }
 
+/* ─── Website Preview ─── */
+function WebsitePreview({ html, onClose }: { html: string; onClose: () => void }) {
+  const [viewMode, setViewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const widthClass = viewMode === "desktop" ? "w-full" : viewMode === "tablet" ? "max-w-[768px]" : "max-w-[375px]";
+
+  useEffect(() => {
+    if (iframeRef.current) {
+      const doc = iframeRef.current.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+      }
+    }
+  }, [html]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-card/50">
+        <div className="flex items-center gap-2">
+          <Globe className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium">Преглед на сайта</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setViewMode("desktop")}
+            className={cn("p-1.5 rounded-lg transition-colors", viewMode === "desktop" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Monitor className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("tablet")}
+            className={cn("p-1.5 rounded-lg transition-colors", viewMode === "tablet" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Smartphone className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("mobile")}
+            className={cn("p-1.5 rounded-lg transition-colors", viewMode === "mobile" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors">
+            <Code2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex justify-center overflow-auto p-4">
+        <div className={cn("transition-all duration-300 h-full bg-white rounded-lg shadow-xl overflow-hidden", widthClass)}>
+          <iframe
+            ref={iframeRef}
+            className="w-full h-full border-0"
+            title="Website Preview"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
 export default function WebsitesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [websites, setWebsites] = useState<Website[]>(loadWebsites);
   const [showNewSite, setShowNewSite] = useState(false);
   const [newName, setNewName] = useState("");
@@ -169,7 +235,31 @@ export default function WebsitesPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [showTrackingCode, setShowTrackingCode] = useState<string | null>(null);
+  const [generatedHtml, setGeneratedHtml] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
+
+  // Check if coming from plan flow
+  const fromPlan = searchParams.get("fromPlan") === "true";
+  const planContext = useMemo(() => {
+    if (!fromPlan) return null;
+    try {
+      return localStorage.getItem("simora_website_plan_context") || null;
+    } catch { return null; }
+  }, [fromPlan]);
+
+  const autoGeneratePrompt = useMemo(() => {
+    if (!fromPlan || !planContext) return null;
+    // Clear the param so it doesn't re-trigger
+    return `Генерирай пълен HTML уебсайт за моя бизнес на базата на маркетинг плана ми. Използвай Tailwind CDN. Сайтът трябва да е на български, responsive, модерен и професионален. Включи hero секция, секция "За нас", услуги/продукти, отзиви, CTA и контактна форма. Използвай тъмна цветова схема. Ето данните от плана ми:\n\n${planContext.substring(0, 3000)}`;
+  }, [fromPlan, planContext]);
+
+  // Clear fromPlan param after using it
+  useEffect(() => {
+    if (fromPlan) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [fromPlan, setSearchParams]);
 
   const updateWebsites = useCallback((sitesOrFn: Website[] | ((prev: Website[]) => Website[])) => {
     setWebsites(prev => {
@@ -362,6 +452,19 @@ export default function WebsitesPage() {
   const selectedSite = websites.find(w => w.id === selectedSiteId);
   const onlineSites = websites.filter(w => w.status === "online").length;
 
+  // Extract HTML from assistant messages
+  const handleAssistantMessage = useCallback((content: string) => {
+    const htmlMatch = content.match(/```html\s*([\s\S]*?)```/);
+    if (htmlMatch && htmlMatch[1]) {
+      const html = htmlMatch[1].trim();
+      if (html.includes("<!DOCTYPE html>") || html.includes("<html")) {
+        setGeneratedHtml(html);
+        setShowPreview(true);
+        toast.success("Сайтът е генериран! Виждате го в прегледа.");
+      }
+    }
+  }, []);
+
   const elenaInitialMessage = "Здравейте! 👋 Аз съм Елена — вашият уеб разработчик.\n\nМога да ви помогна с:\n\n🌐 Създаване на уебсайтове от нулата\n🎨 Дизайн концепции и UI/UX\n📱 Responsive дизайн\n⚡ Оптимизация на скоростта\n🔍 SEO одит и настройка\n🚀 Deploy и CI/CD\n💻 Генериране на код\n\nКакъв сайт искате да създадем?";
 
   const elenaSystemPrompt = `Ти си Елена — експертен уеб разработчик в екипа на Simora. Твоята специалност е създаване на уебсайтове.
@@ -384,7 +487,9 @@ export default function WebsitesPage() {
 - Когато генерираш код, използвай Tailwind CSS по подразбиране
 - Бъди кратка и конкретна, без излишни обяснения
 - Не споменавай Claude, Anthropic, Google, OpenAI, Gemini или ChatGPT
-- Представяй се като Елена от екипа на Simora`;
+- Представяй се като Елена от екипа на Simora
+- Когато генерираш пълен HTML сайт, ВИНАГИ го постави в \`\`\`html блок. Генерирай ПЪЛЕН, самостоятелен HTML файл с <script src="https://cdn.tailwindcss.com"></script>. Сайтът трябва да е responsive, модерен и готов за публикуване.
+- При промени на сайта генерирай отново ЦЕЛИЯ HTML файл с промените`;
 
   return (
     <MainLayout>
@@ -709,30 +814,47 @@ export default function WebsitesPage() {
             </Section>
           </div>
 
-          {/* Right column — AI Chat with Elena */}
+          {/* Right column — AI Chat with Elena + Preview */}
           <div className="lg:col-span-9">
-            <Card className="h-[calc(100vh-180px)] flex flex-col">
-              <CardHeader className="pb-2 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Елена</CardTitle>
-                    <p className="text-xs text-muted-foreground">Web Developer — готова да помогне</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 min-h-0 p-0">
-                <ChatInterface
-                  context="business"
-                  suggestions={suggestions}
-                  moduleSystemPrompt={elenaSystemPrompt}
-                  moduleInitialMessage={elenaInitialMessage}
-                  sessionId="elena-websites"
+            {showPreview && generatedHtml ? (
+              <Card className="h-[calc(100vh-180px)] flex flex-col overflow-hidden">
+                <WebsitePreview
+                  html={generatedHtml}
+                  onClose={() => setShowPreview(false)}
                 />
-              </CardContent>
-            </Card>
+              </Card>
+            ) : (
+              <Card className="h-[calc(100vh-180px)] flex flex-col">
+                <CardHeader className="pb-2 flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                      <Star className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-base">Елена</CardTitle>
+                      <p className="text-xs text-muted-foreground">Web Developer — готова да помогне</p>
+                    </div>
+                    {generatedHtml && (
+                      <Button size="sm" variant="outline" onClick={() => setShowPreview(true)} className="h-8 text-xs gap-1.5">
+                        <Eye className="w-3.5 h-3.5" /> Преглед на сайта
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 min-h-0 p-0">
+                  <ChatInterface
+                    context="business"
+                    suggestions={suggestions}
+                    moduleSystemPrompt={elenaSystemPrompt}
+                    moduleInitialMessage={fromPlan ? "Здравейте! Виждам, че имате готов маркетинг план. Генерирам уебсайт за вашия бизнес..." : elenaInitialMessage}
+                    sessionId={fromPlan ? `elena-websites-${Date.now()}` : "elena-websites"}
+                    autoSendPrompt={autoGeneratePrompt}
+                    extraContext={planContext || undefined}
+                    onAssistantMessage={handleAssistantMessage}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

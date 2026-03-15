@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Check, ChevronRight, ChevronDown, Lock, Bot, Users, Plus, ListTodo, Calendar, Target, Sparkles, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { AiBot } from "@/components/teams/VirtualOffice";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
 import { ExportPdfButton } from "@/components/plan/ExportPdfButton";
 import { GenerateScheduleDialog } from "@/components/plan/GenerateScheduleDialog";
 import { SyncPreviewDialog } from "@/components/plan/SyncPreviewDialog";
+import { WebsiteOfferDialog } from "@/components/plan/WebsiteOfferDialog";
 import { usePlanSteps } from "@/hooks/usePlanSteps";
 import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
@@ -24,6 +26,8 @@ export default function PlanPage() {
   const { projectId, projectName, loading: projectLoading } = useCurrentProject();
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [showSyncPreview, setShowSyncPreview] = useState(false);
+  const [showWebsiteOffer, setShowWebsiteOffer] = useState(false);
+  const navigate = useNavigate();
   const { tasks, addTask, addSubtask } = useTasks();
   const [taskTitle, setTaskTitle] = useState("");
   const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high">("medium");
@@ -215,8 +219,11 @@ export default function PlanPage() {
   }, [activeStepId, steps]);
 
   const handleConfirmSync = useCallback(async (editedGoals?: Array<{ id: string; title: string; description: string; category: string; priority: string }>) => {
-    await syncToBusinessPlan(steps, editedGoals);
+    const success = await syncToBusinessPlan(steps, editedGoals);
     setShowSyncPreview(false);
+    if (success) {
+      setShowWebsiteOffer(true);
+    }
   }, [syncToBusinessPlan, steps]);
 
   const completedCount = steps.filter(s => s.completed).length;
@@ -634,6 +641,20 @@ export default function PlanPage() {
         onOpenChange={setShowSyncPreview}
         steps={steps}
         onConfirm={handleConfirmSync}
+      />
+
+      {/* Website Generation Offer */}
+      <WebsiteOfferDialog
+        open={showWebsiteOffer}
+        onOpenChange={setShowWebsiteOffer}
+        onGenerateWebsite={() => {
+          setShowWebsiteOffer(false);
+          navigate("/websites?fromPlan=true");
+        }}
+        onGoToBusinessPlan={() => {
+          setShowWebsiteOffer(false);
+          navigate("/business-plan");
+        }}
       />
     </MainLayout>;
 }
