@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Send, Bot, User, Loader2, PenLine, MessageSquare, CheckCircle2, ArrowRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +58,26 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
   const completionMessage = stepQuestions?.completionMessage || "";
   const contextKeys = stepQuestions?.contextKeys || [];
   const botRole = stepQuestions?.botRole || "AI Асистент";
+
+  // Load marketing team bots for collaborative steps
+  const marketingSteps = ["Маркетинг стратегия", "Контент стратегия", "Оперативен план"];
+  const teamBots = useMemo(() => {
+    if (!marketingSteps.includes(step.title)) return undefined;
+    try {
+      const saved = localStorage.getItem("simora_ai_bots");
+      if (!saved) return undefined;
+      const bots = JSON.parse(saved) as { id: string; name: string; role: string; skills?: string[] }[];
+      // Filter bots relevant to marketing (Ивана - content, Мария - email, etc.)
+      const marketingKeywords = ["контент", "съдържание", "соц. мрежи", "email", "комуникации", "маркетинг", "продажби", "content", "social"];
+      return bots
+        .filter(b => {
+          const roleL = b.role.toLowerCase();
+          const skillsStr = (b.skills || []).join(" ").toLowerCase();
+          return marketingKeywords.some(k => roleL.includes(k) || skillsStr.includes(k));
+        })
+        .map(b => ({ name: b.name, role: b.role, skills: b.skills || [] }));
+    } catch { return undefined; }
+  }, [step.title]);
 
   // Load existing conversation and answers - reset state when step changes
   useEffect(() => {
@@ -313,6 +333,7 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
           exitCriteria,
           completionMessage,
           contextKeys,
+          teamBots,
         }
       });
 

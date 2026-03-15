@@ -23,6 +23,3 @@ verify_jwt = false
 
 [functions.send-push-notifications]
 verify_jwt = false
-
-[functions.track-pageview]
-verify_jwt = false

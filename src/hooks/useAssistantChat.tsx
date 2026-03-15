@@ -26,7 +26,8 @@ export function useAssistantChat(
   context: "business" | "video" = "business",
   moduleSystemPrompt?: string,
   moduleInitialMessage?: string,
-  sessionId?: string | null
+  sessionId?: string | null,
+  extraContext?: string
 ) {
   const { projectId } = useCurrentProject();
   const { currentOrganization } = useOrganizations();
@@ -138,6 +139,7 @@ export function useAssistantChat(
           userId: user?.id,
           sessionId: sessionId || undefined,
           moduleSystemPrompt: moduleSystemPrompt || undefined,
+          extraContext: extraContext || undefined,
         },
       });
 

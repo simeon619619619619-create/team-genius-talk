@@ -31,6 +31,7 @@ interface ChatInterfaceProps {
   onFirstMessage?: (text: string) => void;
   autoSendPrompt?: string | null;
   onSuggestionUsed?: (promptText: string) => void;
+  extraContext?: string;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -109,8 +110,8 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, autoSendPrompt, onSuggestionUsed }: ChatInterfaceProps) {
-  const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId);
+export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, autoSendPrompt, onSuggestionUsed, extraContext }: ChatInterfaceProps) {
+  const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId, extraContext);
   const autoSentRef = useRef(false);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);

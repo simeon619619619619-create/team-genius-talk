@@ -35,6 +35,11 @@ const InputSchema = z.object({
   exitCriteria: z.string().optional(),
   completionMessage: z.string().optional(),
   contextKeys: z.array(z.string()).optional(),
+  teamBots: z.array(z.object({
+    name: z.string().max(100),
+    role: z.string().max(200),
+    skills: z.array(z.string()).optional(),
+  })).max(10).optional(),
 });
 
 // Get current date info in Bulgarian timezone
@@ -313,7 +318,8 @@ serve(async (req) => {
       requiredFields = [],
       exitCriteria = "",
       completionMessage = "",
-      contextKeys = []
+      contextKeys = [],
+      teamBots,
     } = validationResult.data;
 
     const GOOGLE_AI_KEY = Deno.env.get("GOOGLE_AI_KEY");
@@ -479,9 +485,27 @@ ${relevantContext.map(c => `• ${c.context_key}: ${c.context_value}`).join('\n'
 
     const botConfig = botConfigs[stepTitle] || { role: "AI Асистент", systemPromptAddition: "", enableWeeklyPlanning: false };
 
+    // Build team collaboration context
+    const teamContext = teamBots && teamBots.length > 0
+      ? `\n🤝 ЕКИПНА КОЛАБОРАЦИЯ:
+Ти работиш заедно с маркетинг екипа. Ето кои са колегите ти:
+${teamBots.map(b => `- **${b.name}** (${b.role})${b.skills?.length ? ` — умения: ${b.skills.join(', ')}` : ''}`).join('\n')}
+
+ВАЖНО: Когато обсъждаш задачи или стратегия:
+1. Споменавай кой от екипа е най-подходящ за всяка задача (напр. "Ивана може да подготви контента", "Мария ще изпрати имейлите")
+2. Предлагай последователност на задачите — коя след коя трябва да е
+3. Показвай как различните членове на екипа се допълват
+4. Когато създаваш седмичен план, разпределяй задачите между ботовете от екипа
+5. Симулирай кратък диалог между ботовете когато е уместно, напр.:
+   **Ивана:** "Аз ще подготвя 3 Reels-а и 5 Stories-а за тази седмица."
+   **Мария:** "Добре, след като са готови, аз ще ги промотирам с имейл кампания."
+`
+      : '';
+
     // Build date-aware system prompt
     const systemPrompt = `Ти си ${botConfig.role} – приятелски AI бизнес консултант.
 Текуща секция: ${stepTitle}
+${teamContext}
 
 📅 ТЕКУЩА ДАТА И ВРЕМЕ:
 - Дата: ${dateInfo.formattedDate}
