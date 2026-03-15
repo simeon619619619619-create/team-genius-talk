@@ -201,88 +201,102 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: Use AI to compile and organize the data
+    // Step 3: Use AI in batches to get ALL businesses
     const scrapedContext = scrapedData.length > 0
       ? `\n\nОт уеб скрейпинг намерих тези контакти:\n${scrapedData.map(s =>
           `- ${s.url}: имейли=[${s.emails.join(', ')}], телефони=[${s.phones.join(', ')}]`
         ).join('\n')}`
       : '';
 
-    const prompt = `Ти си изследовател на бизнес данни. Генерирай списък от 10 РЕАЛНИ фирми в ниша "${niche}" в ${location}.
-${scrapedContext}
+    const allBusinesses: any[] = [];
+    const MAX_ROUNDS = 4; // Up to 4 rounds × 25 = 100 businesses max
 
-ВАЖНО — за всяка фирма ЗАДЪЛЖИТЕЛНО предостави:
-- company_name: Официално име на фирмата
-- website: Уебсайт
-- email: Контактен имейл (ЗАДЪЛЖИТЕЛНО - търси реален имейл)
-- phone: Телефон (ЗАДЪЛЖИТЕЛНО - търси реален телефон, български формат +359...)
-- instagram: Instagram профил без @ (ако знаеш)
-- facebook: Facebook страница URL (ако знаеш)
-- address: Физически адрес
-- city: Град
-- description: Кратко описание (1-2 изречения)
-- employee_count: Брой служители ("1-10", "11-50", "51-200", "200+")
-- contact_person: Име на собственик/мениджър (ако знаеш)
-- contact_role: Длъжност на контактното лице
-- tags: Масив от тагове
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      const alreadyFound = allBusinesses.map(b => b.company_name).join(", ");
+      const excludeClause = round > 0
+        ? `\n\nВЕЧЕ НАМЕРЕНИ (НЕ ги повтаряй): ${alreadyFound}`
+        : '';
 
-КРИТИЧНО:
-- Давай САМО фирми за които си СИГУРЕН че съществуват
-- Ако данните от скрейпинга по-горе съвпадат — ИЗПОЛЗВАЙ ги
-- Имейли и телефони са ПРИОРИТЕТ номер 1
-- Ако не знаеш имейл/телефон, сложи null, но се СТАРАЙ да ги намериш
-- Върни САМО валиден JSON масив, без друг текст`;
+      const batchPrompt = `Ти си експерт по бизнес данни в България. Генерирай списък от 25 РЕАЛНИ фирми/брандове в ниша "${niche}" в ${location}.
+${scrapedContext}${excludeClause}
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+За всяка фирма дай JSON обект с:
+- company_name, website, email, phone (формат +359...), instagram, facebook
+- address, city, description (1-2 изречения), employee_count ("1-10"/"11-50"/"51-200"/"200+")
+- contact_person, contact_role, tags (масив)
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return new Response(JSON.stringify({ error: "AI API грешка", details: errText }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+ПРАВИЛА:
+- САМО реални, съществуващи фирми/брандове
+- Използвай данните от скрейпинга ако съвпадат
+- Включи ВСИЧКИ които знаеш — големи и малки, популярни и по-малко известни
+- НЕ повтаряй вече намерените фирми
+- Ако не знаеш контакт, сложи null
+- Върни САМО валиден JSON масив
+- Ако няма повече фирми, върни празен масив []`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8000,
+          messages: [{ role: "user", content: batchPrompt }],
+        }),
       });
+
+      if (!response.ok) {
+        if (round === 0) {
+          const errText = await response.text();
+          return new Response(JSON.stringify({ error: "AI API грешка", details: errText }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        break; // Stop batching on error after first round
+      }
+
+      const aiResult = await response.json();
+      const textContent = aiResult.content?.[0]?.text || "[]";
+
+      let batch;
+      try {
+        const jsonMatch = textContent.match(/\[[\s\S]*\]/);
+        batch = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      } catch {
+        if (round === 0) {
+          return new Response(JSON.stringify({
+            error: "Не можах да парсна AI отговора",
+            raw: textContent.slice(0, 500)
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        break;
+      }
+
+      if (batch.length === 0) break; // AI says no more
+
+      allBusinesses.push(...batch);
+
+      // If AI returned fewer than 15, probably exhausted
+      if (batch.length < 15) break;
     }
 
-    const aiResult = await response.json();
-    const textContent = aiResult.content?.[0]?.text || "[]";
-
-    // Extract JSON
-    let businesses;
-    try {
-      const jsonMatch = textContent.match(/\[[\s\S]*\]/);
-      businesses = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-    } catch {
-      return new Response(JSON.stringify({
-        error: "Не можах да парсна AI отговора",
-        raw: textContent.slice(0, 500)
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const businesses = allBusinesses;
 
     // Step 4: For businesses with websites but no contacts, try scraping their sites directly
     for (const biz of businesses) {
       if (biz.website && (!biz.email || !biz.phone)) {
-        const scraped = await scrapeWebsite(biz.website);
-        if (!biz.email && scraped.emails.length > 0) {
-          biz.email = scraped.emails[0];
-        }
-        if (!biz.phone && scraped.phones.length > 0) {
-          biz.phone = scraped.phones[0];
-        }
+        try {
+          const scraped = await scrapeWebsite(biz.website);
+          if (!biz.email && scraped.emails.length > 0) biz.email = scraped.emails[0];
+          if (!biz.phone && scraped.phones.length > 0) biz.phone = scraped.phones[0];
+        } catch { /* skip */ }
       }
     }
 
