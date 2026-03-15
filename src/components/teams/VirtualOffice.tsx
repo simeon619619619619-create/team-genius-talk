@@ -4,6 +4,8 @@ export interface AiBotSubtask {
   id: string;
   text: string;
   done: boolean;
+  status?: "idle" | "queued" | "running" | "done";
+  result?: string;
 }
 
 export interface AiBotTaskGroup {
