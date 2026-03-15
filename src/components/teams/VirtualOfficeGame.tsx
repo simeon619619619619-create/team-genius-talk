@@ -433,13 +433,12 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     const mx = (e.clientX - r.left) * sx / PX;
     const my = (e.clientY - r.top) * sy / PX;
 
-    // Check if clicked a bot
+    // Check if clicked a bot — just select, don't open chat
     for (const bs of botStatesRef.current) {
       const dx = mx - bs.tx;
       const dy = my - bs.ty;
       if (Math.sqrt(dx * dx + dy * dy) < 1.8) {
         if (onSelectBot) onSelectBot(selectedBotId === bs.bot.id ? null : bs.bot.id);
-        if (gameModeRef.current && onOpenChat) onOpenChat(bs.bot);
         return;
       }
     }

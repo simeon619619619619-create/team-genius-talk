@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid, Sparkles, ClipboardList } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid, Sparkles, ClipboardList, MessageSquare } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -1109,8 +1109,48 @@ export default function TeamsPage() {
                 onOpenChat={handleOpenBotChat}
               />
 
+              {/* Selected bot task panel — shown below game */}
+              {selectedAiBot && (() => {
+                const bot = aiBots.find(b => b.id === selectedAiBot);
+                if (!bot) return null;
+                return (
+                  <div className="mt-3 border border-purple-500/30 rounded-xl bg-card overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 bg-purple-500/10 border-b border-purple-500/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: bot.shirtColor }}>
+                          {bot.name[0]}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{bot.name}</h3>
+                          <p className="text-xs text-muted-foreground">{bot.role}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleOpenBotChat(bot)} className="gap-1.5 text-xs">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Чат
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setSelectedAiBot(null)} className="text-xs">
+                          Затвори
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <AiBotCard
+                        bot={bot}
+                        onEdit={openAiBotModal}
+                        onDelete={handleDeleteAiBot}
+                        onUpdate={handleUpdateAiBot}
+                        embedded
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* All bots grid — below selected panel */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                {aiBots.map((bot) => (
+                {aiBots.filter(b => b.id !== selectedAiBot).map((bot) => (
                   <AiBotCard
                     key={bot.id}
                     bot={bot}

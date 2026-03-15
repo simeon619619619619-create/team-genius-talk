@@ -11,9 +11,10 @@ interface Props {
   onEdit: (bot: AiBot) => void;
   onDelete: (id: string) => void;
   onUpdate: (bot: AiBot) => void;
+  embedded?: boolean;
 }
 
-export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
+export function AiBotCard({ bot, onEdit, onDelete, onUpdate, embedded }: Props) {
   const [newGroupTitle, setNewGroupTitle] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
   const [newSubtaskTexts, setNewSubtaskTexts] = useState<Record<string, string>>({});
@@ -194,9 +195,9 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
   };
 
   return (
-    <div className="glass-card rounded-xl overflow-hidden group transition-all hover:shadow-lg hover:border-purple-300">
+    <div className={embedded ? "" : "glass-card rounded-xl overflow-hidden group transition-all hover:shadow-lg hover:border-purple-300"}>
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border/50">
+      {!embedded && <div className="flex items-center gap-3 p-4 border-b border-border/50">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
           style={{ background: bot.shirtColor + "22", color: bot.shirtColor }}
@@ -217,9 +218,9 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
         >
           {bot.state === "working" ? "Работи" : "Чака"}
         </Badge>
-      </div>
+      </div>}
 
-      <div className="p-4 space-y-3">
+      <div className={embedded ? "space-y-3" : "p-4 space-y-3"}>
         {/* Process & Frequency */}
         <div>
           <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
