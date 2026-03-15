@@ -286,15 +286,71 @@ ${scrapedContext}
       }
     }
 
+    // Fetch all niches for auto-matching
+    const { data: allNiches } = await supabase
+      .from("business_niches")
+      .select("id, name");
+
+    const nicheKeywords: Record<string, string[]> = {
+      "Ресторанти и кафенета": ["ресторант", "кафе", "заведение", "храна", "бар", "пицария", "бистро", "кухня", "кетъринг", "restaurant", "cafe", "food"],
+      "Фитнес и спорт": ["фитнес", "спорт", "треньор", "зала", "тренировк", "gym", "fitness", "yoga", "йога"],
+      "Красота и козметика": ["красота", "козметик", "салон", "фризьор", "маникюр", "масаж", "beauty", "salon", "spa"],
+      "Мода и облекло": ["мода", "дрехи", "облекло", "бутик", "fashion", "магазин за дрехи", "текстил", "обувки"],
+      "Здраве и медицина": ["здраве", "медицин", "клиник", "лекар", "аптека", "стоматолог", "дентал", "болница", "health"],
+      "Образование": ["образовани", "училищ", "курс", "академи", "обучени", "школа", "education", "university"],
+      "IT и технологии": ["IT", "софтуер", "технолог", "програмиране", "уеб", "web", "software", "digital", "app", "developer"],
+      "Недвижими имоти": ["имот", "недвижим", "брокер", "строител", "real estate", "апартамент", "наем"],
+      "Автомобили": ["авто", "кола", "сервиз", "части", "car", "auto", "garage", "гараж"],
+      "Туризъм и хотели": ["хотел", "туриз", "екскурзи", "hotel", "travel", "почивк", "tourism"],
+      "Юридически услуги": ["адвокат", "юрист", "нотариус", "счетовод", "право", "legal", "law"],
+      "Маркетинг и реклама": ["маркетинг", "реклам", "PR", "дигитал", "SEO", "marketing", "agency", "агенци"],
+      "Е-commerce": ["онлайн магазин", "e-commerce", "ecommerce", "shop", "дропшипинг", "онлайн продажб"],
+      "Фотография и видео": ["фотограф", "видео", "photo", "video", "студио", "снимк"],
+      "Събития и кетъринг": ["събити", "кетъринг", "DJ", "парти", "сватб", "event", "catering"],
+    };
+
+    function autoMatchNiche(biz: any): string | null {
+      if (nicheId) return nicheId; // User explicitly chose
+      if (!allNiches) return null;
+
+      const searchText = [
+        biz.company_name,
+        biz.description,
+        ...(biz.tags || []),
+        niche, // the search query itself
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      let bestMatch: string | null = null;
+      let bestScore = 0;
+
+      for (const [nicheName, keywords] of Object.entries(nicheKeywords)) {
+        let score = 0;
+        for (const kw of keywords) {
+          if (searchText.includes(kw.toLowerCase())) {
+            score += kw.length;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          const found = allNiches.find(n => n.name === nicheName);
+          if (found) bestMatch = found.id;
+        }
+      }
+
+      return bestMatch;
+    }
+
     // Insert into database
     const inserted = [];
     for (const biz of businesses) {
       if (!biz.company_name) continue;
 
+      const matchedNicheId = autoMatchNiche(biz);
+
       const { data, error } = await supabase
         .from("business_directory")
         .insert({
-          niche_id: nicheId,
+          niche_id: matchedNicheId,
           company_name: biz.company_name,
           website: biz.website || null,
           email: biz.email || null,

@@ -170,6 +170,43 @@ async function processTask(task) {
     await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     await page.setExtraHTTPHeaders({ "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8" });
 
+    // Fetch niches for auto-matching
+    const { data: allNiches } = await supabase.from("business_niches").select("id, name");
+    const nicheKeywords = {
+      "Ресторанти и кафенета": ["ресторант", "кафе", "заведение", "храна", "бар", "restaurant", "cafe", "food"],
+      "Фитнес и спорт": ["фитнес", "спорт", "треньор", "gym", "fitness", "yoga"],
+      "Красота и козметика": ["красота", "козметик", "салон", "фризьор", "beauty", "salon", "spa"],
+      "Мода и облекло": ["мода", "дрехи", "облекло", "бутик", "fashion", "текстил"],
+      "Здраве и медицина": ["здраве", "медицин", "клиник", "лекар", "аптека", "дентал", "health"],
+      "Образование": ["образовани", "училищ", "курс", "академи", "обучени", "education"],
+      "IT и технологии": ["IT", "софтуер", "технолог", "уеб", "web", "software", "digital", "app"],
+      "Недвижими имоти": ["имот", "недвижим", "брокер", "строител", "real estate"],
+      "Автомобили": ["авто", "кола", "сервиз", "car", "auto"],
+      "Туризъм и хотели": ["хотел", "туриз", "екскурзи", "hotel", "travel"],
+      "Юридически услуги": ["адвокат", "юрист", "нотариус", "счетовод", "legal"],
+      "Маркетинг и реклама": ["маркетинг", "реклам", "PR", "SEO", "marketing", "агенци"],
+      "Е-commerce": ["онлайн магазин", "e-commerce", "shop", "дропшипинг"],
+      "Фотография и видео": ["фотограф", "видео", "photo", "video", "студио"],
+      "Събития и кетъринг": ["събити", "кетъринг", "DJ", "парти", "event", "catering"],
+    };
+
+    function autoMatchNiche(text) {
+      if (task.niche_id) return task.niche_id;
+      if (!allNiches) return null;
+      const s = (text + " " + task.niche).toLowerCase();
+      let best = null, bestScore = 0;
+      for (const [name, kws] of Object.entries(nicheKeywords)) {
+        let score = 0;
+        for (const kw of kws) { if (s.includes(kw.toLowerCase())) score += kw.length; }
+        if (score > bestScore) {
+          bestScore = score;
+          const found = allNiches.find(n => n.name === name);
+          if (found) best = found.id;
+        }
+      }
+      return best;
+    }
+
     // Search Google
     const query = `${task.niche} ${task.city} България фирми контакти телефон имейл`;
     const urls = await googleSearch(page, query, task.max_results || 20);
@@ -201,7 +238,7 @@ async function processTask(task) {
           city: task.city,
           country: "България",
           description: result.metaDesc || null,
-          niche_id: task.niche_id || null,
+          niche_id: autoMatchNiche([result.title, result.metaDesc, task.niche].join(" ")),
           tags: [task.niche],
           source: "local_scraper",
           verified: false,
