@@ -49,6 +49,12 @@ export default function AssistantPage() {
   const [selectedBot, setSelectedBot] = useState<AiBot | null>(null);
   const { markAsViewed } = useDailyTasks();
 
+  const { overdueTasks } = useOverdueTasks();
+  const [showOverdue, setShowOverdue] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Load AI bots from localStorage
   useEffect(() => {
     try {
@@ -62,15 +68,9 @@ export default function AssistantPage() {
     const navBot = location.state?.selectedBot as AiBot | undefined;
     if (navBot) {
       setSelectedBot(navBot);
-      // Clear the navigation state so it doesn't re-select on re-render
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
-  const { overdueTasks } = useOverdueTasks();
-  const [showOverdue, setShowOverdue] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
-  const location = useLocation();
-  const navigate = useNavigate();
 
   // Module state passed via navigation
   const moduleState = location.state?.module as {
