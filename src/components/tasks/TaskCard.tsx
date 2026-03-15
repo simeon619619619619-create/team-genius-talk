@@ -70,6 +70,15 @@ export function TaskCard({
   const completedSubtasks = subtasks.filter(s => s.status === "done").length;
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
+  const handleStatusChange = async (newStatus: DbTask["status"]) => {
+    onStatusChange(task.id, newStatus);
+    if (newStatus === "in-progress") {
+      const botName = task.assignee_name || "AI";
+      const context = `Ти си ${botName} и работиш по задача за маркетинг екип. Контекст: задачата е "${task.title}"${task.description ? `, описание: "${task.description}"` : ""}. Приоритет: ${task.priority === "high" ? "висок" : task.priority === "medium" ? "среден" : "нисък"}.`;
+      await execute(task.id, task.title, context);
+    }
+  };
+
   const handleAddSubtask = (subtask: { title: string; assigneeId: string; dueDate?: string; handoffTo?: string }) => {
     onAddSubtask(task.id, {
       title: subtask.title,
@@ -174,14 +183,53 @@ export function TaskCard({
 
         <select
           value={task.status}
-          onChange={(e) => onStatusChange(task.id, e.target.value as DbTask["status"])}
-          className="text-sm bg-transparent border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
+          onChange={(e) => handleStatusChange(e.target.value as DbTask["status"])}
+          disabled={isRunning(task.id)}
+          className={cn(
+            "text-sm bg-transparent border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary",
+            isRunning(task.id) && "opacity-50 cursor-wait"
+          )}
         >
           <option value="todo">За изпълнение</option>
           <option value="in-progress">В процес</option>
           <option value="done">Завършено</option>
         </select>
       </div>
+
+      {/* AI Bot Response when task is in progress */}
+      {(isRunning(task.id) || results[task.id]) && (
+        <div className="mt-3">
+          {isRunning(task.id) ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary/5 border border-primary/10">
+              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+              <span className="text-xs text-muted-foreground">
+                {task.assignee_name || "AI"} работи по задачата...
+              </span>
+            </div>
+          ) : results[task.id] && (
+            <div className={cn(
+              "px-3 py-2.5 rounded-lg text-sm flex items-start gap-2",
+              results[task.id].ok
+                ? "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40"
+                : "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40"
+            )}>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-muted-foreground mb-1 flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {task.assignee_name || "AI"} • {results[task.id].at}
+                </p>
+                <p className="text-xs leading-relaxed whitespace-pre-line">{results[task.id].message}</p>
+              </div>
+              <button
+                onClick={() => clearResult(task.id)}
+                className="text-muted-foreground hover:text-foreground shrink-0 text-sm"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Subtasks Section */}
       <div className="mt-3 pt-3 border-t border-border/50">
