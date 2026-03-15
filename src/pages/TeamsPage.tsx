@@ -1013,14 +1013,25 @@ export default function TeamsPage() {
                 Виртуални асистенти и техните автоматизации
               </p>
             </div>
-            <Button
-              size="sm"
-              className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
-              onClick={() => setTemplatePickerOpen(true)}
-            >
-              <LayoutGrid className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Добави от шаблон</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 px-3"
+                onClick={() => openAiBotModal()}
+              >
+                <Plus className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Направи сам</span>
+              </Button>
+              <Button
+                size="sm"
+                className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
+                onClick={() => setTemplatePickerOpen(true)}
+              >
+                <LayoutGrid className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Добави от шаблон</span>
+              </Button>
+            </div>
           </div>
 
           <VirtualOffice
@@ -1115,6 +1126,17 @@ export default function TeamsPage() {
                     );
                   })
                 }
+                {/* DIY Bot Card */}
+                <div
+                  className="rounded-xl border-2 border-dashed border-border hover:border-purple-400 p-4 transition-all cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-950/20 flex flex-col items-center justify-center gap-2 min-h-[100px]"
+                  onClick={() => { setTemplatePickerOpen(false); openAiBotModal(); }}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <span className="font-semibold text-sm">Направи сам</span>
+                  <p className="text-xs text-muted-foreground text-center">Създайте свой собствен бот с персонализирани задачи и умения</p>
+                </div>
               </div>
             </div>
           </DialogContent>
