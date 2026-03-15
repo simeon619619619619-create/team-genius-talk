@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,133 @@ export default function TeamsPage() {
       ]},
     ], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
   ];
+
+  // ─── BOT TEMPLATES ───
+  const BOT_TEMPLATES: (Omit<AiBot, "id"> & { category: string; description: string })[] = [
+    { category: "Маркетинг", name: "Контент мениджър", description: "Планира и създава съдържание за социални мрежи", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: [], taskGroups: [
+      { id: "tg-t1", title: "Създаване на съдържание", subtasks: [
+        { id: "st-t1a", text: "Планиране на месечен контент календар", done: false },
+        { id: "st-t1b", text: "Снимане/заснемане на Reels (3-5 бр./седмица)", done: false },
+        { id: "st-t1c", text: "Подготовка на Stories (ежедневни)", done: false },
+        { id: "st-t1d", text: "Дизайн на карусел постове", done: false },
+        { id: "st-t1e", text: "Copywriting за всеки пост", done: false },
+      ]},
+    ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
+    { category: "Маркетинг", name: "Email маркетолог", description: "Управлява имейл кампании, newsletter-и и автоматизации", role: "Email Маркетинг", process: "Email Campaigns", frequency: "Седмично", automations: ["Newsletter", "Drip Campaigns", "Segmentation"], tasks: [], taskGroups: [
+      { id: "tg-t2", title: "Имейл кампании", subtasks: [
+        { id: "st-t2a", text: "Седмичен newsletter", done: false },
+        { id: "st-t2b", text: "A/B тестове на subject lines", done: false },
+        { id: "st-t2c", text: "Сегментация на аудиторията", done: false },
+        { id: "st-t2d", text: "Drip campaign за нови абонати", done: false },
+      ]},
+    ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "idle" },
+    { category: "Маркетинг", name: "SEO специалист", description: "Оптимизира сайта за търсачки и следи класирането", role: "SEO & Органичен трафик", process: "SEO Audit", frequency: "Седмично", automations: ["Keyword Research", "Backlinks", "Technical SEO"], tasks: [], taskGroups: [
+      { id: "tg-t3", title: "SEO оптимизация", subtasks: [
+        { id: "st-t3a", text: "Keyword research за нови страници", done: false },
+        { id: "st-t3b", text: "On-page оптимизация", done: false },
+        { id: "st-t3c", text: "Линк билдинг стратегия", done: false },
+        { id: "st-t3d", text: "Технически SEO одит", done: false },
+      ]},
+    ], skinColor: "#f5c6a0", hairColor: "#2c1608", shirtColor: "#a78bfa", state: "idle" },
+    { category: "Маркетинг", name: "Paid Ads мениджър", description: "Управлява платени реклами в Google, Meta, TikTok", role: "Платена реклама", process: "Ad Campaigns", frequency: "Ежедневно", automations: ["Meta Ads", "Google Ads", "TikTok Ads"], tasks: [], taskGroups: [
+      { id: "tg-t4", title: "Рекламни кампании", subtasks: [
+        { id: "st-t4a", text: "Настройка на пиксели и конверсии", done: false },
+        { id: "st-t4b", text: "Създаване на аудитории", done: false },
+        { id: "st-t4c", text: "A/B тест на криейтиви", done: false },
+        { id: "st-t4d", text: "Дневен мониторинг на ROAS", done: false },
+        { id: "st-t4e", text: "Седмичен отчет за performance", done: false },
+      ]},
+    ], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#fb923c", state: "idle" },
+    { category: "Продажби", name: "Лийд мениджър", description: "Обработва входящи лийдове и ги конвертира в клиенти", role: "Продажби & Лийдове", process: "Lead Pipeline", frequency: "При нужда", automations: ["CRM", "Lead Scoring", "Follow-up"], tasks: [], taskGroups: [
+      { id: "tg-t5", title: "Обработка на лийдове", subtasks: [
+        { id: "st-t5a", text: "Квалификация на нови лийдове", done: false },
+        { id: "st-t5b", text: "Follow-up обаждания/имейли", done: false },
+        { id: "st-t5c", text: "Обновяване на CRM статуси", done: false },
+        { id: "st-t5d", text: "Седмичен pipeline отчет", done: false },
+      ]},
+    ], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#60a5fa", state: "idle" },
+    { category: "Продажби", name: "Клиентски мениджър", description: "Поддържа връзка с клиенти, upsell и retention", role: "Customer Success", process: "Client Relations", frequency: "Седмично", automations: ["Onboarding", "Check-ins", "Upsell"], tasks: [], taskGroups: [
+      { id: "tg-t6", title: "Клиентски отношения", subtasks: [
+        { id: "st-t6a", text: "Onboarding на нови клиенти", done: false },
+        { id: "st-t6b", text: "Месечни check-in разговори", done: false },
+        { id: "st-t6c", text: "Upsell предложения", done: false },
+        { id: "st-t6d", text: "Събиране на отзиви", done: false },
+      ]},
+    ], skinColor: "#f0c8a0", hairColor: "#4a2810", shirtColor: "#fbbf24", state: "idle" },
+    { category: "Технически", name: "Уеб разработчик", description: "Поддържа сайта, деплойва промени, следи за грешки", role: "Уеб Разработчик", process: "Web Development", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: [], taskGroups: [
+      { id: "tg-t7", title: "Поддръжка на сайта", subtasks: [
+        { id: "st-t7a", text: "Проверка за грешки в конзолата", done: false },
+        { id: "st-t7b", text: "Оптимизация на скоростта", done: false },
+        { id: "st-t7c", text: "Актуализация на съдържанието", done: false },
+        { id: "st-t7d", text: "Бекъп на базата данни", done: false },
+      ]},
+    ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "idle" },
+    { category: "Технически", name: "DevOps инженер", description: "CI/CD, мониторинг, инфраструктура и автоматизация", role: "DevOps & Инфраструктура", process: "Infrastructure", frequency: "24/7", automations: ["CI/CD", "Monitoring", "Alerts"], tasks: [], taskGroups: [
+      { id: "tg-t8", title: "Инфраструктура", subtasks: [
+        { id: "st-t8a", text: "Настройка на CI/CD pipeline", done: false },
+        { id: "st-t8b", text: "Мониторинг на сървъри и услуги", done: false },
+        { id: "st-t8c", text: "Настройка на алерти", done: false },
+        { id: "st-t8d", text: "Оптимизация на разходи за хостинг", done: false },
+      ]},
+    ], skinColor: "#e8b898", hairColor: "#1a0a00", shirtColor: "#14b8a6", state: "idle" },
+    { category: "Технически", name: "QA тестер", description: "Тества функционалност, UX и performance", role: "Quality Assurance", process: "Testing", frequency: "При release", automations: ["UI Tests", "Performance", "Bug Reports"], tasks: [], taskGroups: [
+      { id: "tg-t9", title: "Тестване", subtasks: [
+        { id: "st-t9a", text: "Функционални тестове", done: false },
+        { id: "st-t9b", text: "UI/UX ревю", done: false },
+        { id: "st-t9c", text: "Performance тестове", done: false },
+        { id: "st-t9d", text: "Документиране на бъгове", done: false },
+      ]},
+    ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#ec4899", state: "idle" },
+    { category: "Операции", name: "HR мениджър", description: "Наемане, onboarding и управление на екипа", role: "HR & Наемане", process: "Recruitment", frequency: "Седмично", automations: ["Job Posts", "Interviews", "Onboarding"], tasks: [], taskGroups: [
+      { id: "tg-t10", title: "Наемане на персонал", subtasks: [
+        { id: "st-t10a", text: "Публикуване на обяви за работа", done: false },
+        { id: "st-t10b", text: "Преглед на CV-та", done: false },
+        { id: "st-t10c", text: "Провеждане на интервюта", done: false },
+        { id: "st-t10d", text: "Onboarding на нови служители", done: false },
+      ]},
+    ], skinColor: "#f0b88a", hairColor: "#660000", shirtColor: "#f97316", state: "idle" },
+    { category: "Операции", name: "Финансов анализатор", description: "Следи приходи, разходи и финансови KPI", role: "Финанси & Анализи", process: "Financial Reports", frequency: "Месечно", automations: ["Revenue", "Expenses", "KPIs"], tasks: [], taskGroups: [
+      { id: "tg-t11", title: "Финансови отчети", subtasks: [
+        { id: "st-t11a", text: "Месечен отчет приходи/разходи", done: false },
+        { id: "st-t11b", text: "Проследяване на KPI-та", done: false },
+        { id: "st-t11c", text: "Бюджетно планиране", done: false },
+        { id: "st-t11d", text: "Cash flow прогноза", done: false },
+      ]},
+    ], skinColor: "#f5c6a0", hairColor: "#2c1608", shirtColor: "#6366f1", state: "idle" },
+    { category: "Операции", name: "Проджект мениджър", description: "Координира проекти, задачи и срокове", role: "Проджект Мениджмънт", process: "Project Tracking", frequency: "Ежедневно", automations: ["Sprints", "Deadlines", "Status Updates"], tasks: [], taskGroups: [
+      { id: "tg-t12", title: "Управление на проекти", subtasks: [
+        { id: "st-t12a", text: "Планиране на спринтове", done: false },
+        { id: "st-t12b", text: "Дневен standup с екипа", done: false },
+        { id: "st-t12c", text: "Проследяване на дедлайни", done: false },
+        { id: "st-t12d", text: "Ретроспектива", done: false },
+      ]},
+    ], skinColor: "#f0c8a0", hairColor: "#3d1c02", shirtColor: "#22d3ee", state: "idle" },
+  ];
+
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templateFilter, setTemplateFilter] = useState<string | null>(null);
+
+  const templateCategories = [...new Set(BOT_TEMPLATES.map(t => t.category))];
+
+  const addBotFromTemplate = (template: typeof BOT_TEMPLATES[0]) => {
+    const { category, description, ...botData } = template;
+    const newBot: AiBot = {
+      ...botData,
+      id: "bot-" + Date.now(),
+      // Generate unique IDs for task groups and subtasks
+      taskGroups: (botData.taskGroups || []).map(g => ({
+        ...g,
+        id: "tg-" + Date.now() + Math.random().toString(36).slice(2, 6),
+        subtasks: g.subtasks.map(s => ({
+          ...s,
+          id: "st-" + Date.now() + Math.random().toString(36).slice(2, 6),
+        })),
+      })),
+    };
+    saveAiBots([...aiBots, newBot]);
+    toast.success(`${newBot.name} е добавен в екипа!`);
+    setTemplatePickerOpen(false);
+  };
 
   const [aiBots, setAiBots] = useState<AiBot[]>(() => {
     try {
@@ -863,10 +990,10 @@ export default function TeamsPage() {
             <Button
               size="sm"
               className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
-              onClick={() => openAiBotModal()}
+              onClick={() => setTemplatePickerOpen(true)}
             >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Нов бот</span>
+              <LayoutGrid className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Добави от шаблон</span>
             </Button>
           </div>
 
@@ -888,6 +1015,84 @@ export default function TeamsPage() {
             ))}
           </div>
         </div>
+
+        {/* ─── BOT TEMPLATE PICKER ─── */}
+        <Dialog open={templatePickerOpen} onOpenChange={setTemplatePickerOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-display flex items-center gap-2">
+                <LayoutGrid className="h-5 w-5 text-purple-500" />
+                Добави бот от шаблон
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant={templateFilter === null ? "default" : "outline"}
+                className="h-7 text-xs rounded-full"
+                onClick={() => setTemplateFilter(null)}
+              >
+                Всички
+              </Button>
+              {templateCategories.map(cat => (
+                <Button
+                  key={cat}
+                  size="sm"
+                  variant={templateFilter === cat ? "default" : "outline"}
+                  className="h-7 text-xs rounded-full"
+                  onClick={() => setTemplateFilter(cat)}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+            <div className="overflow-y-auto flex-1 -mx-1 px-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-2">
+                {BOT_TEMPLATES
+                  .filter(t => !templateFilter || t.category === templateFilter)
+                  .map((template, idx) => {
+                    const alreadyAdded = aiBots.some(b => b.name === template.name && b.role === template.role);
+                    return (
+                      <div
+                        key={idx}
+                        className={`rounded-xl border p-4 transition-all ${
+                          alreadyAdded
+                            ? "border-border/30 bg-secondary/20 opacity-60"
+                            : "border-border hover:border-purple-300 hover:shadow-md cursor-pointer hover:bg-purple-50/50 dark:hover:bg-purple-950/20"
+                        }`}
+                        onClick={() => !alreadyAdded && addBotFromTemplate(template)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+                            style={{ background: template.shirtColor + "22", color: template.shirtColor }}
+                          >
+                            ★
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">{template.name}</span>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{template.category}</Badge>
+                              {alreadyAdded && <Badge variant="secondary" className="text-[10px]">Добавен</Badge>}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{template.description}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {template.automations.map(a => (
+                                <Badge key={a} variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800">
+                                  {a}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* ─── AI BOT MODAL ─── */}
         <Dialog open={aiBotModalOpen} onOpenChange={setAiBotModalOpen}>
