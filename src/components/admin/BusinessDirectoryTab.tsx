@@ -110,7 +110,6 @@ export function BusinessDirectoryTab() {
 
     setScraping(true);
     try {
-      const session = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("scrape-businesses", {
         body: {
           niche: scrapeNiche,
@@ -118,18 +117,24 @@ export function BusinessDirectoryTab() {
           country: "България",
           nicheId: scrapeNicheId && scrapeNicheId !== "none" ? scrapeNicheId : undefined,
         },
-        headers: {
-          Authorization: `Bearer ${session.data.session?.access_token}`,
-        },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Scrape error:", error);
+        throw new Error(typeof error === 'object' ? JSON.stringify(error) : error);
+      }
 
-      toast.success(`Намерени ${data.found} фирми, добавени ${data.inserted}`);
+      if (data?.error) {
+        toast.error("Грешка от сървъра: " + data.error);
+        return;
+      }
+
+      toast.success(`Намерени ${data.found} фирми, добавени ${data.inserted}, скрейпнати ${data.scraped_urls || 0} сайта`);
       setShowScrapeDialog(false);
       setScrapeNiche("");
       fetchData();
     } catch (err: any) {
+      console.error("Scrape catch:", err);
       toast.error("Грешка: " + (err.message || "Неуспешно търсене"));
     } finally {
       setScraping(false);
