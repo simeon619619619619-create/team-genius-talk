@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid, Sparkles, ClipboardList } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -271,9 +271,9 @@ export default function TeamsPage() {
         }
         return normalized;
       }
-      return DEFAULT_AI_BOTS;
+      return [];
     } catch {
-      return DEFAULT_AI_BOTS;
+      return [];
     }
   });
   const [selectedAiBot, setSelectedAiBot] = useState<string | null>(null);
@@ -1023,44 +1023,86 @@ export default function TeamsPage() {
                 Виртуални асистенти и техните автоматизации
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9 px-3"
-                onClick={() => openAiBotModal()}
-              >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Направи сам</span>
-              </Button>
-              <Button
-                size="sm"
-                className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
-                onClick={() => setTemplatePickerOpen(true)}
-              >
-                <LayoutGrid className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Добави от шаблон</span>
-              </Button>
+            {aiBots.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-3"
+                  onClick={() => openAiBotModal()}
+                >
+                  <Plus className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Направи сам</span>
+                </Button>
+                <Button
+                  size="sm"
+                  className="gradient-primary text-primary-foreground shadow-lg h-9 px-3"
+                  onClick={() => setTemplatePickerOpen(true)}
+                >
+                  <LayoutGrid className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">Добави от шаблон</span>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {aiBots.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-purple-300/40 dark:border-purple-700/40 bg-purple-50/30 dark:bg-purple-950/10 p-8 md:p-12 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-purple-500" />
+                </div>
+              </div>
+              <h3 className="text-lg font-display font-semibold mb-2">
+                Вашият персонален екип се подготвя
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                Останаха още малко въпроси! След като завършите <strong>Маркетинг плана</strong>, ще ви бъде изготвен персонален AI екип, съобразен с вашия бизнес.
+              </p>
+              <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/60">
+                  <ClipboardList className="h-3.5 w-3.5" />
+                  1. Завършете Маркетинг план
+                </span>
+                <span className="text-muted-foreground/40">→</span>
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/60">
+                  <Bot className="h-3.5 w-3.5" />
+                  2. Получавате AI екип
+                </span>
+              </div>
+              <div className="mt-6 flex justify-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-4"
+                  onClick={() => setTemplatePickerOpen(true)}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Или добавете ръчно
+                </Button>
+              </div>
             </div>
-          </div>
-
-          <VirtualOffice
-            bots={aiBots}
-            selectedBotId={selectedAiBot}
-            onSelectBot={setSelectedAiBot}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-            {aiBots.map((bot) => (
-              <AiBotCard
-                key={bot.id}
-                bot={bot}
-                onEdit={openAiBotModal}
-                onDelete={handleDeleteAiBot}
-                onUpdate={handleUpdateAiBot}
+          ) : (
+            <>
+              <VirtualOffice
+                bots={aiBots}
+                selectedBotId={selectedAiBot}
+                onSelectBot={setSelectedAiBot}
               />
-            ))}
-          </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                {aiBots.map((bot) => (
+                  <AiBotCard
+                    key={bot.id}
+                    bot={bot}
+                    onEdit={openAiBotModal}
+                    onDelete={handleDeleteAiBot}
+                    onUpdate={handleUpdateAiBot}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ─── BOT TEMPLATE PICKER ─── */}
