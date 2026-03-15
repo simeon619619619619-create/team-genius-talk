@@ -193,6 +193,69 @@ export function BusinessDirectoryTab() {
     return () => clearInterval(interval);
   }, [fetchPendingTasks]);
 
+  // Auto-categorize all uncategorized businesses
+  const [categorizing, setCategorizing] = useState(false);
+
+  const nicheKeywords: Record<string, string[]> = {
+    "Ресторанти и кафенета": ["ресторант", "кафе", "заведение", "храна", "бар", "пицария", "бистро", "кухня", "restaurant", "cafe", "food", "кафене"],
+    "Фитнес и спорт": ["фитнес", "спорт", "треньор", "зала", "тренировк", "gym", "fitness", "yoga", "йога"],
+    "Красота и козметика": ["красота", "козметик", "салон", "фризьор", "маникюр", "масаж", "beauty", "salon", "spa"],
+    "Мода и облекло": ["мода", "дрехи", "облекло", "бутик", "fashion", "текстил", "обувки", "магазин за дрехи", "бранд"],
+    "Здраве и медицина": ["здраве", "медицин", "клиник", "лекар", "аптека", "стоматолог", "дентал", "болница", "health"],
+    "Образование": ["образовани", "училищ", "курс", "академи", "обучени", "школа", "education"],
+    "IT и технологии": ["IT", "софтуер", "технолог", "програмиране", "уеб", "web", "software", "digital", "app", "developer"],
+    "Недвижими имоти": ["имот", "недвижим", "брокер", "строител", "real estate", "апартамент"],
+    "Автомобили": ["авто", "кола", "сервиз", "части", "car", "auto", "гараж"],
+    "Туризъм и хотели": ["хотел", "туриз", "екскурзи", "hotel", "travel", "почивк"],
+    "Юридически услуги": ["адвокат", "юрист", "нотариус", "счетовод", "право", "legal"],
+    "Маркетинг и реклама": ["маркетинг", "реклам", "PR", "дигитал", "SEO", "marketing", "агенци"],
+    "Е-commerce": ["онлайн магазин", "e-commerce", "ecommerce", "shop", "дропшипинг"],
+    "Фотография и видео": ["фотограф", "видео", "photo", "video", "студио"],
+    "Събития и кетъринг": ["събити", "кетъринг", "DJ", "парти", "сватб", "event", "catering"],
+  };
+
+  const handleAutoCategorize = async () => {
+    const uncategorized = businesses.filter(b => !b.niche_id);
+    if (uncategorized.length === 0) {
+      toast.info("Всички фирми вече имат категория");
+      return;
+    }
+
+    setCategorizing(true);
+    let updated = 0;
+
+    for (const biz of uncategorized) {
+      const searchText = [biz.company_name, biz.description, ...(biz.tags || [])].filter(Boolean).join(" ").toLowerCase();
+
+      let bestNicheId: string | null = null;
+      let bestScore = 0;
+
+      for (const [nicheName, keywords] of Object.entries(nicheKeywords)) {
+        let score = 0;
+        for (const kw of keywords) {
+          if (searchText.includes(kw.toLowerCase())) score += kw.length;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          const found = niches.find(n => n.name === nicheName);
+          if (found) bestNicheId = found.id;
+        }
+      }
+
+      if (bestNicheId) {
+        const { error } = await supabase
+          .from("business_directory")
+          .update({ niche_id: bestNicheId })
+          .eq("id", biz.id);
+        if (!error) updated++;
+      }
+    }
+
+    toast.success(`Категоризирани ${updated} от ${uncategorized.length} фирми`);
+    setCategorizing(false);
+    fetchData();
+  };
+
   const handleAddManual = async () => {
     if (!addForm.company_name.trim()) {
       toast.error("Въведи име на фирмата");
@@ -417,6 +480,10 @@ export function BusinessDirectoryTab() {
         <Button variant="outline" onClick={handleExportCSV} className="gap-2">
           <Download className="h-4 w-4" />
           Експорт CSV
+        </Button>
+        <Button variant="outline" onClick={handleAutoCategorize} disabled={categorizing} className="gap-2">
+          {categorizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
+          {categorizing ? "Категоризира..." : "Авто-категории"}
         </Button>
         <Button variant="outline" onClick={fetchData} className="gap-2">
           <RefreshCw className="h-4 w-4" />
