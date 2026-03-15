@@ -29,6 +29,7 @@ import AutomationsPage from "./pages/AutomationsPage";
 import StartupPage from "./pages/StartupPage";
 import ModulesPage from "./pages/ModulesPage";
 import MindMapPage from "./pages/MindMapPage";
+import WebsitesPage from "./pages/WebsitesPage";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
                     <Route path="/startup" element={<ProtectedRoute><StartupPage /></ProtectedRoute>} />
                     <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
                     <Route path="/mindmap" element={<ProtectedRoute><MindMapPage /></ProtectedRoute>} />
+                    <Route path="/websites" element={<ProtectedRoute><WebsitesPage /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                     <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
