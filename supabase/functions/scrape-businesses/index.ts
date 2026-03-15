@@ -13,6 +13,112 @@ interface ScrapeRequest {
   nicheId?: string;
 }
 
+// Extract emails from HTML text
+function extractEmails(text: string): string[] {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const matches = text.match(emailRegex) || [];
+  // Filter out common false positives
+  return [...new Set(matches)].filter(e =>
+    !e.includes('example.com') &&
+    !e.includes('wixpress') &&
+    !e.includes('sentry') &&
+    !e.endsWith('.png') &&
+    !e.endsWith('.jpg')
+  ).slice(0, 5);
+}
+
+// Extract phone numbers from HTML text (Bulgarian format)
+function extractPhones(text: string): string[] {
+  const phoneRegex = /(?:\+359|0)[\s.-]?(?:\d[\s.-]?){8,9}/g;
+  const matches = text.match(phoneRegex) || [];
+  return [...new Set(matches.map(p => p.replace(/[\s.-]/g, '')))].slice(0, 3);
+}
+
+// Fetch a webpage and extract contact info
+async function scrapeWebsite(url: string): Promise<{ emails: string[]; phones: string[] }> {
+  try {
+    const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(fullUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; SimoraBot/1.0)',
+        'Accept': 'text/html',
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return { emails: [], phones: [] };
+
+    const html = await res.text();
+    const emails = extractEmails(html);
+    const phones = extractPhones(html);
+
+    // Also try /contacts or /kontakti page
+    if (emails.length === 0 && phones.length === 0) {
+      for (const contactPath of ['/contacts', '/kontakti', '/contact', '/за-контакти', '/контакти']) {
+        try {
+          const contactUrl = new URL(contactPath, fullUrl).href;
+          const cRes = await fetch(contactUrl, {
+            signal: AbortSignal.timeout(5000),
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SimoraBot/1.0)' },
+          });
+          if (cRes.ok) {
+            const cHtml = await cRes.text();
+            emails.push(...extractEmails(cHtml));
+            phones.push(...extractPhones(cHtml));
+            if (emails.length > 0 || phones.length > 0) break;
+          }
+        } catch { /* skip */ }
+      }
+    }
+
+    return {
+      emails: [...new Set(emails)].slice(0, 3),
+      phones: [...new Set(phones)].slice(0, 3)
+    };
+  } catch {
+    return { emails: [], phones: [] };
+  }
+}
+
+// Search Google for businesses
+async function searchGoogle(query: string): Promise<string[]> {
+  try {
+    const encodedQuery = encodeURIComponent(query);
+    const res = await fetch(
+      `https://www.google.com/search?q=${encodedQuery}&num=15&hl=bg`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'bg,en;q=0.9',
+        },
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    // Extract URLs from Google results
+    const urlRegex = /https?:\/\/(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z]{2,})+)(?:\/[^\s"<>)]*)?/g;
+    const matches = html.match(urlRegex) || [];
+
+    // Filter out Google's own URLs and common non-business sites
+    const excluded = ['google.', 'youtube.', 'facebook.com/share', 'twitter.', 'wikipedia.', 'reddit.'];
+    const urls = [...new Set(matches)]
+      .filter(u => !excluded.some(e => u.includes(e)))
+      .slice(0, 15);
+
+    return urls;
+  } catch {
+    return [];
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -21,7 +127,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+      return new Response(JSON.stringify({ error: "Не си автентикиран" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -31,16 +137,17 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify admin
+    // Verify user
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
+      return new Response(JSON.stringify({ error: "Невалиден токен" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Check admin
     const adminEmails = ["info@eufashioninstitute.com", "simeon619619619619@gmail.com"];
     const { data: roleData } = await supabase
       .from("user_roles")
@@ -50,17 +157,19 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!adminEmails.includes(user.email || "") && !roleData) {
-      return new Response(JSON.stringify({ error: "Not admin" }), {
+      return new Response(JSON.stringify({ error: "Нямаш админ достъп" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { niche, city, country, nicheId } = await req.json() as ScrapeRequest;
+    const body = await req.json() as ScrapeRequest;
+    const { niche, city, country } = body;
+    const nicheId = body.nicheId === "none" || !body.nicheId ? null : body.nicheId;
 
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not set" }), {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY не е конфигуриран" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -68,28 +177,61 @@ Deno.serve(async (req) => {
 
     const location = [city, country || "България"].filter(Boolean).join(", ");
 
-    const prompt = `Ти си изследовател на бизнес данни. Генерирай списък от 10 РЕАЛНИ фирми в ниша "${niche}" в ${location}.
+    // Step 1: Search Google for real businesses
+    const searchQuery = `${niche} ${city || "България"} фирми контакти телефон`;
+    const googleUrls = await searchGoogle(searchQuery);
 
-За всяка фирма предостави ТОЧНА и РЕАЛНА информация (не измисляй):
+    // Step 2: Scrape each URL for contact info
+    const scrapedData: { url: string; emails: string[]; phones: string[] }[] = [];
+
+    // Scrape up to 10 URLs in parallel (batches of 5)
+    for (let i = 0; i < Math.min(googleUrls.length, 10); i += 5) {
+      const batch = googleUrls.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        batch.map(async (url) => {
+          const data = await scrapeWebsite(url);
+          return { url, ...data };
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'fulfilled' && (r.value.emails.length > 0 || r.value.phones.length > 0)) {
+          scrapedData.push(r.value);
+        }
+      }
+    }
+
+    // Step 3: Use AI to compile and organize the data
+    const scrapedContext = scrapedData.length > 0
+      ? `\n\nОт уеб скрейпинг намерих тези контакти:\n${scrapedData.map(s =>
+          `- ${s.url}: имейли=[${s.emails.join(', ')}], телефони=[${s.phones.join(', ')}]`
+        ).join('\n')}`
+      : '';
+
+    const prompt = `Ти си изследовател на бизнес данни. Генерирай списък от 10 РЕАЛНИ фирми в ниша "${niche}" в ${location}.
+${scrapedContext}
+
+ВАЖНО — за всяка фирма ЗАДЪЛЖИТЕЛНО предостави:
 - company_name: Официално име на фирмата
-- website: Уебсайт (ако знаеш)
-- email: Контактен имейл (ако знаеш)
-- phone: Телефон (ако знаеш)
+- website: Уебсайт
+- email: Контактен имейл (ЗАДЪЛЖИТЕЛНО - търси реален имейл)
+- phone: Телефон (ЗАДЪЛЖИТЕЛНО - търси реален телефон, български формат +359...)
 - instagram: Instagram профил без @ (ако знаеш)
 - facebook: Facebook страница URL (ако знаеш)
-- address: Адрес
+- address: Физически адрес
 - city: Град
-- description: Кратко описание на дейността (1-2 изречения)
-- employee_count: Приблизителен брой служители ("1-10", "11-50", "51-200", "200+")
+- description: Кратко описание (1-2 изречения)
+- employee_count: Брой служители ("1-10", "11-50", "51-200", "200+")
 - contact_person: Име на собственик/мениджър (ако знаеш)
-- tags: Масив от тагове описващи дейността
+- contact_role: Длъжност на контактното лице
+- tags: Масив от тагове
 
-ВАЖНО:
-- Давай САМО фирми за които си сигурен че съществуват
-- Ако не знаеш някое поле, сложи null
-- Върни JSON масив
-
-Отговори САМО с валиден JSON масив, без друг текст.`;
+КРИТИЧНО:
+- Давай САМО фирми за които си СИГУРЕН че съществуват
+- Ако данните от скрейпинга по-горе съвпадат — ИЗПОЛЗВАЙ ги
+- Имейли и телефони са ПРИОРИТЕТ номер 1
+- Ако не знаеш имейл/телефон, сложи null, но се СТАРАЙ да ги намериш
+- Върни САМО валиден JSON масив, без друг текст`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -107,7 +249,7 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      return new Response(JSON.stringify({ error: "AI API error", details: errText }), {
+      return new Response(JSON.stringify({ error: "AI API грешка", details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -116,25 +258,43 @@ Deno.serve(async (req) => {
     const aiResult = await response.json();
     const textContent = aiResult.content?.[0]?.text || "[]";
 
-    // Extract JSON from response
+    // Extract JSON
     let businesses;
     try {
       const jsonMatch = textContent.match(/\[[\s\S]*\]/);
       businesses = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
     } catch {
-      return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: textContent }), {
+      return new Response(JSON.stringify({
+        error: "Не можах да парсна AI отговора",
+        raw: textContent.slice(0, 500)
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Step 4: For businesses with websites but no contacts, try scraping their sites directly
+    for (const biz of businesses) {
+      if (biz.website && (!biz.email || !biz.phone)) {
+        const scraped = await scrapeWebsite(biz.website);
+        if (!biz.email && scraped.emails.length > 0) {
+          biz.email = scraped.emails[0];
+        }
+        if (!biz.phone && scraped.phones.length > 0) {
+          biz.phone = scraped.phones[0];
+        }
+      }
+    }
+
     // Insert into database
     const inserted = [];
     for (const biz of businesses) {
+      if (!biz.company_name) continue;
+
       const { data, error } = await supabase
         .from("business_directory")
         .insert({
-          niche_id: nicheId || null,
+          niche_id: nicheId,
           company_name: biz.company_name,
           website: biz.website || null,
           email: biz.email || null,
@@ -147,8 +307,9 @@ Deno.serve(async (req) => {
           description: biz.description || null,
           employee_count: biz.employee_count || null,
           contact_person: biz.contact_person || null,
+          contact_role: biz.contact_role || null,
           tags: biz.tags || [],
-          source: "ai_research",
+          source: "web_scrape",
           verified: false,
           collected_by: user.id,
         })
@@ -165,13 +326,14 @@ Deno.serve(async (req) => {
         success: true,
         found: businesses.length,
         inserted: inserted.length,
+        scraped_urls: scrapedData.length,
         businesses: inserted,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: err.message || "Неочаквана грешка" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
