@@ -42,6 +42,40 @@ export default function PlanPage() {
   } = useGlobalBots();
   const { syncToBusinessPlan } = useSyncBusinessPlan(projectId);
 
+  // Task templates per role
+  const taskTemplates: Record<string, { title: string; priority: "low" | "medium" | "high" }[]> = {
+    "Email & Комуникации": [
+      { title: "Изпрати седмичен newsletter", priority: "high" },
+      { title: "Настрой автоматичен welcome email", priority: "medium" },
+      { title: "Създай email кампания за промоция", priority: "high" },
+      { title: "Обнови email шаблоните", priority: "medium" },
+      { title: "Анализирай open/click rate", priority: "low" },
+      { title: "Сегментирай email листата", priority: "medium" },
+      { title: "A/B тест на subject lines", priority: "low" },
+      { title: "Настрой имейл за изоставена количка", priority: "high" },
+    ],
+    "Съдържание & Соц. Мрежи": [
+      { title: "Създай контент календар за месеца", priority: "high" },
+      { title: "Подготви 5 Instagram поста", priority: "high" },
+      { title: "Заснеми 3 Reels видеа", priority: "medium" },
+      { title: "Напиши копи за Stories", priority: "medium" },
+      { title: "Дизайн на карусел пост", priority: "medium" },
+      { title: "Отговори на коментари и DM-и", priority: "high" },
+      { title: "Проучи trending хаштагове", priority: "low" },
+      { title: "Планирай колаборация с инфлуенсър", priority: "medium" },
+    ],
+    "Продажби & Клиенти": [
+      { title: "Follow-up на нови лийдове", priority: "high" },
+      { title: "Обади се на топ 10 клиенти", priority: "high" },
+      { title: "Обнови CRM с нови контакти", priority: "medium" },
+      { title: "Подготви оферта за клиент", priority: "high" },
+      { title: "Анализирай конверсии за месеца", priority: "medium" },
+      { title: "Настрой Stripe промо код", priority: "low" },
+      { title: "Създай re-engagement кампания", priority: "medium" },
+      { title: "Провери плащания и фактури", priority: "low" },
+    ],
+  };
+
   // Marketing team - always visible
   const marketingTeam = useMemo(() => {
     // Start with hardcoded core marketing team
@@ -206,83 +240,99 @@ export default function PlanPage() {
 
                       {/* Existing tasks for this member */}
                       {botTasks.length > 0 && (
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {botTasks.map(t => (
-                            <div key={t.id} className="flex items-center gap-2 text-xs py-1 px-2 rounded-lg bg-secondary/30">
-                              <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="flex-1 truncate">{t.title}</span>
-                              <Badge variant="outline" className={cn("text-[9px] px-1 py-0 h-4",
-                                t.priority === "high" ? "border-red-300 text-red-600" :
-                                t.priority === "medium" ? "border-amber-300 text-amber-600" : "border-green-300 text-green-600"
-                              )}>
-                                {t.priority === "high" ? "!" : t.priority === "medium" ? "•" : "○"}
-                              </Badge>
-                            </div>
-                          ))}
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Активни задачи</p>
+                          <div className="space-y-1 max-h-24 overflow-y-auto">
+                            {botTasks.map(t => (
+                              <div key={t.id} className="flex items-center gap-2 text-xs py-1 px-2 rounded-lg bg-secondary/30">
+                                <ListTodo className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <span className="flex-1 truncate">{t.title}</span>
+                                <Badge variant="outline" className={cn("text-[9px] px-1 py-0 h-4",
+                                  t.priority === "high" ? "border-red-300 text-red-600" :
+                                  t.priority === "medium" ? "border-amber-300 text-amber-600" : "border-green-300 text-green-600"
+                                )}>
+                                  {t.priority === "high" ? "!" : t.priority === "medium" ? "•" : "○"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
-                      {/* Add new task form */}
-                      <div className="border-t border-border pt-2 space-y-2">
-                        <Input
-                          placeholder="Нова задача..."
-                          value={taskTitle}
-                          onChange={e => setTaskTitle(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && taskTitle.trim()) {
-                              addTask({
-                                title: taskTitle.trim(),
-                                assignee_name: bot.name,
-                                priority: taskPriority,
-                                due_date: taskDueDate || undefined,
-                              });
-                              setTaskTitle("");
-                              setTaskPriority("medium");
-                              setTaskDueDate("");
-                            }
-                          }}
-                          className="h-8 text-xs"
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <Select value={taskPriority} onValueChange={(v) => setTaskPriority(v as "low" | "medium" | "high")}>
-                            <SelectTrigger className="h-7 text-[11px] flex-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="high">Високо</SelectItem>
-                              <SelectItem value="medium">Средно</SelectItem>
-                              <SelectItem value="low">Ниско</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="date"
-                            value={taskDueDate}
-                            onChange={e => setTaskDueDate(e.target.value)}
-                            className="h-7 text-[11px] flex-1"
-                          />
+                      {/* Task templates */}
+                      <div className={botTasks.length > 0 ? "border-t border-border pt-2" : ""}>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Възложи задача</p>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {(taskTemplates[bot.role] || []).map((tmpl, i) => {
+                            const alreadyAdded = tasks.some(t => t.assignee_name === bot.name && t.title === tmpl.title && t.status !== "done");
+                            return (
+                              <button
+                                key={i}
+                                disabled={alreadyAdded}
+                                className={cn(
+                                  "w-full flex items-center gap-2 text-xs py-1.5 px-2.5 rounded-lg text-left transition-colors",
+                                  alreadyAdded
+                                    ? "opacity-40 cursor-not-allowed bg-secondary/20"
+                                    : "hover:bg-secondary/60 cursor-pointer"
+                                )}
+                                onClick={() => {
+                                  if (!alreadyAdded) {
+                                    addTask({
+                                      title: tmpl.title,
+                                      assignee_name: bot.name,
+                                      priority: tmpl.priority,
+                                    });
+                                  }
+                                }}
+                              >
+                                {alreadyAdded ? (
+                                  <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                                ) : (
+                                  <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
+                                )}
+                                <span className="flex-1">{tmpl.title}</span>
+                                <span className={cn("text-[9px] px-1.5 py-0 rounded-full",
+                                  tmpl.priority === "high" ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400" :
+                                  tmpl.priority === "medium" ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" :
+                                  "bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400"
+                                )}>
+                                  {tmpl.priority === "high" ? "Високо" : tmpl.priority === "medium" ? "Средно" : "Ниско"}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
-                        <Button
-                          size="sm"
-                          className="w-full h-7 text-xs"
-                          disabled={!taskTitle.trim()}
-                          onClick={() => {
-                            if (taskTitle.trim()) {
-                              addTask({
-                                title: taskTitle.trim(),
-                                assignee_name: bot.name,
-                                priority: taskPriority,
-                                due_date: taskDueDate || undefined,
-                              });
-                              setTaskTitle("");
-                              setTaskPriority("medium");
-                              setTaskDueDate("");
-                            }
-                          }}
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Добави задача
-                        </Button>
+                      </div>
+
+                      {/* Custom task input */}
+                      <div className="border-t border-border pt-2">
+                        <div className="flex gap-1.5">
+                          <Input
+                            placeholder="Или напиши своя..."
+                            value={taskTitle}
+                            onChange={e => setTaskTitle(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && taskTitle.trim()) {
+                                addTask({ title: taskTitle.trim(), assignee_name: bot.name, priority: "medium" });
+                                setTaskTitle("");
+                              }
+                            }}
+                            className="h-7 text-xs flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs px-2 shrink-0"
+                            disabled={!taskTitle.trim()}
+                            onClick={() => {
+                              if (taskTitle.trim()) {
+                                addTask({ title: taskTitle.trim(), assignee_name: bot.name, priority: "medium" });
+                                setTaskTitle("");
+                              }
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </PopoverContent>
