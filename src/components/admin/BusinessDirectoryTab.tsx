@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,10 @@ export function BusinessDirectoryTab() {
   }, [fetchData]);
 
   const [scrapeProgress, setScrapeProgress] = useState("");
+  const [scrapeTarget, setScrapeTarget] = useState("1000");
+  const scrapeAbortRef = useRef(false);
+
+  const BG_CITIES = ["София", "Пловдив", "Варна", "Бургас", "Русе", "Стара Загора", "Плевен", "Благоевград", "Велико Търново", "Добрич", "Хасково", "Шумен", "Сливен", "Перник", "Габрово", "Пазарджик", "Кюстендил", "Монтана", "Враца", "Кърджали"];
 
   const handleScrape = async () => {
     if (!scrapeNiche.trim()) {
@@ -111,21 +115,27 @@ export function BusinessDirectoryTab() {
       return;
     }
 
+    const target = parseInt(scrapeTarget) || 1000;
     setScraping(true);
-    let totalFound = 0;
+    scrapeAbortRef.current = false;
     let totalInserted = 0;
     let round = 0;
+    let emptyRoundsInRow = 0;
+
+    // If user entered a city, search only there; otherwise cycle through cities
+    const cities = scrapeCity?.trim() ? [scrapeCity.trim()] : BG_CITIES;
+    let cityIndex = 0;
 
     try {
-      // Loop: keep asking AI for more until it returns 0
-      while (true) {
+      while (totalInserted < target && !scrapeAbortRef.current) {
+        const currentCity = cities[cityIndex % cities.length];
         round++;
-        setScrapeProgress(`Рунд ${round}: търся още фирми... (${totalInserted} добавени досега)`);
+        setScrapeProgress(`Рунд ${round} (${currentCity}): ${totalInserted}/${target} фирми`);
 
         const { data, error } = await supabase.functions.invoke("scrape-businesses", {
           body: {
             niche: scrapeNiche,
-            city: scrapeCity || undefined,
+            city: currentCity,
             country: "България",
             nicheId: scrapeNicheId && scrapeNicheId !== "none" ? scrapeNicheId : undefined,
           },
@@ -134,38 +144,49 @@ export function BusinessDirectoryTab() {
         if (error) {
           console.error("Scrape error:", error);
           if (round === 1) throw new Error(typeof error === 'object' ? JSON.stringify(error) : error);
-          break;
+          // Try next city on error
+          cityIndex++;
+          emptyRoundsInRow++;
+          if (emptyRoundsInRow >= 5) break;
+          continue;
         }
 
         if (data?.error) {
           if (round === 1) {
-            toast.error("Грешка от сървъра: " + data.error);
+            toast.error("Грешка: " + data.error);
             return;
           }
-          break;
+          cityIndex++;
+          emptyRoundsInRow++;
+          if (emptyRoundsInRow >= 5) break;
+          continue;
         }
 
-        const found = data?.found || 0;
         const inserted = data?.inserted || 0;
-        totalFound += found;
         totalInserted += inserted;
 
-        toast.success(`Рунд ${round}: +${inserted} фирми`);
-        fetchData(); // refresh list in background
-
-        // Stop if AI found nothing new or very few
-        if (found === 0 || inserted === 0) {
-          break;
+        if (inserted > 0) {
+          emptyRoundsInRow = 0;
+          toast.success(`Рунд ${round} (${currentCity}): +${inserted} фирми (общо ${totalInserted})`);
+          fetchData();
+        } else {
+          emptyRoundsInRow++;
+          // Move to next city when current is exhausted
+          cityIndex++;
+          if (cities.length === 1 || emptyRoundsInRow >= 3) {
+            // If single city or 3 empty rounds across cities, try next city
+            if (cityIndex >= cities.length) {
+              toast.info(`Изчерпани всички градове. Намерени ${totalInserted} фирми.`);
+              break;
+            }
+          }
         }
 
-        // Safety: max 10 rounds (300 businesses)
-        if (round >= 10) {
-          toast.info("Достигнат лимит от 10 рунда");
-          break;
-        }
+        // Safety limit
+        if (round >= 100) break;
       }
 
-      toast.success(`Готово! Общо намерени: ${totalFound}, добавени: ${totalInserted}`);
+      toast.success(`Готово! Общо добавени: ${totalInserted} фирми`);
       setShowScrapeDialog(false);
       setScrapeNiche("");
       setScrapeProgress("");
@@ -735,22 +756,33 @@ export function BusinessDirectoryTab() {
                 onChange={e => setScrapeNiche(e.target.value)}
               />
             </div>
-            <div>
-              <Label>Град</Label>
-              <Input
-                placeholder="напр. София, Пловдив, Варна..."
-                value={scrapeCity}
-                onChange={e => setScrapeCity(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Град (празно = всички)</Label>
+                <Input
+                  placeholder="всички градове"
+                  value={scrapeCity}
+                  onChange={e => setScrapeCity(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Целеви брой</Label>
+                <Input
+                  type="number"
+                  value={scrapeTarget}
+                  onChange={e => setScrapeTarget(e.target.value)}
+                  placeholder="1000"
+                />
+              </div>
             </div>
             <div>
               <Label>Категория</Label>
               <Select value={scrapeNicheId} onValueChange={setScrapeNicheId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Избери категория (по избор)" />
+                  <SelectValue placeholder="Авто-категоризиране" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Без категория</SelectItem>
+                  <SelectItem value="none">Авто-категоризиране</SelectItem>
                   {niches.map(n => (
                     <SelectItem key={n.id} value={n.id}>
                       {n.icon} {n.name}
@@ -763,7 +795,10 @@ export function BusinessDirectoryTab() {
           {scraping && scrapeProgress && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
               <Loader2 className="h-4 w-4 animate-spin text-purple-500 shrink-0" />
-              <p className="text-sm text-purple-300">{scrapeProgress}</p>
+              <p className="text-sm text-purple-300 flex-1">{scrapeProgress}</p>
+              <Button size="sm" variant="destructive" onClick={() => { scrapeAbortRef.current = true; }}>
+                Спри
+              </Button>
             </div>
           )}
           <DialogFooter>
