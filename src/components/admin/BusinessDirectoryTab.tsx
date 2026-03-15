@@ -103,6 +103,8 @@ export function BusinessDirectoryTab() {
     fetchData();
   }, [fetchData]);
 
+  const [scrapeProgress, setScrapeProgress] = useState("");
+
   const handleScrape = async () => {
     if (!scrapeNiche.trim()) {
       toast.error("Въведи ниша за търсене");
@@ -110,35 +112,70 @@ export function BusinessDirectoryTab() {
     }
 
     setScraping(true);
+    let totalFound = 0;
+    let totalInserted = 0;
+    let round = 0;
+
     try {
-      const { data, error } = await supabase.functions.invoke("scrape-businesses", {
-        body: {
-          niche: scrapeNiche,
-          city: scrapeCity || undefined,
-          country: "България",
-          nicheId: scrapeNicheId && scrapeNicheId !== "none" ? scrapeNicheId : undefined,
-        },
-      });
+      // Loop: keep asking AI for more until it returns 0
+      while (true) {
+        round++;
+        setScrapeProgress(`Рунд ${round}: търся още фирми... (${totalInserted} добавени досега)`);
 
-      if (error) {
-        console.error("Scrape error:", error);
-        throw new Error(typeof error === 'object' ? JSON.stringify(error) : error);
+        const { data, error } = await supabase.functions.invoke("scrape-businesses", {
+          body: {
+            niche: scrapeNiche,
+            city: scrapeCity || undefined,
+            country: "България",
+            nicheId: scrapeNicheId && scrapeNicheId !== "none" ? scrapeNicheId : undefined,
+          },
+        });
+
+        if (error) {
+          console.error("Scrape error:", error);
+          if (round === 1) throw new Error(typeof error === 'object' ? JSON.stringify(error) : error);
+          break;
+        }
+
+        if (data?.error) {
+          if (round === 1) {
+            toast.error("Грешка от сървъра: " + data.error);
+            return;
+          }
+          break;
+        }
+
+        const found = data?.found || 0;
+        const inserted = data?.inserted || 0;
+        totalFound += found;
+        totalInserted += inserted;
+
+        toast.success(`Рунд ${round}: +${inserted} фирми`);
+        fetchData(); // refresh list in background
+
+        // Stop if AI found nothing new or very few
+        if (found === 0 || inserted === 0) {
+          break;
+        }
+
+        // Safety: max 10 rounds (300 businesses)
+        if (round >= 10) {
+          toast.info("Достигнат лимит от 10 рунда");
+          break;
+        }
       }
 
-      if (data?.error) {
-        toast.error("Грешка от сървъра: " + data.error);
-        return;
-      }
-
-      toast.success(`Намерени ${data.found} фирми, добавени ${data.inserted}, скрейпнати ${data.scraped_urls || 0} сайта`);
+      toast.success(`Готово! Общо намерени: ${totalFound}, добавени: ${totalInserted}`);
       setShowScrapeDialog(false);
       setScrapeNiche("");
+      setScrapeProgress("");
       fetchData();
     } catch (err: any) {
       console.error("Scrape catch:", err);
       toast.error("Грешка: " + (err.message || "Неуспешно търсене"));
     } finally {
       setScraping(false);
+      setScrapeProgress("");
     }
   };
 
@@ -723,14 +760,17 @@ export function BusinessDirectoryTab() {
               </Select>
             </div>
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowScrapeDialog(false)}>Отказ</Button>
+          {scraping && scrapeProgress && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+              <Loader2 className="h-4 w-4 animate-spin text-purple-500 shrink-0" />
+              <p className="text-sm text-purple-300">{scrapeProgress}</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowScrapeDialog(false)} disabled={scraping}>Отказ</Button>
             <Button onClick={handleScrape} disabled={scraping} className="gap-2">
               {scraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {scraping ? "Търся..." : "Търси с AI"}
-            </Button>
-            <Button onClick={handleLocalScrape} disabled={scraping} variant="secondary" className="gap-2">
-              💻 Локален скрейпър
             </Button>
           </DialogFooter>
         </DialogContent>

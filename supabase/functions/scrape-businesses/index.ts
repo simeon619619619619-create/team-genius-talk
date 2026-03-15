@@ -208,16 +208,20 @@ Deno.serve(async (req) => {
         ).join('\n')}`
       : '';
 
-    const allBusinesses: any[] = [];
-    const MAX_ROUNDS = 4; // Up to 4 rounds × 25 = 100 businesses max
+    // Check existing businesses in DB to avoid duplicates
+    const { data: existingBiz } = await supabase
+      .from("business_directory")
+      .select("company_name")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    const existingNames = (existingBiz || []).map((b: any) => b.company_name);
 
-    for (let round = 0; round < MAX_ROUNDS; round++) {
-      const alreadyFound = allBusinesses.map(b => b.company_name).join(", ");
-      const excludeClause = round > 0
-        ? `\n\nВЕЧЕ НАМЕРЕНИ (НЕ ги повтаряй): ${alreadyFound}`
-        : '';
+    // Single batch of 30 per request — UI auto-calls again until done
+    const excludeClause = existingNames.length > 0
+      ? `\n\nВЕЧЕ В БАЗАТА (НЕ ги повтаряй): ${existingNames.join(", ")}`
+      : '';
 
-      const batchPrompt = `Ти си експерт по бизнес данни в България. Генерирай списък от 25 РЕАЛНИ фирми/брандове в ниша "${niche}" в ${location}.
+    const batchPrompt = `Ти си експерт по бизнес данни в България. Генерирай списък от 30 РЕАЛНИ фирми/брандове в ниша "${niche}" в ${location}.
 ${scrapedContext}${excludeClause}
 
 За всяка фирма дай JSON обект с:
@@ -232,62 +236,46 @@ ${scrapedContext}${excludeClause}
 - НЕ повтаряй вече намерените фирми
 - Ако не знаеш контакт, сложи null
 - Върни САМО валиден JSON масив
-- Ако няма повече фирми, върни празен масив []`;
+- Ако няма повече фирми в тази ниша, върни празен масив []`;
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": anthropicKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 8000,
-          messages: [{ role: "user", content: batchPrompt }],
-        }),
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8000,
+        messages: [{ role: "user", content: batchPrompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return new Response(JSON.stringify({ error: "AI API грешка", details: errText }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-
-      if (!response.ok) {
-        if (round === 0) {
-          const errText = await response.text();
-          return new Response(JSON.stringify({ error: "AI API грешка", details: errText }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        break; // Stop batching on error after first round
-      }
-
-      const aiResult = await response.json();
-      const textContent = aiResult.content?.[0]?.text || "[]";
-
-      let batch;
-      try {
-        const jsonMatch = textContent.match(/\[[\s\S]*\]/);
-        batch = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-      } catch {
-        if (round === 0) {
-          return new Response(JSON.stringify({
-            error: "Не можах да парсна AI отговора",
-            raw: textContent.slice(0, 500)
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        break;
-      }
-
-      if (batch.length === 0) break; // AI says no more
-
-      allBusinesses.push(...batch);
-
-      // If AI returned fewer than 15, probably exhausted
-      if (batch.length < 15) break;
     }
 
-    const businesses = allBusinesses;
+    const aiResult = await response.json();
+    const textContent = aiResult.content?.[0]?.text || "[]";
+
+    let businesses;
+    try {
+      const jsonMatch = textContent.match(/\[[\s\S]*\]/);
+      businesses = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    } catch {
+      return new Response(JSON.stringify({
+        error: "Не можах да парсна AI отговора",
+        raw: textContent.slice(0, 500)
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Step 4: For businesses with websites but no contacts, try scraping their sites directly
     for (const biz of businesses) {
