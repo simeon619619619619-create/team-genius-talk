@@ -27,18 +27,26 @@ import {
   CheckCircle2,
   Circle,
   ArrowRight,
+  Play,
+  Loader2,
+  Eye,
+  EyeOff,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // --- Types ---
 interface StepAction {
   text: string;
   done: boolean;
   assignee?: string;
+  result?: string;
+  running?: boolean;
 }
 
 interface BotSkillInfo {
@@ -566,10 +574,68 @@ function StepDetail({
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingActionAssignee, setEditingActionAssignee] = useState<number | null>(null);
   const [newAction, setNewAction] = useState("");
+  const [expandedResults, setExpandedResults] = useState<Record<number, boolean>>({});
 
-  const toggleAction = (actionIndex: number) => {
-    const updated = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, done: !a.done } : a) };
-    onUpdate(updated);
+  // Execute action via AI with the assigned bot's persona
+  const executeAction = async (actionIndex: number) => {
+    const action = step.actions[actionIndex];
+    if (action.running) return;
+
+    // Find bot info for assignee
+    const botInfo = action.assignee
+      ? botSkills.find(b => `🤖 ${b.name}` === action.assignee)
+      : null;
+
+    // Mark as running
+    const runningUpdate = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, running: true } : a) };
+    onUpdate(runningUpdate);
+
+    try {
+      const persona = botInfo
+        ? `Ти си ${botInfo.name}, специалист в: ${botInfo.skills.join(", ")}.`
+        : action.assignee
+          ? `Ти работиш като ${action.assignee}.`
+          : `Ти си бизнес асистент.`;
+
+      const { data, error } = await supabase.functions.invoke("assistant-chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `${persona} Стъпка от процеса "${step.title}": Изпълни това действие и дай кратък отчет (макс 3 изречения). Ако не можеш, обясни какво ти трябва:\n\n"${action.text}"`,
+            },
+          ],
+          context: "business",
+        },
+      });
+
+      const result = error
+        ? "Грешка при изпълнение"
+        : data?.content || "Задачата е изпълнена.";
+
+      const isSuccess = !error && !result.toLowerCase().includes("не мога") && !result.toLowerCase().includes("нямам достъп");
+
+      const doneUpdate = {
+        ...step,
+        actions: step.actions.map((a, i) =>
+          i === actionIndex ? { ...a, done: isSuccess, running: false, result } : a
+        ),
+      };
+      onUpdate(doneUpdate);
+      setExpandedResults(prev => ({ ...prev, [actionIndex]: true }));
+
+      if (isSuccess) {
+        toast.success(`${action.assignee || "AI"} завърши: "${action.text.substring(0, 40)}..."`);
+      }
+    } catch {
+      const errUpdate = {
+        ...step,
+        actions: step.actions.map((a, i) =>
+          i === actionIndex ? { ...a, running: false, result: "Грешка при връзката с AI" } : a
+        ),
+      };
+      onUpdate(errUpdate);
+    }
   };
 
   const setActionAssignee = (actionIndex: number, assignee: string) => {
@@ -669,66 +735,117 @@ function StepDetail({
         {step.actions.map((action, i) => {
           const { matched, unmatched } = getMatchingMembers(action.text);
 
+          const showResult = expandedResults[i];
+
           return (
-            <div key={i} className="flex items-start gap-2 py-1.5 group">
-              <button onClick={() => toggleAction(i)} className="mt-0.5 shrink-0">
-                {action.done ? (
-                  <CheckCircle2 className="w-4 h-4" style={{ color }} />
-                ) : (
-                  <Circle className="w-4 h-4 text-muted-foreground/40 hover:text-muted-foreground" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <span className={cn("text-sm", action.done && "line-through text-muted-foreground/50")}>
-                  {action.text}
-                </span>
+            <div key={i} className="py-1.5 group">
+              <div className="flex items-start gap-2">
+                {/* Execute button */}
+                <button
+                  onClick={() => executeAction(i)}
+                  disabled={action.running}
+                  className={cn(
+                    "mt-0.5 shrink-0 w-5 h-5 rounded-md flex items-center justify-center transition-all",
+                    action.running
+                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40"
+                      : action.done
+                        ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200 dark:bg-emerald-900/40"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                  )}
+                  title="Изпълни"
+                >
+                  {action.running ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : action.done ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <span className={cn("text-sm", action.done && "text-muted-foreground/70")}>
+                    {action.text}
+                  </span>
+                </div>
+
+                {/* Action Assignee + result toggle */}
+                <div className="shrink-0 flex items-center gap-1">
+                  {action.result && (
+                    <button
+                      className="p-0.5 text-muted-foreground hover:text-primary transition-colors"
+                      onClick={() => setExpandedResults(prev => ({ ...prev, [i]: !prev[i] }))}
+                      title={showResult ? "Скрий резултат" : "Виж резултат"}
+                    >
+                      {showResult ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    </button>
+                  )}
+                  {editingActionAssignee === i ? (
+                    <select
+                      className="text-[11px] border border-border rounded px-1.5 py-0.5 bg-background max-w-[140px]"
+                      value={action.assignee || ""}
+                      onChange={e => setActionAssignee(i, e.target.value)}
+                      onBlur={() => setEditingActionAssignee(null)}
+                      autoFocus
+                    >
+                      <option value="">—</option>
+                      {matched.length > 0 && (
+                        <optgroup label="Препоръчани">
+                          {matched.map(m => <option key={m} value={m}>{m}</option>)}
+                        </optgroup>
+                      )}
+                      {unmatched.length > 0 && (
+                        <optgroup label="Други">
+                          {unmatched.map(m => <option key={m} value={m}>{m}</option>)}
+                        </optgroup>
+                      )}
+                    </select>
+                  ) : action.assignee ? (
+                    <button
+                      onClick={() => setEditingActionAssignee(i)}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all truncate max-w-[100px]"
+                      title={action.assignee}
+                    >
+                      {action.assignee}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setEditingActionAssignee(i)}
+                      className="opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground hover:bg-secondary transition-all whitespace-nowrap"
+                    >
+                      + Възложи
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeAction(i)}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
+                  >
+                    <X className="w-3 h-3 text-destructive" />
+                  </button>
+                </div>
               </div>
 
-              {/* Action Assignee */}
-              <div className="shrink-0 flex items-center gap-1">
-                {editingActionAssignee === i ? (
-                  <select
-                    className="text-[11px] border border-border rounded px-1.5 py-0.5 bg-background max-w-[140px]"
-                    value={action.assignee || ""}
-                    onChange={e => setActionAssignee(i, e.target.value)}
-                    onBlur={() => setEditingActionAssignee(null)}
-                    autoFocus
-                  >
-                    <option value="">—</option>
-                    {matched.length > 0 && (
-                      <optgroup label="Препоръчани">
-                        {matched.map(m => <option key={m} value={m}>{m}</option>)}
-                      </optgroup>
-                    )}
-                    {unmatched.length > 0 && (
-                      <optgroup label="Други">
-                        {unmatched.map(m => <option key={m} value={m}>{m}</option>)}
-                      </optgroup>
-                    )}
-                  </select>
-                ) : action.assignee ? (
-                  <button
-                    onClick={() => setEditingActionAssignee(i)}
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all truncate max-w-[100px]"
-                    title={action.assignee}
-                  >
-                    {action.assignee}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setEditingActionAssignee(i)}
-                    className="opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground hover:bg-secondary transition-all whitespace-nowrap"
-                  >
-                    + Възложи
-                  </button>
-                )}
-                <button
-                  onClick={() => removeAction(i)}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
-                >
-                  <X className="w-3 h-3 text-destructive" />
-                </button>
-              </div>
+              {/* AI Result */}
+              {action.result && showResult && (
+                <div className={cn(
+                  "ml-7 mt-1 p-2 rounded-lg border text-xs leading-relaxed whitespace-pre-wrap",
+                  action.done
+                    ? "bg-emerald-50/50 border-emerald-200/50 dark:bg-emerald-950/20 dark:border-emerald-800/30"
+                    : "bg-red-50/50 border-red-200/50 dark:bg-red-950/20 dark:border-red-800/30"
+                )}>
+                  {action.result}
+                </div>
+              )}
+              {action.result && !showResult && (
+                <div className={cn(
+                  "ml-7 mt-0.5 text-[10px] flex items-center gap-1",
+                  action.done ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
+                )}>
+                  {action.done ? <CheckCircle2 className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+                  <span className="truncate max-w-[250px]">
+                    {action.result.length > 60 ? action.result.substring(0, 60) + "..." : action.result}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}
