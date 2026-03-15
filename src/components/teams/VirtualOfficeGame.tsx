@@ -45,8 +45,9 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
   const animRef = useRef<number>(0);
   const keysRef = useRef<Set<string>>(new Set());
   const [gameMode, setGameMode] = useState(true);
-  const [nearBot, setNearBot] = useState<AiBot | null>(null);
+  const [nearBotName, setNearBotName] = useState<string | null>(null);
   const nearBotRef = useRef<AiBot | null>(null);
+  const gameModeRef = useRef(true);
 
   // Player state - start in center
   const playerRef = useRef({
@@ -77,14 +78,19 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     botStatesRef.current = states;
   }, [bots]);
 
-  // Auto-focus canvas when game mode is on
+  // Sync gameMode to ref
   useEffect(() => {
+    gameModeRef.current = gameMode;
     if (gameMode && canvasRef.current) {
       canvasRef.current.focus();
     }
   }, [gameMode]);
 
-  // Keyboard handling
+  // Store onOpenChat in ref to avoid re-creating listener
+  const onOpenChatRef = useRef(onOpenChat);
+  onOpenChatRef.current = onOpenChat;
+
+  // Keyboard handling - runs once, uses refs
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
@@ -92,8 +98,8 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
         e.preventDefault();
         keysRef.current.add(key);
       }
-      if (key === "e" && nearBotRef.current && onOpenChat && gameMode) {
-        onOpenChat(nearBotRef.current);
+      if (key === "e" && nearBotRef.current && onOpenChatRef.current && gameModeRef.current) {
+        onOpenChatRef.current(nearBotRef.current);
       }
     };
     const onUp = (e: KeyboardEvent) => {
@@ -105,7 +111,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
     };
-  }, [gameMode, onOpenChat]);
+  }, []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -118,7 +124,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     const botStates = botStatesRef.current;
 
     // ─── UPDATE PLAYER ───
-    if (gameMode) {
+    if (gameModeRef.current) {
       let dx = 0, dy = 0;
       if (keys.has("w") || keys.has("arrowup")) { dy = -MOVE_SPEED; player.dir = 1; }
       if (keys.has("s") || keys.has("arrowdown")) { dy = MOVE_SPEED; player.dir = 0; }
@@ -182,7 +188,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       if (bs.bubbleTimer > 0) bs.bubbleTimer--;
       if (bs.bubbleTimer === 0) bs.bubble = "";
 
-      if (gameMode) {
+      if (gameModeRef.current) {
         const pdx = bs.tx - player.x;
         const pdy = bs.ty - player.y;
         const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
@@ -194,7 +200,8 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     }
 
     nearBotRef.current = closestBot;
-    setNearBot(closestBot);
+    const newName = closestBot?.name || null;
+    setNearBotName(prev => prev === newName ? prev : newName);
 
     // ─── DRAW ROOM ───
     ctx.fillStyle = "#0f0f1a";
@@ -333,7 +340,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       const py = bs.ty * PX;
       const isWorking = bs.bot.state === "working" && bs.atDesk;
       const desk = DESKS[bs.deskIdx];
-      const isNear = nearBot?.id === bs.bot.id;
+      const isNear = nearBotRef.current?.id === bs.bot.id;
 
       entities.push({
         y: py,
@@ -360,7 +367,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
           }
 
           // Glow when near
-          if (isNear && gameMode) {
+          if (isNear && gameModeRef.current) {
             ctx.strokeStyle = `rgba(192, 132, 252, ${0.5 + Math.sin(frame * 0.1) * 0.3})`;
             ctx.lineWidth = 2 * S;
             ctx.strokeRect(px - 6 * S, py - 14 * S, 18 * S, 32 * S);
@@ -370,7 +377,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     }
 
     // Player
-    if (gameMode) {
+    if (gameModeRef.current) {
       const ppx = player.x * PX;
       const ppy = player.y * PX;
       entities.push({
@@ -384,11 +391,12 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
 
     // ─── HUD ───
     // Interaction hint
-    if (nearBot && gameMode) {
+    const nb = nearBotRef.current;
+    if (nb && gameModeRef.current) {
       const hx = canvas.width / 2;
       const hy = canvas.height - 22 * S;
       ctx.font = `bold ${7 * S}px monospace`;
-      const text = `[ E ] Говори с ${nearBot.name}`;
+      const text = `[ E ] Говори с ${nb.name}`;
       const m = ctx.measureText(text);
       ctx.fillStyle = "#0f0f1aEE";
       ctx.fillRect(hx - m.width / 2 - 8 * S, hy - 9 * S, m.width + 16 * S, 15 * S);
@@ -400,14 +408,14 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     }
 
     // Controls (bottom)
-    if (gameMode && !nearBot) {
+    if (gameModeRef.current && !nb) {
       ctx.font = `${4 * S}px monospace`;
       ctx.fillStyle = "#ffffff33";
       ctx.fillText("WASD = Движение  |  E = Говори  |  Click = Отиди", 2 * PX, (ROOM_H - 0.3) * PX);
     }
 
     animRef.current = requestAnimationFrame(draw);
-  }, [bots, selectedBotId, gameMode, nearBot]);
+  }, [bots, selectedBotId]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(draw);
@@ -431,13 +439,13 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       const dy = my - bs.ty;
       if (Math.sqrt(dx * dx + dy * dy) < 1.8) {
         if (onSelectBot) onSelectBot(selectedBotId === bs.bot.id ? null : bs.bot.id);
-        if (gameMode && onOpenChat) onOpenChat(bs.bot);
+        if (gameModeRef.current && onOpenChat) onOpenChat(bs.bot);
         return;
       }
     }
 
     // Click to move player (smooth walk, not teleport)
-    if (gameMode) {
+    if (gameModeRef.current) {
       playerRef.current.targetX = Math.max(1.5, Math.min(ROOM_W - 2, mx));
       playerRef.current.targetY = Math.max(2.5, Math.min(ROOM_H - 1.5, my));
     }
