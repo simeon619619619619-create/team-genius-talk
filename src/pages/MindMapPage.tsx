@@ -1,17 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  BackgroundVariant,
-  ConnectionMode,
-  MarkerType,
-  Panel,
-} from "reactflow";
-import "reactflow/dist/style.css";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { cn } from "@/lib/utils";
 import {
@@ -30,52 +17,52 @@ import {
   Globe,
   MessageCircle,
   ChevronRight,
+  ChevronDown,
   Plus,
   Trash2,
   Edit3,
   Save,
   X,
+  UserCircle,
+  CheckCircle2,
+  Circle,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-// Process categories
+// --- Types ---
+interface StepAction {
+  text: string;
+  done: boolean;
+}
+
+interface ProcessStep {
+  title: string;
+  assignee: string;
+  actions: StepAction[];
+}
+
+interface ProcessData {
+  id: string;
+  category: string;
+  title: string;
+  icon: string;
+  steps: ProcessStep[];
+}
+
+// --- Categories ---
 const CATEGORIES = [
-  {
-    id: "acquisition",
-    label: "Привличане на клиенти",
-    icon: Users,
-    color: "#3b82f6",
-    description: "Как клиентите ви намират",
-  },
-  {
-    id: "conversion",
-    label: "Конвертиране",
-    icon: Target,
-    color: "#8b5cf6",
-    description: "Как превръщате интереса в продажба",
-  },
-  {
-    id: "revenue",
-    label: "Приходи",
-    icon: DollarSign,
-    color: "#10b981",
-    description: "Как взимате парите",
-  },
-  {
-    id: "retention",
-    label: "Задържане",
-    icon: Repeat,
-    color: "#f59e0b",
-    description: "Как карате клиентите да се върнат",
-  },
+  { id: "acquisition", label: "Привличане на клиенти", icon: Users, color: "#3b82f6", description: "Как клиентите ви намират" },
+  { id: "conversion", label: "Конвертиране", icon: Target, color: "#8b5cf6", description: "Как превръщате интереса в продажба" },
+  { id: "revenue", label: "Приходи", icon: DollarSign, color: "#10b981", description: "Как взимате парите" },
+  { id: "retention", label: "Задържане", icon: Repeat, color: "#f59e0b", description: "Как карате клиентите да се върнат" },
 ];
 
-// Default processes with steps
+// --- Default processes with detailed steps ---
 const DEFAULT_PROCESSES: ProcessData[] = [
   {
     id: "social-media",
@@ -83,10 +70,48 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Социални мрежи",
     icon: "Share2",
     steps: [
-      "Създаване на съдържание (Reels, Stories, постове)",
-      "Публикуване по график (3-5 пъти седмично)",
-      "Ангажиране с коментари и съобщения",
-      "Анализ на резултатите и оптимизация",
+      {
+        title: "Създаване на съдържание",
+        assignee: "",
+        actions: [
+          { text: "Планиране на месечен контент календар", done: false },
+          { text: "Снимане/заснемане на Reels (3-5 бр./седмица)", done: false },
+          { text: "Подготовка на Stories (ежедневни)", done: false },
+          { text: "Дизайн на карусел постове (2 бр./седмица)", done: false },
+          { text: "Написване на copywriting за всеки пост", done: false },
+        ],
+      },
+      {
+        title: "Публикуване по график",
+        assignee: "",
+        actions: [
+          { text: "Настройване на scheduling tool (Later/Hootsuite)", done: false },
+          { text: "Публикуване в оптимални часове (11:00, 18:00, 21:00)", done: false },
+          { text: "Cross-posting в Instagram, Facebook, TikTok", done: false },
+          { text: "Добавяне на хаштагове и локация", done: false },
+        ],
+      },
+      {
+        title: "Ангажиране с аудиторията",
+        assignee: "",
+        actions: [
+          { text: "Отговор на всички коментари (до 1 час)", done: false },
+          { text: "Отговор на DM-и (до 2 часа)", done: false },
+          { text: "Коментиране на постове на конкуренти/партньори", done: false },
+          { text: "Провеждане на Q&A в Stories (1 път/седмица)", done: false },
+          { text: "Провеждане на Live сесии (1-2 пъти/месец)", done: false },
+        ],
+      },
+      {
+        title: "Анализ и оптимизация",
+        assignee: "",
+        actions: [
+          { text: "Седмичен преглед на Insights (reach, engagement)", done: false },
+          { text: "Идентифициране на топ 3 performing постове", done: false },
+          { text: "Корекция на стратегията базирано на данни", done: false },
+          { text: "Месечен отчет с KPIs", done: false },
+        ],
+      },
     ],
   },
   {
@@ -95,11 +120,57 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Платена реклама",
     icon: "Megaphone",
     steps: [
-      "Определяне на таргет аудитория",
-      "Създаване на рекламни криейтиви",
-      "Настройване на Meta/Google Ads кампания",
-      "A/B тест на рекламите",
-      "Мащабиране на печеливши реклами",
+      {
+        title: "Таргет аудитория",
+        assignee: "",
+        actions: [
+          { text: "Дефиниране на buyer persona (възраст, интереси, локация)", done: false },
+          { text: "Създаване на Lookalike аудитории от клиенти", done: false },
+          { text: "Retargeting аудитория (посетители на сайта)", done: false },
+          { text: "Custom audience от имейл списък", done: false },
+        ],
+      },
+      {
+        title: "Рекламни криейтиви",
+        assignee: "",
+        actions: [
+          { text: "Заснемане на видео реклами (15s и 30s варианти)", done: false },
+          { text: "Дизайн на статични реклами (3-5 варианта)", done: false },
+          { text: "Написване на ad copy (hook + benefit + CTA)", done: false },
+          { text: "Подготовка на UGC съдържание", done: false },
+        ],
+      },
+      {
+        title: "Настройка на кампании",
+        assignee: "",
+        actions: [
+          { text: "Структура: кампания → ad set → реклами", done: false },
+          { text: "Задаване на дневен бюджет и bid стратегия", done: false },
+          { text: "Инсталиране на Pixel/CAPI на сайта", done: false },
+          { text: "Настройване на conversion tracking", done: false },
+          { text: "Тестване на 3-5 различни ad sets", done: false },
+        ],
+      },
+      {
+        title: "A/B тестване",
+        assignee: "",
+        actions: [
+          { text: "Тест на различни заглавия", done: false },
+          { text: "Тест на различни визуали", done: false },
+          { text: "Тест на различни аудитории", done: false },
+          { text: "Анализ след 48-72 часа, спиране на губещи", done: false },
+        ],
+      },
+      {
+        title: "Мащабиране",
+        assignee: "",
+        actions: [
+          { text: "Увеличаване на бюджет с 20% на всеки 2-3 дни", done: false },
+          { text: "Дупликиране на печеливши ad sets", done: false },
+          { text: "Разширяване към нови платформи (Google, TikTok)", done: false },
+          { text: "Седмичен ROAS отчет", done: false },
+        ],
+      },
     ],
   },
   {
@@ -108,10 +179,45 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Имейл маркетинг",
     icon: "Mail",
     steps: [
-      "Lead magnet (безплатен ресурс)",
-      "Landing page за събиране на имейли",
-      "Welcome email последователност",
-      "Седмичен newsletter с полезно съдържание",
+      {
+        title: "Lead Magnet",
+        assignee: "",
+        actions: [
+          { text: "Създаване на безплатен ресурс (PDF, checklist, видео)", done: false },
+          { text: "Дизайн на cover и вътрешни страници", done: false },
+          { text: "Настройка на автоматично изпращане", done: false },
+        ],
+      },
+      {
+        title: "Landing Page",
+        assignee: "",
+        actions: [
+          { text: "Създаване на opt-in страница", done: false },
+          { text: "A/B тест на заглавия и бутони", done: false },
+          { text: "Свързване с email платформа (Mailchimp/ConvertKit)", done: false },
+        ],
+      },
+      {
+        title: "Welcome последователност",
+        assignee: "",
+        actions: [
+          { text: "Email 1: Добре дошли + доставка на lead magnet", done: false },
+          { text: "Email 2: Представяне на бранда (история)", done: false },
+          { text: "Email 3: Стойност + полезно съдържание", done: false },
+          { text: "Email 4: Social proof + testimonials", done: false },
+          { text: "Email 5: Оферта/CTA", done: false },
+        ],
+      },
+      {
+        title: "Седмичен newsletter",
+        assignee: "",
+        actions: [
+          { text: "Определяне на тема (полезна за аудиторията)", done: false },
+          { text: "Написване и дизайн на имейла", done: false },
+          { text: "Изпращане в оптимален ден/час", done: false },
+          { text: "Анализ на open rate и click rate", done: false },
+        ],
+      },
     ],
   },
   {
@@ -120,10 +226,34 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Уебсайт & SEO",
     icon: "Globe",
     steps: [
-      "Оптимизация на сайта за ключови думи",
-      "Блог с полезно съдържание",
-      "Google My Business профил",
-      "Линк билдинг стратегия",
+      {
+        title: "SEO оптимизация",
+        assignee: "",
+        actions: [
+          { text: "Keyword research (основни + long-tail)", done: false },
+          { text: "On-page SEO (title tags, meta descriptions, H1-H3)", done: false },
+          { text: "Техническо SEO (скорост, mobile-first, sitemap)", done: false },
+          { text: "Schema markup за rich snippets", done: false },
+        ],
+      },
+      {
+        title: "Блог съдържание",
+        assignee: "",
+        actions: [
+          { text: "Публикуване на 2-4 статии месечно", done: false },
+          { text: "Оптимизация на всяка статия за целева ключова дума", done: false },
+          { text: "Вътрешно линкване между статиите", done: false },
+        ],
+      },
+      {
+        title: "Google My Business",
+        assignee: "",
+        actions: [
+          { text: "Създаване/оптимизация на GMB профил", done: false },
+          { text: "Добавяне на снимки и работно време", done: false },
+          { text: "Събиране на Google отзиви (5+ на месец)", done: false },
+        ],
+      },
     ],
   },
   {
@@ -132,9 +262,33 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Препоръки",
     icon: "MessageCircle",
     steps: [
-      "Програма за препоръки с награди",
-      "Отзиви и testimonials от клиенти",
-      "Партньорства с други бизнеси",
+      {
+        title: "Програма за препоръки",
+        assignee: "",
+        actions: [
+          { text: "Създаване на реферална система с награди", done: false },
+          { text: "Промоция на програмата към съществуващи клиенти", done: false },
+          { text: "Автоматизиране на tracking и награди", done: false },
+        ],
+      },
+      {
+        title: "Отзиви и testimonials",
+        assignee: "",
+        actions: [
+          { text: "Искане на отзив 7 дни след покупка", done: false },
+          { text: "Видео testimonials от доволни клиенти", done: false },
+          { text: "Публикуване на отзиви на сайта и соц. мрежи", done: false },
+        ],
+      },
+      {
+        title: "Партньорства",
+        assignee: "",
+        actions: [
+          { text: "Идентифициране на complementary бизнеси", done: false },
+          { text: "Предложение за кръстосана промоция", done: false },
+          { text: "Съвместни events или оферти", done: false },
+        ],
+      },
     ],
   },
   {
@@ -143,11 +297,42 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Landing Page фуния",
     icon: "Target",
     steps: [
-      "Заглавие с ясна полза за клиента",
-      "Социално доказателство (отзиви, числа)",
-      "Ясен Call-to-Action бутон",
-      "Формуляр за контакт/покупка",
-      "Follow-up имейл или обаждане",
+      {
+        title: "Заглавие и Hook",
+        assignee: "",
+        actions: [
+          { text: "Написване на headline с ясна полза", done: false },
+          { text: "Подзаглавие с конкретно обещание", done: false },
+          { text: "Hero image/video", done: false },
+        ],
+      },
+      {
+        title: "Социално доказателство",
+        assignee: "",
+        actions: [
+          { text: "Добавяне на 3-5 testimonials с снимки", done: false },
+          { text: "Числа и статистики (X клиенти, Y% резултат)", done: false },
+          { text: "Лога на партньори/медии", done: false },
+        ],
+      },
+      {
+        title: "CTA и формуляр",
+        assignee: "",
+        actions: [
+          { text: "Ясен бутон с action text (не 'Submit')", done: false },
+          { text: "Минимум полета във формуляра", done: false },
+          { text: "Urgency елементи (countdown, limited spots)", done: false },
+        ],
+      },
+      {
+        title: "Follow-up",
+        assignee: "",
+        actions: [
+          { text: "Автоматичен email след попълване на формуляр", done: false },
+          { text: "Обаждане до 5 мин. за горещи leads", done: false },
+          { text: "Retargeting реклами за незавършили", done: false },
+        ],
+      },
     ],
   },
   {
@@ -156,11 +341,43 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Продажбено обаждане",
     icon: "MessageCircle",
     steps: [
-      "Квалифициране на лийда",
-      "Discovery call — разбиране на нуждите",
-      "Презентация на решението",
-      "Обработка на възражения",
-      "Затваряне на сделката",
+      {
+        title: "Квалифициране на лийда",
+        assignee: "",
+        actions: [
+          { text: "Проверка дали отговаря на ICP (Ideal Customer Profile)", done: false },
+          { text: "Бюджет, нужда, времеви рамки", done: false },
+          { text: "Scoring на лийда (hot/warm/cold)", done: false },
+        ],
+      },
+      {
+        title: "Discovery Call",
+        assignee: "",
+        actions: [
+          { text: "Разбиране на болките и целите на клиента", done: false },
+          { text: "Задаване на SPIN въпроси", done: false },
+          { text: "Записване на notes в CRM", done: false },
+        ],
+      },
+      {
+        title: "Презентация на решението",
+        assignee: "",
+        actions: [
+          { text: "Показване как продуктът решава конкретните проблеми", done: false },
+          { text: "Demo/визуализация на резултата", done: false },
+          { text: "Case study от подобен клиент", done: false },
+        ],
+      },
+      {
+        title: "Затваряне на сделката",
+        assignee: "",
+        actions: [
+          { text: "Обработка на възражения (цена, време, конкуренция)", done: false },
+          { text: "Оферта с deadline", done: false },
+          { text: "Изпращане на договор/фактура", done: false },
+          { text: "Follow-up ако няма отговор до 48ч", done: false },
+        ],
+      },
     ],
   },
   {
@@ -169,10 +386,36 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Директна продажба",
     icon: "ShoppingCart",
     steps: [
-      "Продуктова страница с описание и цена",
-      "Кошница за пазаруване",
-      "Checkout процес",
-      "Потвърждение и фактура",
+      {
+        title: "Продуктова страница",
+        assignee: "",
+        actions: [
+          { text: "Професионални снимки на продукта", done: false },
+          { text: "Описание с ползи (не само характеристики)", done: false },
+          { text: "Цена + варианти (ако има)", done: false },
+          { text: "FAQ секция", done: false },
+        ],
+      },
+      {
+        title: "Checkout процес",
+        assignee: "",
+        actions: [
+          { text: "Минимум стъпки (1-2 страници)", done: false },
+          { text: "Множество методи за плащане (карта, PayPal)", done: false },
+          { text: "Trust badges и SSL", done: false },
+          { text: "Abandoned cart email (след 1ч, 24ч)", done: false },
+        ],
+      },
+      {
+        title: "След покупката",
+        assignee: "",
+        actions: [
+          { text: "Потвърждение + фактура по имейл", done: false },
+          { text: "Thank you page с upsell оферта", done: false },
+          { text: "Проследяване на доставката", done: false },
+          { text: "Искане на отзив след получаване", done: false },
+        ],
+      },
     ],
   },
   {
@@ -181,10 +424,33 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Абонамент",
     icon: "CreditCard",
     steps: [
-      "Безплатен пробен период / freemium",
-      "Плащане на месечен/годишен абонамент",
-      "Автоматично подновяване",
-      "Upsell към по-висок план",
+      {
+        title: "Безплатен пробен период",
+        assignee: "",
+        actions: [
+          { text: "7/14/30 дни free trial", done: false },
+          { text: "Onboarding email последователност", done: false },
+          { text: "In-app tutorial при първо влизане", done: false },
+        ],
+      },
+      {
+        title: "Конвертиране в платен",
+        assignee: "",
+        actions: [
+          { text: "Reminder email 3 дни преди край на trial", done: false },
+          { text: "Показване на стойността (какво ще загубят)", done: false },
+          { text: "Специална оферта за annual план", done: false },
+        ],
+      },
+      {
+        title: "Upsell",
+        assignee: "",
+        actions: [
+          { text: "Предлагане на по-висок план при лимити", done: false },
+          { text: "Add-on продукти/функции", done: false },
+          { text: "Annual vs monthly отстъпка", done: false },
+        ],
+      },
     ],
   },
   {
@@ -193,9 +459,24 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Upsell & Cross-sell",
     icon: "TrendingUp",
     steps: [
-      "Предлагане на допълнителен продукт след покупка",
-      "Бъндъл оферти (пакети)",
-      "Персонализирани препоръки",
+      {
+        title: "Post-purchase upsell",
+        assignee: "",
+        actions: [
+          { text: "One-click upsell на thank you page", done: false },
+          { text: "Допълнителен продукт със специална цена", done: false },
+          { text: "Бъндъл оферта ('добави X за само Y лв')", done: false },
+        ],
+      },
+      {
+        title: "Cross-sell",
+        assignee: "",
+        actions: [
+          { text: "Email с персонализирани препоръки", done: false },
+          { text: "'Клиенти купиха също...' секция", done: false },
+          { text: "Сезонни/тематични бъндъли", done: false },
+        ],
+      },
     ],
   },
   {
@@ -204,9 +485,25 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Лоялност",
     icon: "Star",
     steps: [
-      "Програма за лоялни клиенти / точки",
-      "Ексклузивни отстъпки за постоянни клиенти",
-      "Ранен достъп до нови продукти",
+      {
+        title: "Програма за лоялност",
+        assignee: "",
+        actions: [
+          { text: "Точки за всяка покупка", done: false },
+          { text: "Нива (Bronze, Silver, Gold, VIP)", done: false },
+          { text: "Награди при достигане на ниво", done: false },
+          { text: "Birthday бонус/отстъпка", done: false },
+        ],
+      },
+      {
+        title: "Ексклузивност",
+        assignee: "",
+        actions: [
+          { text: "Ранен достъп до нови продукти", done: false },
+          { text: "VIP-only оферти и събития", done: false },
+          { text: "Персонален мениджър за топ клиенти", done: false },
+        ],
+      },
     ],
   },
   {
@@ -215,60 +512,27 @@ const DEFAULT_PROCESSES: ProcessData[] = [
     title: "Реактивиране",
     icon: "Gift",
     steps: [
-      "Имейл за неактивни клиенти",
-      "Специална оферта за завръщане",
-      "Анкета за обратна връзка",
-      "Персонализирано съдържание",
+      {
+        title: "Win-back кампания",
+        assignee: "",
+        actions: [
+          { text: "Email на 30 дни неактивност ('Липсвате ни')", done: false },
+          { text: "Email на 60 дни ('Специална оферта за вас')", done: false },
+          { text: "Email на 90 дни ('Последен шанс' + голяма отстъпка)", done: false },
+        ],
+      },
+      {
+        title: "Обратна връзка",
+        assignee: "",
+        actions: [
+          { text: "NPS анкета на всеки 3 месеца", done: false },
+          { text: "Exit survey при отписване", done: false },
+          { text: "1-on-1 интервюта с топ клиенти", done: false },
+        ],
+      },
     ],
   },
 ];
-
-interface ProcessData {
-  id: string;
-  category: string;
-  title: string;
-  icon: string;
-  steps: string[];
-}
-
-interface ProcessItemProps {
-  process: ProcessData;
-  isSelected: boolean;
-  onClick: () => void;
-  onDelete: () => void;
-  categoryColor: string;
-}
-
-function ProcessItem({ process, isSelected, onClick, onDelete, categoryColor }: ProcessItemProps) {
-  const IconComponent = getIcon(process.icon);
-
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all group",
-        isSelected
-          ? "bg-primary/10 text-primary border border-primary/20"
-          : "hover:bg-secondary/80 border border-transparent"
-      )}
-    >
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${categoryColor}15`, color: categoryColor }}
-      >
-        <IconComponent className="w-4 h-4" />
-      </div>
-      <span className="text-sm font-medium truncate flex-1">{process.title}</span>
-      <ChevronRight className={cn("w-4 h-4 shrink-0 transition-transform", isSelected && "rotate-90")} />
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all"
-      >
-        <Trash2 className="w-3 h-3 text-destructive" />
-      </button>
-    </button>
-  );
-}
 
 function getIcon(name: string) {
   const icons: Record<string, any> = {
@@ -277,203 +541,235 @@ function getIcon(name: string) {
   return icons[name] || Target;
 }
 
-// Build ReactFlow nodes and edges from a process
-function buildFlowData(process: ProcessData, categoryColor: string) {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
+// --- Step Detail Panel ---
+function StepDetail({
+  step,
+  stepIndex,
+  color,
+  onUpdate,
+  teamMembers,
+}: {
+  step: ProcessStep;
+  stepIndex: number;
+  color: string;
+  onUpdate: (updated: ProcessStep) => void;
+  teamMembers: string[];
+}) {
+  const [editingAssignee, setEditingAssignee] = useState(false);
+  const [newAction, setNewAction] = useState("");
 
-  // Center node
-  nodes.push({
-    id: "center",
-    data: {
-      label: (
-        <div className="flex items-center gap-2 font-semibold text-base">
-          {process.title}
+  const toggleAction = (actionIndex: number) => {
+    const updated = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, done: !a.done } : a) };
+    onUpdate(updated);
+  };
+
+  const addAction = () => {
+    if (!newAction.trim()) return;
+    onUpdate({ ...step, actions: [...step.actions, { text: newAction.trim(), done: false }] });
+    setNewAction("");
+  };
+
+  const removeAction = (actionIndex: number) => {
+    onUpdate({ ...step, actions: step.actions.filter((_, i) => i !== actionIndex) });
+  };
+
+  const doneCount = step.actions.filter(a => a.done).length;
+  const progress = step.actions.length > 0 ? (doneCount / step.actions.length) * 100 : 0;
+
+  return (
+    <div className="border border-border rounded-2xl overflow-hidden bg-card">
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center gap-3" style={{ borderBottom: `2px solid ${color}20` }}>
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+          style={{ background: `${color}15`, color }}
+        >
+          {stepIndex + 1}
         </div>
-      ),
-    },
-    position: { x: 400, y: 40 },
-    style: {
-      background: categoryColor,
-      color: "#fff",
-      border: "none",
-      borderRadius: "16px",
-      padding: "16px 28px",
-      fontSize: "15px",
-      fontWeight: 600,
-      boxShadow: `0 8px 30px ${categoryColor}40`,
-      minWidth: "200px",
-      textAlign: "center" as const,
-    },
-  });
-
-  // Step nodes
-  process.steps.forEach((step, i) => {
-    const totalSteps = process.steps.length;
-    const isEven = totalSteps <= 4;
-
-    // Layout: vertical cascade with alternating left-right
-    const xOffset = i % 2 === 0 ? -120 : 120;
-    const x = 400 + (isEven ? 0 : xOffset);
-    const y = 140 + i * 110;
-
-    nodes.push({
-      id: `step-${i}`,
-      data: {
-        label: (
-          <div className="flex items-center gap-2">
-            <span
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: `${categoryColor}20`, color: categoryColor }}
-            >
-              {i + 1}
-            </span>
-            <span className="text-sm">{step}</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm">{step.title}</h3>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-[120px]">
+              <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: color }} />
+            </div>
+            <span className="text-[10px] text-muted-foreground">{doneCount}/{step.actions.length}</span>
           </div>
-        ),
-      },
-      position: { x, y },
-      style: {
-        border: `2px solid ${categoryColor}30`,
-        borderRadius: "12px",
-        padding: "12px 16px",
-        fontSize: "13px",
-        background: "var(--card)",
-        color: "var(--card-foreground)",
-        maxWidth: "320px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-      },
-    });
+        </div>
 
-    // Edge from previous to this
-    const sourceId = i === 0 ? "center" : `step-${i - 1}`;
-    edges.push({
-      id: `e-${sourceId}-step-${i}`,
-      source: sourceId,
-      target: `step-${i}`,
-      type: "smoothstep",
-      animated: true,
-      style: { stroke: categoryColor, strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: categoryColor },
-    });
-  });
+        {/* Assignee */}
+        <div className="shrink-0">
+          {editingAssignee ? (
+            <div className="flex items-center gap-1">
+              <select
+                className="text-xs border border-border rounded-lg px-2 py-1 bg-background"
+                value={step.assignee}
+                onChange={e => { onUpdate({ ...step, assignee: e.target.value }); setEditingAssignee(false); }}
+              >
+                <option value="">Без отговорник</option>
+                {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <button onClick={() => setEditingAssignee(false)} className="p-0.5"><X className="w-3 h-3" /></button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingAssignee(true)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all",
+                step.assignee
+                  ? "bg-primary/10 text-primary border border-primary/20"
+                  : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+              )}
+            >
+              <UserCircle className="w-3.5 h-3.5" />
+              {step.assignee || "Задай отговорник"}
+            </button>
+          )}
+        </div>
+      </div>
 
-  return { nodes, edges };
+      {/* Actions */}
+      <div className="px-4 py-2 space-y-1">
+        {step.actions.map((action, i) => (
+          <div key={i} className="flex items-start gap-2 py-1.5 group">
+            <button onClick={() => toggleAction(i)} className="mt-0.5 shrink-0">
+              {action.done ? (
+                <CheckCircle2 className="w-4 h-4" style={{ color }} />
+              ) : (
+                <Circle className="w-4 h-4 text-muted-foreground/40 hover:text-muted-foreground" />
+              )}
+            </button>
+            <span className={cn("text-sm flex-1", action.done && "line-through text-muted-foreground/50")}>
+              {action.text}
+            </span>
+            <button
+              onClick={() => removeAction(i)}
+              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
+            >
+              <X className="w-3 h-3 text-destructive" />
+            </button>
+          </div>
+        ))}
+
+        {/* Add action */}
+        <div className="flex items-center gap-2 pt-1 pb-1">
+          <input
+            type="text"
+            placeholder="Добави действие..."
+            value={newAction}
+            onChange={e => setNewAction(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addAction()}
+            className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+          />
+          {newAction && (
+            <button onClick={addAction} className="p-1 rounded-lg hover:bg-secondary transition-all">
+              <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
+// --- Main Page ---
 export default function MindMapPage() {
   const { user } = useAuth();
   const [processes, setProcesses] = useState<ProcessData[]>(DEFAULT_PROCESSES);
   const [selectedProcess, setSelectedProcess] = useState<ProcessData | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("acquisition");
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [editingProcess, setEditingProcess] = useState<ProcessData | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newSteps, setNewSteps] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [editTitleValue, setEditTitleValue] = useState("");
+  const [teamMembers, setTeamMembers] = useState<string[]>(["Симо", "Данаил"]);
+  const [newMember, setNewMember] = useState("");
+  const [showMemberInput, setShowMemberInput] = useState(false);
 
-  // Load saved processes from localStorage
+  // Load
   useEffect(() => {
-    const saved = localStorage.getItem(`mindmap-processes-${user?.id}`);
+    const saved = localStorage.getItem(`mindmap-v2-${user?.id}`);
     if (saved) {
-      try {
-        setProcesses(JSON.parse(saved));
-      } catch {
-        // use defaults
-      }
+      try { setProcesses(JSON.parse(saved)); } catch { /* defaults */ }
+    }
+    const savedMembers = localStorage.getItem(`mindmap-members-${user?.id}`);
+    if (savedMembers) {
+      try { setTeamMembers(JSON.parse(savedMembers)); } catch { /* defaults */ }
     }
   }, [user?.id]);
 
-  // Save processes to localStorage
-  const saveProcesses = useCallback((procs: ProcessData[]) => {
+  // Save
+  const save = useCallback((procs: ProcessData[]) => {
     setProcesses(procs);
-    if (user?.id) {
-      localStorage.setItem(`mindmap-processes-${user.id}`, JSON.stringify(procs));
-    }
+    if (user?.id) localStorage.setItem(`mindmap-v2-${user.id}`, JSON.stringify(procs));
   }, [user?.id]);
 
-  // Select a process and build flow
-  const selectProcess = useCallback((process: ProcessData) => {
-    setSelectedProcess(process);
-    const cat = CATEGORIES.find(c => c.id === process.category);
-    const { nodes: n, edges: e } = buildFlowData(process, cat?.color || "#3b82f6");
-    setNodes(n);
-    setEdges(e);
-  }, [setNodes, setEdges]);
+  const saveMembers = useCallback((members: string[]) => {
+    setTeamMembers(members);
+    if (user?.id) localStorage.setItem(`mindmap-members-${user.id}`, JSON.stringify(members));
+  }, [user?.id]);
 
-  // Auto-select first process of category
-  useEffect(() => {
-    const catProcesses = processes.filter(p => p.category === selectedCategory);
-    if (catProcesses.length > 0 && (!selectedProcess || selectedProcess.category !== selectedCategory)) {
-      selectProcess(catProcesses[0]);
+  const updateStep = (processId: string, stepIndex: number, updatedStep: ProcessStep) => {
+    const updated = processes.map(p =>
+      p.id === processId
+        ? { ...p, steps: p.steps.map((s, i) => i === stepIndex ? updatedStep : s) }
+        : p
+    );
+    save(updated);
+    if (selectedProcess?.id === processId) {
+      setSelectedProcess(updated.find(p => p.id === processId) || null);
     }
-  }, [selectedCategory, processes]);
+  };
 
   const addProcess = () => {
     if (!newTitle.trim()) return;
-    const steps = newSteps.split("\n").filter(s => s.trim());
-    if (steps.length === 0) {
-      toast.error("Добавете поне една стъпка");
-      return;
-    }
-    const newProcess: ProcessData = {
+    const stepTitles = newSteps.split("\n").filter(s => s.trim());
+    if (stepTitles.length === 0) { toast.error("Добавете поне една стъпка"); return; }
+    const np: ProcessData = {
       id: `custom-${Date.now()}`,
       category: selectedCategory,
       title: newTitle.trim(),
       icon: "Target",
-      steps,
+      steps: stepTitles.map(t => ({ title: t.trim(), assignee: "", actions: [] })),
     };
-    saveProcesses([...processes, newProcess]);
+    save([...processes, np]);
+    setSelectedProcess(np);
     setIsAddingNew(false);
     setNewTitle("");
     setNewSteps("");
-    selectProcess(newProcess);
     toast.success("Процесът е добавен!");
   };
 
   const deleteProcess = (id: string) => {
-    const updated = processes.filter(p => p.id !== id);
-    saveProcesses(updated);
-    if (selectedProcess?.id === id) {
-      setSelectedProcess(null);
-      setNodes([]);
-      setEdges([]);
-    }
+    save(processes.filter(p => p.id !== id));
+    if (selectedProcess?.id === id) setSelectedProcess(null);
     toast.success("Процесът е изтрит");
-  };
-
-  const updateProcess = (process: ProcessData) => {
-    const updated = processes.map(p => p.id === process.id ? process : p);
-    saveProcesses(updated);
-    selectProcess(process);
-    setEditingProcess(null);
-    toast.success("Процесът е обновен!");
   };
 
   const currentCategory = CATEGORIES.find(c => c.id === selectedCategory);
   const categoryProcesses = processes.filter(p => p.category === selectedCategory);
 
+  // Calculate progress for a process
+  const getProcessProgress = (proc: ProcessData) => {
+    const total = proc.steps.reduce((sum, s) => sum + s.actions.length, 0);
+    const done = proc.steps.reduce((sum, s) => sum + s.actions.filter(a => a.done).length, 0);
+    return total > 0 ? Math.round((done / total) * 100) : 0;
+  };
+
   return (
     <MainLayout>
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={cn(
-            "border-r border-border bg-card/50 flex flex-col transition-all duration-300 shrink-0",
-            sidebarOpen ? "w-80" : "w-0 overflow-hidden"
-          )}
-        >
-          {/* Category tabs */}
+        {/* Left sidebar - categories & processes */}
+        <div className="w-80 border-r border-border bg-card/50 flex flex-col shrink-0">
           <div className="p-3 border-b border-border">
+            <h2 className="text-sm font-semibold mb-2 px-1">Бизнес процеси</h2>
             <div className="grid grid-cols-2 gap-1.5">
               {CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => { setSelectedCategory(cat.id); setSelectedProcess(null); }}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all",
                       selectedCategory === cat.id
@@ -490,144 +786,187 @@ export default function MindMapPage() {
             </div>
           </div>
 
-          {/* Category description */}
           {currentCategory && (
-            <div className="px-4 py-3 border-b border-border/50">
-              <p className="text-xs text-muted-foreground">{currentCategory.description}</p>
+            <div className="px-4 py-2 border-b border-border/50">
+              <p className="text-[11px] text-muted-foreground">{currentCategory.description}</p>
             </div>
           )}
 
-          {/* Process list */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
-            {categoryProcesses.map(process => (
-              <ProcessItem
-                key={process.id}
-                process={process}
-                isSelected={selectedProcess?.id === process.id}
-                onClick={() => selectProcess(process)}
-                onDelete={() => deleteProcess(process.id)}
-                categoryColor={currentCategory?.color || "#3b82f6"}
-              />
-            ))}
-
-            {categoryProcesses.length === 0 && !isAddingNew && (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Няма процеси в тази категория
-              </p>
-            )}
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            {categoryProcesses.map(proc => {
+              const Icon = getIcon(proc.icon);
+              const progress = getProcessProgress(proc);
+              const isSelected = selectedProcess?.id === proc.id;
+              return (
+                <button
+                  key={proc.id}
+                  onClick={() => setSelectedProcess(proc)}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all group",
+                    isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-secondary/80 border border-transparent"
+                  )}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${currentCategory?.color}15`, color: currentCategory?.color }}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium block truncate">{proc.title}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${progress}%`, background: currentCategory?.color }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{progress}%</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteProcess(proc.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all shrink-0"
+                  >
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </button>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Add new process */}
-          <div className="p-3 border-t border-border">
+          {/* Add process + team */}
+          <div className="p-3 border-t border-border space-y-2">
             {isAddingNew ? (
               <div className="space-y-2">
-                <Input
-                  placeholder="Име на процеса..."
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  className="h-9 text-sm rounded-xl"
-                />
-                <Textarea
-                  placeholder="Стъпки (по една на ред)..."
-                  value={newSteps}
-                  onChange={e => setNewSteps(e.target.value)}
-                  rows={4}
-                  className="text-sm rounded-xl resize-none"
-                />
+                <Input placeholder="Име на процеса..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-8 text-sm rounded-xl" />
+                <Textarea placeholder="Стъпки (по една на ред)..." value={newSteps} onChange={e => setNewSteps(e.target.value)} rows={3} className="text-xs rounded-xl resize-none" />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={addProcess} className="flex-1 rounded-xl h-8 text-xs">
-                    <Save className="w-3 h-3 mr-1" /> Запази
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingNew(false); setNewTitle(""); setNewSteps(""); }} className="rounded-xl h-8 text-xs">
-                    <X className="w-3 h-3" />
-                  </Button>
+                  <Button size="sm" onClick={addProcess} className="flex-1 rounded-xl h-7 text-xs"><Save className="w-3 h-3 mr-1" />Запази</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAddingNew(false); setNewTitle(""); setNewSteps(""); }} className="rounded-xl h-7 text-xs"><X className="w-3 h-3" /></Button>
                 </div>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAddingNew(true)}
-                className="w-full rounded-xl h-9 text-xs"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Добави процес
+              <Button variant="outline" size="sm" onClick={() => setIsAddingNew(true)} className="w-full rounded-xl h-8 text-xs">
+                <Plus className="w-3.5 h-3.5 mr-1" />Добави процес
               </Button>
             )}
+
+            {/* Team members */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Екип</span>
+                <button onClick={() => setShowMemberInput(!showMemberInput)} className="p-0.5 hover:bg-secondary rounded">
+                  <Plus className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </div>
+              {showMemberInput && (
+                <div className="flex gap-1 mb-1">
+                  <Input placeholder="Име..." value={newMember} onChange={e => setNewMember(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && newMember.trim()) { saveMembers([...teamMembers, newMember.trim()]); setNewMember(""); setShowMemberInput(false); } }}
+                    className="h-6 text-xs rounded-lg" />
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                {teamMembers.map(m => (
+                  <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary/50 rounded-lg text-[11px] group">
+                    <UserCircle className="w-3 h-3" />{m}
+                    <button onClick={() => saveMembers(teamMembers.filter(t => t !== m))} className="opacity-0 group-hover:opacity-100">
+                      <X className="w-2.5 h-2.5 text-destructive" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Mind Map Canvas */}
-        <div className="flex-1 relative">
+        {/* Main content - process steps */}
+        <div className="flex-1 overflow-y-auto bg-background">
           {selectedProcess ? (
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              connectionMode={ConnectionMode.Loose}
-              fitView
-              fitViewOptions={{ padding: 0.3 }}
-              minZoom={0.3}
-              maxZoom={2}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={1} className="opacity-30" />
-              <Controls className="rounded-xl overflow-hidden border border-border shadow-lg" />
-
-              {/* Top panel with process title and edit */}
-              <Panel position="top-center">
-                <div className="bg-card/90 backdrop-blur-xl border border-border rounded-2xl px-6 py-3 shadow-lg flex items-center gap-3 mt-2">
-                  {editingProcess?.id === selectedProcess.id ? (
+            <div className="max-w-4xl mx-auto p-6">
+              {/* Process header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                  style={{ backgroundColor: `${currentCategory?.color}15`, color: currentCategory?.color }}
+                >
+                  {(() => { const I = getIcon(selectedProcess.icon); return <I className="w-6 h-6" />; })()}
+                </div>
+                <div className="flex-1">
+                  {editingTitle === selectedProcess.id ? (
                     <div className="flex items-center gap-2">
-                      <Input
-                        value={editingProcess.title}
-                        onChange={e => setEditingProcess({ ...editingProcess, title: e.target.value })}
-                        className="h-8 text-sm w-48 rounded-xl"
-                      />
-                      <Button size="sm" className="h-8 rounded-xl" onClick={() => updateProcess(editingProcess)}>
-                        <Save className="w-3 h-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8 rounded-xl" onClick={() => setEditingProcess(null)}>
-                        <X className="w-3 h-3" />
-                      </Button>
+                      <Input value={editTitleValue} onChange={e => setEditTitleValue(e.target.value)}
+                        className="h-9 text-lg font-semibold rounded-xl" />
+                      <Button size="sm" className="rounded-xl" onClick={() => {
+                        const updated = processes.map(p => p.id === selectedProcess.id ? { ...p, title: editTitleValue } : p);
+                        save(updated);
+                        setSelectedProcess({ ...selectedProcess, title: editTitleValue });
+                        setEditingTitle(null);
+                      }}><Save className="w-3 h-3" /></Button>
+                      <Button size="sm" variant="ghost" className="rounded-xl" onClick={() => setEditingTitle(null)}><X className="w-3 h-3" /></Button>
                     </div>
                   ) : (
-                    <>
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: `${currentCategory?.color}20`, color: currentCategory?.color }}
-                      >
-                        {(() => { const I = getIcon(selectedProcess.icon); return <I className="w-4 h-4" />; })()}
-                      </div>
-                      <div>
-                        <h2 className="font-semibold text-sm">{selectedProcess.title}</h2>
-                        <p className="text-[11px] text-muted-foreground">{selectedProcess.steps.length} стъпки</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 rounded-lg"
-                        onClick={() => setEditingProcess({ ...selectedProcess })}
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </Button>
-                    </>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl font-bold">{selectedProcess.title}</h1>
+                      <button onClick={() => { setEditingTitle(selectedProcess.id); setEditTitleValue(selectedProcess.title); }}
+                        className="p-1 hover:bg-secondary rounded-lg opacity-50 hover:opacity-100 transition-all">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {selectedProcess.steps.length} стъпки · {getProcessProgress(selectedProcess)}% завършен
+                  </p>
                 </div>
-              </Panel>
+              </div>
 
-              {/* Toggle sidebar button */}
-              <Panel position="top-left">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="mt-2 ml-2 rounded-xl h-8 text-xs"
-                >
-                  {sidebarOpen ? "Скрий менюто" : "Покажи менюто"}
-                </Button>
-              </Panel>
-            </ReactFlow>
+              {/* Flow visualization - horizontal */}
+              <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
+                {selectedProcess.steps.map((step, i) => {
+                  const done = step.actions.length > 0 && step.actions.every(a => a.done);
+                  const partial = step.actions.some(a => a.done);
+                  return (
+                    <div key={i} className="flex items-center shrink-0">
+                      <div
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-xs font-medium border-2 transition-all cursor-pointer",
+                          done ? "text-white" : partial ? "bg-card" : "bg-card"
+                        )}
+                        style={{
+                          borderColor: currentCategory?.color,
+                          backgroundColor: done ? currentCategory?.color : undefined,
+                          color: done ? "#fff" : currentCategory?.color,
+                        }}
+                        onClick={() => {
+                          document.getElementById(`step-${i}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
+                      >
+                        {step.title}
+                        {step.assignee && (
+                          <span className="ml-1.5 opacity-70">· {step.assignee}</span>
+                        )}
+                      </div>
+                      {i < selectedProcess.steps.length - 1 && (
+                        <ArrowRight className="w-4 h-4 mx-1 shrink-0" style={{ color: currentCategory?.color }} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Step details */}
+              <div className="space-y-4">
+                {selectedProcess.steps.map((step, i) => (
+                  <div key={i} id={`step-${i}`}>
+                    <StepDetail
+                      step={step}
+                      stepIndex={i}
+                      color={currentCategory?.color || "#3b82f6"}
+                      teamMembers={teamMembers}
+                      onUpdate={(updated) => updateStep(selectedProcess.id, i, updated)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center space-y-3">
@@ -635,7 +974,7 @@ export default function MindMapPage() {
                   <Target className="w-8 h-8 text-muted-foreground/50" />
                 </div>
                 <p className="text-lg font-medium">Изберете процес от менюто</p>
-                <p className="text-sm text-muted-foreground/70">Кликнете върху процес, за да видите стъпките</p>
+                <p className="text-sm text-muted-foreground/70">Кликнете върху процес, за да видите стъпките и действията</p>
               </div>
             </div>
           )}
