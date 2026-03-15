@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentProject } from "./useCurrentProject";
+import { useOrganizations } from "./useOrganizations";
 import { useAuth } from "./useAuth";
 
 export interface Message {
@@ -28,6 +29,7 @@ export function useAssistantChat(
   sessionId?: string | null
 ) {
   const { projectId } = useCurrentProject();
+  const { currentOrganization } = useOrganizations();
   const { user } = useAuth();
 
   const chatKey = moduleSystemPrompt
@@ -131,6 +133,7 @@ export function useAssistantChat(
         body: {
           messages: [...history, { role: "user", content: content.trim() }],
           projectId,
+          organizationId: currentOrganization?.id || undefined,
           context,
           userId: user?.id,
           sessionId: sessionId || undefined,

@@ -139,16 +139,41 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId, context = "business", userId, moduleSystemPrompt, sessionId } = await req.json();
-
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
-    }
+    const { messages, projectId, organizationId, context = "business", userId, moduleSystemPrompt, sessionId } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Resolve organization ID: use provided one, or derive from project
+    let orgId = organizationId || null;
+    if (!orgId && projectId) {
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("organization_id")
+        .eq("id", projectId)
+        .maybeSingle();
+      if (proj?.organization_id) orgId = proj.organization_id;
+    }
+
+    // Look up org-specific API key, fall back to global env var
+    let ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
+    if (orgId) {
+      const { data: integration } = await supabase
+        .from("organization_integrations")
+        .select("api_key")
+        .eq("organization_id", orgId)
+        .eq("integration_type", "claude")
+        .eq("is_active", true)
+        .maybeSingle();
+      if (integration?.api_key) {
+        ANTHROPIC_API_KEY = integration.api_key;
+      }
+    }
+
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("Няма конфигуриран API ключ. Добавете го в Настройки → Интеграции.");
+    }
 
     const dateContext = getDateContext();
     console.log("Date context:", dateContext);
