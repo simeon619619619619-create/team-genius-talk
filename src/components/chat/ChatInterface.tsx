@@ -29,6 +29,7 @@ interface ChatInterfaceProps {
   moduleInitialMessage?: string;
   sessionId?: string | null;
   onFirstMessage?: (text: string) => void;
+  onMessage?: (text: string) => void;
   autoSendPrompt?: string | null;
   onSuggestionUsed?: (promptText: string) => void;
   extraContext?: string;
@@ -110,7 +111,7 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, autoSendPrompt, onSuggestionUsed, extraContext }: ChatInterfaceProps) {
+export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, onMessage, autoSendPrompt, onSuggestionUsed, extraContext }: ChatInterfaceProps) {
   const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId, extraContext);
   const autoSentRef = useRef(false);
   const [input, setInput] = useState("");
@@ -147,6 +148,11 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
     const userMessages = messages.filter(m => m.role === "user");
     if (userMessages.length === 0 && messageText && onFirstMessage) {
       onFirstMessage(messageText);
+    }
+
+    // Notify parent of every message (for auto-routing)
+    if (messageText && onMessage) {
+      onMessage(messageText);
     }
 
     if (pendingFiles.length > 0) {

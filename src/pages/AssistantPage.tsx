@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { ChevronDown, ArrowLeft, ChevronRight, Bot } from "lucide-react";
+import { ChevronDown, ArrowLeft, ChevronRight, Bot, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +77,42 @@ export default function AssistantPage() {
   const [usedPrompts, setUsedPrompts] = useState<Set<number>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
   const autoSentRef = useRef(false);
+
+  // Auto-route to best bot based on message content
+  const [autoRouted, setAutoRouted] = useState(false);
+  const routeToBestBot = useCallback((message: string) => {
+    if (aiBots.length === 0 || moduleState) return;
+    const msgLower = message.toLowerCase();
+
+    // Keyword matching per bot skill
+    let bestBot: AiBot | null = null;
+    let bestScore = 0;
+
+    for (const bot of aiBots) {
+      let score = 0;
+      const allKeywords = [
+        ...(bot.skills || []),
+        ...(bot.automations || []),
+        bot.role,
+        bot.process,
+      ];
+      for (const keyword of allKeywords) {
+        if (keyword && msgLower.includes(keyword.toLowerCase())) {
+          score += keyword.length; // longer matches = more specific
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestBot = bot;
+      }
+    }
+
+    if (bestBot && bestScore >= 3 && bestBot.id !== selectedBot?.id) {
+      setSelectedBot(bestBot);
+      setAutoRouted(true);
+      setTimeout(() => setAutoRouted(false), 3000);
+    }
+  }, [aiBots, selectedBot, moduleState]);
 
   const botSystemPrompt = selectedBot
     ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, кажи кой друг бот може да помогне.`
@@ -312,6 +348,20 @@ export default function AssistantPage() {
             </div>
           )}
 
+          {/* Auto-route notification */}
+          {autoRouted && selectedBot && (
+            <div className="px-3 md:px-4 pb-2 shrink-0 animate-fade-in">
+              <div className="mx-auto max-w-3xl">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-sm">
+                  <Zap className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                  <span className="text-purple-700 dark:text-purple-300">
+                    Пренасочено към <strong>{selectedBot.name}</strong> — {selectedBot.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Chat Interface - Full height */}
           <div className="flex-1 min-h-0">
             <ChatInterface
@@ -321,6 +371,7 @@ export default function AssistantPage() {
               moduleInitialMessage={moduleState?.initialMessage || botInitialMessage}
               sessionId={activeSessionId}
               onFirstMessage={handleFirstMessage}
+              onMessage={routeToBestBot}
               autoSendPrompt={autoSendPrompt}
               onSuggestionUsed={handleSuggestionUsed}
             />
