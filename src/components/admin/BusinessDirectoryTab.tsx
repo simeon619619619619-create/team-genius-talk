@@ -59,6 +59,7 @@ export function BusinessDirectoryTab() {
   const [showScrapeDialog, setShowScrapeDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState<BusinessEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState<BusinessEntry | null>(null);
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
 
   // Scrape form
   const [scrapeNiche, setScrapeNiche] = useState("");
@@ -140,6 +141,57 @@ export function BusinessDirectoryTab() {
       setScraping(false);
     }
   };
+
+  // Send task to local scraper agent
+  const handleLocalScrape = async () => {
+    if (!scrapeNiche.trim()) {
+      toast.error("Въведи ниша за търсене");
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Не сте логнат");
+      return;
+    }
+
+    const { error } = await supabase.from("scrape_tasks").insert({
+      user_id: user.id,
+      niche: scrapeNiche,
+      city: scrapeCity || "София",
+      niche_id: scrapeNicheId && scrapeNicheId !== "none" ? scrapeNicheId : null,
+      max_results: 20,
+      status: "pending",
+    });
+
+    if (error) {
+      toast.error("Грешка: " + error.message);
+      return;
+    }
+
+    toast.success("Задачата е изпратена към локалния скрейпър! Стартирай agent.js на компютъра си.");
+    setShowScrapeDialog(false);
+    setScrapeNiche("");
+    fetchPendingTasks();
+  };
+
+  // Poll pending tasks
+  const fetchPendingTasks = useCallback(async () => {
+    const { data } = await supabase
+      .from("scrape_tasks")
+      .select("*")
+      .in("status", ["pending", "running"])
+      .order("created_at", { ascending: false });
+    setPendingTasks(data || []);
+  }, []);
+
+  useEffect(() => {
+    fetchPendingTasks();
+    const interval = setInterval(() => {
+      fetchPendingTasks();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [fetchPendingTasks]);
 
   const handleAddManual = async () => {
     if (!addForm.company_name.trim()) {
@@ -428,6 +480,28 @@ export function BusinessDirectoryTab() {
       </div>
 
       {/* Business list */}
+      {/* Pending scrape tasks */}
+      {pendingTasks.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {pendingTasks.map(t => (
+            <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5">
+              <Loader2 className="h-4 w-4 animate-spin text-purple-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">
+                  {t.status === "running" ? "Скрейпва" : "Чака"}: {t.niche} — {t.city}
+                </p>
+                {t.results_count > 0 && (
+                  <p className="text-xs text-muted-foreground">{t.results_count} намерени</p>
+                )}
+              </div>
+              <Badge variant="outline" className={t.status === "running" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"}>
+                {t.status === "running" ? "Работи" : "Чака агент"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
           Показани {filtered.length} от {businesses.length} фирми
@@ -582,11 +656,14 @@ export function BusinessDirectoryTab() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowScrapeDialog(false)}>Отказ</Button>
             <Button onClick={handleScrape} disabled={scraping} className="gap-2">
               {scraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {scraping ? "Търся..." : "Търси с AI"}
+            </Button>
+            <Button onClick={handleLocalScrape} disabled={scraping} variant="secondary" className="gap-2">
+              💻 Локален скрейпър
             </Button>
           </DialogFooter>
         </DialogContent>

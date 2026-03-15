@@ -1,0 +1,14 @@
+{
+  "name": "simora-scraper-agent",
+  "version": "1.0.0",
+  "description": "Local scraping agent for Simora - runs on your machine with Puppeteer",
+  "type": "module",
+  "scripts": {
+    "start": "node agent.js",
+    "install-browser": "npx puppeteer browsers install chrome"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "puppeteer": "^23.0.0"
+  }
+}
