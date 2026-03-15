@@ -32,11 +32,13 @@ import {
   Eye,
   EyeOff,
   XCircle,
+  ListTodo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { useTasks } from "@/hooks/useTasks";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -563,6 +565,7 @@ function StepDetail({
   onUpdate,
   teamMembers,
   botSkills,
+  onAddToTasks,
 }: {
   step: ProcessStep;
   stepIndex: number;
@@ -570,6 +573,7 @@ function StepDetail({
   onUpdate: (updated: ProcessStep) => void;
   teamMembers: string[];
   botSkills: BotSkillInfo[];
+  onAddToTasks: (title: string, assignee?: string) => void;
 }) {
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingActionAssignee, setEditingActionAssignee] = useState<number | null>(null);
@@ -816,6 +820,14 @@ function StepDetail({
                     </button>
                   )}
                   <button
+                    onClick={() => onAddToTasks(action.text, action.assignee?.replace("🤖 ", ""))}
+                    className="opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all whitespace-nowrap flex items-center gap-0.5"
+                    title="Добави като задача"
+                  >
+                    <ListTodo className="w-2.5 h-2.5" />
+                    Задача
+                  </button>
+                  <button
                     onClick={() => removeAction(i)}
                     className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
                   >
@@ -874,6 +886,7 @@ function StepDetail({
 // --- Main Page ---
 export default function MindMapPage() {
   const { user } = useAuth();
+  const { tasks, addTask } = useTasks();
   const [processes, setProcesses] = useState<ProcessData[]>(DEFAULT_PROCESSES);
   const [selectedProcess, setSelectedProcess] = useState<ProcessData | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("acquisition");
@@ -1185,6 +1198,18 @@ export default function MindMapPage() {
                       teamMembers={teamMembers}
                       botSkills={botSkillsData}
                       onUpdate={(updated) => updateStep(selectedProcess.id, i, updated)}
+                      onAddToTasks={(title, assignee) => {
+                        const alreadyExists = tasks.some(t => t.title === title && t.status !== "done");
+                        if (alreadyExists) {
+                          toast.info("Тази задача вече съществува");
+                          return;
+                        }
+                        addTask({
+                          title,
+                          assignee_name: assignee || null,
+                          priority: "medium",
+                        });
+                      }}
                     />
                   </div>
                 ))}
