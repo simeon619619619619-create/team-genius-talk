@@ -38,6 +38,12 @@ import { toast } from "sonner";
 interface StepAction {
   text: string;
   done: boolean;
+  assignee?: string;
+}
+
+interface BotSkillInfo {
+  name: string;
+  skills: string[];
 }
 
 interface ProcessStep {
@@ -548,19 +554,28 @@ function StepDetail({
   color,
   onUpdate,
   teamMembers,
+  botSkills,
 }: {
   step: ProcessStep;
   stepIndex: number;
   color: string;
   onUpdate: (updated: ProcessStep) => void;
   teamMembers: string[];
+  botSkills: BotSkillInfo[];
 }) {
   const [editingAssignee, setEditingAssignee] = useState(false);
+  const [editingActionAssignee, setEditingActionAssignee] = useState<number | null>(null);
   const [newAction, setNewAction] = useState("");
 
   const toggleAction = (actionIndex: number) => {
     const updated = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, done: !a.done } : a) };
     onUpdate(updated);
+  };
+
+  const setActionAssignee = (actionIndex: number, assignee: string) => {
+    const updated = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, assignee: assignee || undefined } : a) };
+    onUpdate(updated);
+    setEditingActionAssignee(null);
   };
 
   const addAction = () => {
@@ -571,6 +586,28 @@ function StepDetail({
 
   const removeAction = (actionIndex: number) => {
     onUpdate({ ...step, actions: step.actions.filter((_, i) => i !== actionIndex) });
+  };
+
+  // Find matching bots for an action based on skill keywords
+  const getMatchingMembers = (actionText: string) => {
+    const text = actionText.toLowerCase();
+    const matched: string[] = [];
+    const unmatched: string[] = [];
+
+    for (const member of teamMembers) {
+      const botInfo = botSkills.find(b => `🤖 ${b.name}` === member);
+      if (botInfo && botInfo.skills.length > 0) {
+        const hasSkill = botInfo.skills.some(skill =>
+          text.includes(skill.toLowerCase()) || skill.toLowerCase().includes(text.substring(0, 10))
+        );
+        if (hasSkill) matched.push(member);
+        else unmatched.push(member);
+      } else {
+        // Human members always available
+        matched.push(member);
+      }
+    }
+    return { matched, unmatched };
   };
 
   const doneCount = step.actions.filter(a => a.done).length;
@@ -596,7 +633,7 @@ function StepDetail({
           </div>
         </div>
 
-        {/* Assignee */}
+        {/* Step Assignee */}
         <div className="shrink-0">
           {editingAssignee ? (
             <div className="flex items-center gap-1">
@@ -628,27 +665,73 @@ function StepDetail({
       </div>
 
       {/* Actions */}
-      <div className="px-4 py-2 space-y-1">
-        {step.actions.map((action, i) => (
-          <div key={i} className="flex items-start gap-2 py-1.5 group">
-            <button onClick={() => toggleAction(i)} className="mt-0.5 shrink-0">
-              {action.done ? (
-                <CheckCircle2 className="w-4 h-4" style={{ color }} />
-              ) : (
-                <Circle className="w-4 h-4 text-muted-foreground/40 hover:text-muted-foreground" />
-              )}
-            </button>
-            <span className={cn("text-sm flex-1", action.done && "line-through text-muted-foreground/50")}>
-              {action.text}
-            </span>
-            <button
-              onClick={() => removeAction(i)}
-              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
-            >
-              <X className="w-3 h-3 text-destructive" />
-            </button>
-          </div>
-        ))}
+      <div className="px-4 py-2 space-y-0.5">
+        {step.actions.map((action, i) => {
+          const { matched, unmatched } = getMatchingMembers(action.text);
+
+          return (
+            <div key={i} className="flex items-start gap-2 py-1.5 group">
+              <button onClick={() => toggleAction(i)} className="mt-0.5 shrink-0">
+                {action.done ? (
+                  <CheckCircle2 className="w-4 h-4" style={{ color }} />
+                ) : (
+                  <Circle className="w-4 h-4 text-muted-foreground/40 hover:text-muted-foreground" />
+                )}
+              </button>
+              <div className="flex-1 min-w-0">
+                <span className={cn("text-sm", action.done && "line-through text-muted-foreground/50")}>
+                  {action.text}
+                </span>
+              </div>
+
+              {/* Action Assignee */}
+              <div className="shrink-0 flex items-center gap-1">
+                {editingActionAssignee === i ? (
+                  <select
+                    className="text-[11px] border border-border rounded px-1.5 py-0.5 bg-background max-w-[140px]"
+                    value={action.assignee || ""}
+                    onChange={e => setActionAssignee(i, e.target.value)}
+                    onBlur={() => setEditingActionAssignee(null)}
+                    autoFocus
+                  >
+                    <option value="">—</option>
+                    {matched.length > 0 && (
+                      <optgroup label="Препоръчани">
+                        {matched.map(m => <option key={m} value={m}>{m}</option>)}
+                      </optgroup>
+                    )}
+                    {unmatched.length > 0 && (
+                      <optgroup label="Други">
+                        {unmatched.map(m => <option key={m} value={m}>{m}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                ) : action.assignee ? (
+                  <button
+                    onClick={() => setEditingActionAssignee(i)}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all truncate max-w-[100px]"
+                    title={action.assignee}
+                  >
+                    {action.assignee}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setEditingActionAssignee(i)}
+                    className="opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground hover:bg-secondary transition-all whitespace-nowrap"
+                  >
+                    + Възложи
+                  </button>
+                )}
+                <button
+                  onClick={() => removeAction(i)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/10 rounded transition-all shrink-0"
+                >
+                  <X className="w-3 h-3 text-destructive" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
 
         {/* Add action */}
         <div className="flex items-center gap-2 pt-1 pb-1">
@@ -683,6 +766,7 @@ export default function MindMapPage() {
   const [editingTitle, setEditingTitle] = useState<string | null>(null);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [teamMembers, setTeamMembers] = useState<string[]>(["Симо", "Данаил"]);
+  const [botSkillsData, setBotSkillsData] = useState<BotSkillInfo[]>([]);
   const [newMember, setNewMember] = useState("");
   const [showMemberInput, setShowMemberInput] = useState(false);
 
@@ -696,12 +780,17 @@ export default function MindMapPage() {
     if (savedMembers) {
       try { setTeamMembers(JSON.parse(savedMembers)); } catch { /* defaults */ }
     }
-    // Load AI bots
+    // Load AI bots with skills
     try {
       const botsJson = localStorage.getItem("simora_ai_bots");
       if (botsJson) {
         const bots = JSON.parse(botsJson);
         const botNames = bots.map((b: { name: string }) => `🤖 ${b.name}`);
+        const skills: BotSkillInfo[] = bots.map((b: { name: string; skills?: string[] }) => ({
+          name: b.name,
+          skills: b.skills || [],
+        }));
+        setBotSkillsData(skills);
         setTeamMembers(prev => {
           const existing = new Set(prev);
           const merged = [...prev];
@@ -977,6 +1066,7 @@ export default function MindMapPage() {
                       stepIndex={i}
                       color={currentCategory?.color || "#3b82f6"}
                       teamMembers={teamMembers}
+                      botSkills={botSkillsData}
                       onUpdate={(updated) => updateStep(selectedProcess.id, i, updated)}
                     />
                   </div>

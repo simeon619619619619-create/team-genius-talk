@@ -21,6 +21,7 @@ export interface AiBot {
   automations: string[];
   tasks: string[];
   taskGroups?: AiBotTaskGroup[];
+  skills?: string[];
   shirtColor: string;
   hairColor: string;
   skinColor: string;
