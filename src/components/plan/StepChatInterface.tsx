@@ -347,12 +347,16 @@ export function StepChatInterface({ step, projectId, bot, onContentUpdate, onSte
 
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Update collected answers
+      // Update collected answers — only if the response is meaningful (not just "да"/"не"/generic)
       if (questions[currentQuestionIndex]) {
-        setCollectedAnswers(prev => ({
-          ...prev,
-          [questions[currentQuestionIndex].key]: userMessage.content,
-        }));
+        const trimmedAnswer = userMessage.content.trim().toLowerCase();
+        const tooShort = ["да", "не", "ок", "ok", "добре", "да.", "не.", "ок."].includes(trimmedAnswer);
+        if (!tooShort) {
+          setCollectedAnswers(prev => ({
+            ...prev,
+            [questions[currentQuestionIndex].key]: userMessage.content,
+          }));
+        }
       }
 
       if (data.nextQuestionIndex >= 0) {

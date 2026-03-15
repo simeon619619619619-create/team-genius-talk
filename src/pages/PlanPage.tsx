@@ -146,6 +146,30 @@ export default function PlanPage() {
           </div>
         </div>
 
+        {/* Marketing Team */}
+        {marketingTeam.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-border/50 bg-card/50 overflow-x-auto">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Users className="h-4 w-4 text-purple-500" />
+              <span className="text-xs font-semibold text-muted-foreground">Екип:</span>
+            </div>
+            {marketingTeam.map(bot => (
+              <div key={bot.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-secondary/40 shrink-0">
+                <div
+                  className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ background: bot.shirtColor }}
+                >
+                  {bot.name[0]}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium">{bot.name}</p>
+                  <p className="text-[9px] text-muted-foreground leading-tight">{bot.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Steps */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Steps List - Scrollable on mobile */}
@@ -222,34 +246,6 @@ export default function PlanPage() {
               </button>
             );
           })}
-            {/* Marketing Team Panel */}
-            {marketingTeam.length > 0 && (
-              <div className="rounded-2xl border border-border/50 bg-card/50 p-3 md:p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="h-4 w-4 text-purple-500" />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Маркетинг екип</span>
-                </div>
-                <div className="space-y-2">
-                  {marketingTeam.map(bot => (
-                    <div key={bot.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-secondary/30">
-                      <div
-                        className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-                        style={{ background: bot.shirtColor }}
-                      >
-                        {bot.name[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{bot.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{bot.role}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-2.5 leading-relaxed">
-                  Екипът участва в стъпките за маркетинг, контент и оперативен план.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Active Step Details */}
