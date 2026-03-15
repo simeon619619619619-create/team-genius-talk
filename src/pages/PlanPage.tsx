@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Check, ChevronRight, Lock, Bot, Users, Plus, ListTodo, Calendar } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, Lock, Bot, Users, Plus, ListTodo, Calendar, Target, Sparkles, TrendingUp } from "lucide-react";
 import type { AiBot } from "@/components/teams/VirtualOffice";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PlanStepCard } from "@/components/plan/PlanStepCard";
@@ -16,8 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import confetti from "canvas-confetti";
 
 export default function PlanPage() {
@@ -29,6 +29,7 @@ export default function PlanPage() {
   const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high">("medium");
   const [taskDueDate, setTaskDueDate] = useState("");
   const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const [planOpen, setPlanOpen] = useState(true);
   const {
     steps,
     loading,
@@ -75,6 +76,74 @@ export default function PlanPage() {
       { title: "Провери плащания и фактури", priority: "low" },
     ],
   };
+
+  // Monthly campaign strategy templates
+  const campaignTemplates = [
+    {
+      id: "awareness",
+      title: "Brand Awareness кампания",
+      description: "Увеличаване на познаваемостта на бранда чрез соц. мрежи и PR",
+      icon: Sparkles,
+      color: "text-purple-500",
+      bgColor: "bg-purple-50 dark:bg-purple-950/30",
+      tasks: [
+        "Дефинирай целева аудитория",
+        "Създай визуална концепция",
+        "Планирай 20 поста за месеца",
+        "Настрой paid ads бюджет",
+        "Партньорства с 3 инфлуенсъра",
+        "Седмичен отчет на reach & impressions",
+      ],
+    },
+    {
+      id: "lead-gen",
+      title: "Lead Generation кампания",
+      description: "Генериране на нови лийдове чрез landing pages, email и ads",
+      icon: Target,
+      color: "text-blue-500",
+      bgColor: "bg-blue-50 dark:bg-blue-950/30",
+      tasks: [
+        "Създай landing page с оферта",
+        "Настрой lead magnet (PDF/видео)",
+        "Email nurture последователност (5 имейла)",
+        "Facebook/Instagram Lead Ads",
+        "Retargeting на посетители",
+        "A/B тест на CTA бутони",
+      ],
+    },
+    {
+      id: "sales",
+      title: "Промоционална кампания",
+      description: "Директни продажби чрез отстъпки, оферти и urgency тактики",
+      icon: TrendingUp,
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+      tasks: [
+        "Дефинирай промо оферта и период",
+        "Създай промо визии и банери",
+        "Email blast до цялата база",
+        "Stories countdown за краен срок",
+        "SMS кампания до VIP клиенти",
+        "Пост-кампания анализ на ROI",
+      ],
+    },
+    {
+      id: "content",
+      title: "Content Marketing кампания",
+      description: "Дългосрочна стратегия с полезно съдържание за привличане на аудитория",
+      icon: Calendar,
+      color: "text-amber-500",
+      bgColor: "bg-amber-50 dark:bg-amber-950/30",
+      tasks: [
+        "Проучи 10 теми за блог/видео",
+        "Създай контент календар",
+        "Заснеми 4 образователни видеа",
+        "Напиши 4 блог статии",
+        "SEO оптимизация на съдържанието",
+        "Разпространи в соц. мрежи и newsletter",
+      ],
+    },
+  ];
 
   // Marketing team - always visible
   const marketingTeam = useMemo(() => {
@@ -150,6 +219,11 @@ export default function PlanPage() {
     setShowSyncPreview(false);
   }, [syncToBusinessPlan, steps]);
 
+  const completedCount = steps.filter(s => s.completed).length;
+  const allStepsCompleted = completedCount === steps.length && steps.length > 0;
+  const activeStep = steps.find(s => s.id === activeStepId);
+  const currentIsLastStep = isLastStep();
+
   // Set active step when steps load
   useEffect(() => {
     if (steps.length > 0 && !activeStepId) {
@@ -157,12 +231,13 @@ export default function PlanPage() {
       setActiveStepId(firstIncomplete?.id || steps[0].id);
     }
   }, [steps, activeStepId]);
-  
-  const completedCount = steps.filter(s => s.completed).length;
-  const allStepsCompleted = completedCount === steps.length && steps.length > 0;
-  const progress = steps.length > 0 ? completedCount / steps.length * 100 : 0;
-  const activeStep = steps.find(s => s.id === activeStepId);
-  const currentIsLastStep = isLastStep();
+
+  // Auto-collapse plan when all steps are completed
+  useEffect(() => {
+    if (allStepsCompleted) {
+      setPlanOpen(false);
+    }
+  }, [allStepsCompleted]);
   if (loading || botsLoading || projectLoading) {
     return <MainLayout>
         <div className="space-y-6">
@@ -342,87 +417,205 @@ export default function PlanPage() {
           </div>
         )}
 
-        {/* Steps */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          {/* Steps List - Scrollable on mobile */}
-          <div className="lg:col-span-1 space-y-2">
-            {steps.map((step, index) => {
-            const assignedBot = getBotForStep(step.title);
-            const previousStepsCompleted = index === 0 || steps.slice(0, index).every(s => s.generated_content || s.completed);
-            const isLocked = !previousStepsCompleted;
-            const isActive = activeStepId === step.id;
-            
-            return (
-              <button 
-                key={step.id} 
-                onClick={() => !isLocked && setActiveStepId(step.id)} 
-                disabled={isLocked} 
-                className={cn(
-                  "w-full flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-4 text-left",
-                  "transition-all duration-300 ease-out",
-                  "border border-transparent active:scale-[0.98]",
-                  isLocked 
-                    ? "opacity-50 cursor-not-allowed bg-secondary/20" 
-                    : isActive 
-                      ? "bg-card shadow-lg shadow-primary/5 border-primary/20" 
-                      : "hover:bg-secondary/60"
+        {/* Marketing Plan - Collapsible */}
+        <Collapsible open={planOpen} onOpenChange={setPlanOpen}>
+          <CollapsibleTrigger asChild>
+            <button className={cn(
+              "w-full flex items-center justify-between gap-3 rounded-2xl p-3 md:p-4 text-left transition-all",
+              allStepsCompleted
+                ? "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/30"
+                : "bg-card border border-border/50 hover:bg-secondary/40"
+            )}>
+              <div className="flex items-center gap-3">
+                {allStepsCompleted ? (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+                    <Check className="h-5 w-5" />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-primary text-primary-foreground shadow-md shadow-primary/20">
+                    <span className="text-sm font-bold">{completedCount}/{steps.length}</span>
+                  </div>
                 )}
-              >
-                <div className={cn(
-                  "flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-xl shrink-0 overflow-hidden",
-                  "transition-all duration-300 ease-out",
-                  isLocked 
-                    ? "bg-muted/30 border border-muted-foreground/10" 
-                    : step.completed 
-                      ? "bg-success text-success-foreground shadow-md shadow-success/20" 
-                      : isActive 
-                        ? "gradient-primary text-primary-foreground shadow-md shadow-primary/20" 
-                        : "bg-secondary/80 border border-border/50"
-                )}>
-                  {step.completed ? (
-                    <Check className="h-5 w-5 animate-scale-in" />
-                  ) : isLocked ? (
-                    <Lock className="h-4 w-4 text-muted-foreground/60" />
-                  ) : assignedBot?.avatar_url ? (
-                    <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="font-semibold text-foreground">{index + 1}</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "font-medium truncate transition-colors duration-200 text-sm md:text-base",
-                    isLocked ? "text-muted-foreground/60" : step.completed ? "text-muted-foreground" : "text-foreground"
-                  )}>
-                    {step.title}
+                <div>
+                  <p className="font-semibold text-sm md:text-base">
+                    Маркетинг план
+                    {allStepsCompleted && <span className="text-emerald-600 dark:text-emerald-400 ml-2 text-xs font-medium">Завършен</span>}
                   </p>
-                  {isLocked ? (
-                    <p className="text-[11px] md:text-xs text-muted-foreground/50 truncate mt-0.5">
-                      Завършете предишните стъпки
-                    </p>
-                  ) : assignedBot && (
-                    <p className="text-[11px] md:text-xs text-primary/80 truncate flex items-center gap-1 mt-0.5">
-                      <Bot className="h-3 w-3" />
-                      {assignedBot.name}
-                    </p>
-                  )}
+                  <p className="text-[11px] md:text-xs text-muted-foreground">
+                    {allStepsCompleted
+                      ? "Всички стъпки са завършени. Преминете към месечни кампании."
+                      : `${completedCount} от ${steps.length} стъпки завършени`
+                    }
+                  </p>
                 </div>
-                <ChevronRight className={cn(
-                  "h-5 w-5 shrink-0 transition-all duration-300",
-                  isLocked 
-                    ? "text-muted-foreground/30" 
-                    : isActive 
-                      ? "text-primary" 
-                      : "text-muted-foreground/50"
-                )} />
-              </button>
-            );
-          })}
-          </div>
+              </div>
+              <ChevronDown className={cn(
+                "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                planOpen && "rotate-180"
+              )} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="transition-all data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mt-3">
+              {/* Steps List */}
+              <div className="lg:col-span-1 space-y-2">
+                {steps.map((step, index) => {
+                const assignedBot = getBotForStep(step.title);
+                const previousStepsCompleted = index === 0 || steps.slice(0, index).every(s => s.generated_content || s.completed);
+                const isLocked = !previousStepsCompleted;
+                const isActive = activeStepId === step.id;
 
-          {/* Active Step Details */}
-          {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} isLastStep={currentIsLastStep} />}
-        </div>
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => !isLocked && setActiveStepId(step.id)}
+                    disabled={isLocked}
+                    className={cn(
+                      "w-full flex items-center gap-3 md:gap-4 rounded-2xl p-3 md:p-4 text-left",
+                      "transition-all duration-300 ease-out",
+                      "border border-transparent active:scale-[0.98]",
+                      isLocked
+                        ? "opacity-50 cursor-not-allowed bg-secondary/20"
+                        : isActive
+                          ? "bg-card shadow-lg shadow-primary/5 border-primary/20"
+                          : "hover:bg-secondary/60"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-10 w-10 md:h-11 md:w-11 items-center justify-center rounded-xl shrink-0 overflow-hidden",
+                      "transition-all duration-300 ease-out",
+                      isLocked
+                        ? "bg-muted/30 border border-muted-foreground/10"
+                        : step.completed
+                          ? "bg-success text-success-foreground shadow-md shadow-success/20"
+                          : isActive
+                            ? "gradient-primary text-primary-foreground shadow-md shadow-primary/20"
+                            : "bg-secondary/80 border border-border/50"
+                    )}>
+                      {step.completed ? (
+                        <Check className="h-5 w-5 animate-scale-in" />
+                      ) : isLocked ? (
+                        <Lock className="h-4 w-4 text-muted-foreground/60" />
+                      ) : assignedBot?.avatar_url ? (
+                        <img src={assignedBot.avatar_url} alt={assignedBot.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="font-semibold text-foreground">{index + 1}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium truncate transition-colors duration-200 text-sm md:text-base",
+                        isLocked ? "text-muted-foreground/60" : step.completed ? "text-muted-foreground" : "text-foreground"
+                      )}>
+                        {step.title}
+                      </p>
+                      {isLocked ? (
+                        <p className="text-[11px] md:text-xs text-muted-foreground/50 truncate mt-0.5">
+                          Завършете предишните стъпки
+                        </p>
+                      ) : assignedBot && (
+                        <p className="text-[11px] md:text-xs text-primary/80 truncate flex items-center gap-1 mt-0.5">
+                          <Bot className="h-3 w-3" />
+                          {assignedBot.name}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight className={cn(
+                      "h-5 w-5 shrink-0 transition-all duration-300",
+                      isLocked
+                        ? "text-muted-foreground/30"
+                        : isActive
+                          ? "text-primary"
+                          : "text-muted-foreground/50"
+                    )} />
+                  </button>
+                );
+              })}
+              </div>
+
+              {/* Active Step Details */}
+              {activeStep && projectId && <PlanStepCard step={activeStep} stepNumber={steps.findIndex(s => s.id === activeStep.id) + 1} isActive={true} bot={getBotForStep(activeStep.title)} projectId={projectId} onSelect={() => {}} onToggleComplete={() => handleToggleComplete(activeStep.id, activeStep.completed)} onContentUpdate={content => updateContent(activeStep.id, content)} onGoToNextStep={handleGoToNextStep} isLastStep={currentIsLastStep} />}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Monthly Campaign Strategies */}
+        {allStepsCompleted && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg md:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+                  <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                  Месечни кампании
+                </h2>
+                <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                  Изберете стратегия и стартирайте кампания за месеца
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              {campaignTemplates.map((campaign) => {
+                const Icon = campaign.icon;
+                return (
+                  <div
+                    key={campaign.id}
+                    className={cn(
+                      "rounded-2xl border border-border/50 p-4 md:p-5 transition-all hover:shadow-lg hover:border-primary/20 cursor-pointer group",
+                      campaign.bgColor
+                    )}
+                    onClick={() => {
+                      // Assign campaign tasks to team members in round-robin
+                      const members = marketingTeam.map(m => m.name);
+                      campaign.tasks.forEach((task, i) => {
+                        const assignee = members[i % members.length];
+                        const alreadyExists = tasks.some(t => t.title === task && t.assignee_name === assignee && t.status !== "done");
+                        if (!alreadyExists) {
+                          addTask({
+                            title: task,
+                            assignee_name: assignee,
+                            priority: i < 2 ? "high" : i < 4 ? "medium" : "low",
+                          });
+                        }
+                      });
+                      triggerConfetti();
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-transform group-hover:scale-110",
+                        "bg-white dark:bg-gray-900 shadow-sm"
+                      )}>
+                        <Icon className={cn("h-5 w-5", campaign.color)} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm md:text-base group-hover:text-primary transition-colors">
+                          {campaign.title}
+                        </h3>
+                        <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5">
+                          {campaign.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      {campaign.tasks.map((task, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="w-1 h-1 rounded-full bg-current shrink-0" />
+                          <span>{task}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-end">
+                      <span className="text-[10px] md:text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        Стартирай кампания <ChevronRight className="h-3 w-3" />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sync Preview Dialog */}
