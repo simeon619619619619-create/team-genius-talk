@@ -31,19 +31,32 @@ export default function PlanPage() {
   } = useGlobalBots();
   const { syncToBusinessPlan } = useSyncBusinessPlan(projectId);
 
-  // Load marketing team bots from localStorage
+  // Marketing team - always visible
   const marketingTeam = useMemo(() => {
+    // Start with hardcoded core marketing team
+    const coreTeam = [
+      { id: "bot-2", name: "Мария", role: "Email & Комуникации", shirtColor: "#f472b6" },
+      { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", shirtColor: "#818cf8" },
+      { id: "bot-6", name: "Лина", role: "Продажби & Клиенти", shirtColor: "#fbbf24" },
+    ];
+    // Also add any custom marketing bots from localStorage
     try {
       const saved = localStorage.getItem("simora_ai_bots");
-      if (!saved) return [];
-      const bots: AiBot[] = JSON.parse(saved);
-      const keywords = ["контент", "съдържание", "соц. мрежи", "email", "комуникации", "маркетинг", "продажби", "content", "social"];
-      return bots.filter(b => {
-        const roleL = b.role.toLowerCase();
-        const skillsStr = (b.skills || []).join(" ").toLowerCase();
-        return keywords.some(k => roleL.includes(k) || skillsStr.includes(k));
-      });
-    } catch { return []; }
+      if (saved) {
+        const bots: AiBot[] = JSON.parse(saved);
+        const keywords = ["контент", "съдържание", "соц. мрежи", "email", "комуникации", "маркетинг", "продажби", "content", "social"];
+        const coreIds = new Set(coreTeam.map(b => b.id));
+        bots
+          .filter(b => !coreIds.has(b.id))
+          .filter(b => {
+            const roleL = b.role.toLowerCase();
+            const skillsStr = (b.skills || []).join(" ").toLowerCase();
+            return keywords.some(k => roleL.includes(k) || skillsStr.includes(k));
+          })
+          .forEach(b => coreTeam.push({ id: b.id, name: b.name, role: b.role, shirtColor: b.shirtColor }));
+      }
+    } catch { /* ignore */ }
+    return coreTeam;
   }, []);
 
   const triggerConfetti = useCallback(() => {
