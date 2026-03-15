@@ -113,6 +113,116 @@ export type Database = {
           },
         ]
       }
+      business_directory: {
+        Row: {
+          id: string
+          niche_id: string | null
+          company_name: string
+          website: string | null
+          email: string | null
+          phone: string | null
+          instagram: string | null
+          facebook: string | null
+          linkedin: string | null
+          address: string | null
+          city: string | null
+          country: string | null
+          description: string | null
+          employee_count: string | null
+          revenue_range: string | null
+          contact_person: string | null
+          contact_role: string | null
+          tags: string[]
+          source: string | null
+          verified: boolean
+          collected_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          niche_id?: string | null
+          company_name: string
+          website?: string | null
+          email?: string | null
+          phone?: string | null
+          instagram?: string | null
+          facebook?: string | null
+          linkedin?: string | null
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          description?: string | null
+          employee_count?: string | null
+          revenue_range?: string | null
+          contact_person?: string | null
+          contact_role?: string | null
+          tags?: string[]
+          source?: string | null
+          verified?: boolean
+          collected_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          niche_id?: string | null
+          company_name?: string
+          website?: string | null
+          email?: string | null
+          phone?: string | null
+          instagram?: string | null
+          facebook?: string | null
+          linkedin?: string | null
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          description?: string | null
+          employee_count?: string | null
+          revenue_range?: string | null
+          contact_person?: string | null
+          contact_role?: string | null
+          tags?: string[]
+          source?: string | null
+          verified?: boolean
+          collected_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_directory_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "business_niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_niches: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          icon: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          icon?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          icon?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       business_plans: {
         Row: {
           annual_goals: Json | null
