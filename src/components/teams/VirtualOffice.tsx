@@ -1,9 +1,17 @@
 import { useRef, useEffect, useCallback } from "react";
 
+export interface SubtaskAction {
+  type: "fetch" | "open_url";
+  url: string;
+  expect?: "ok" | "json_not_empty";
+}
+
 export interface AiBotSubtask {
   id: string;
   text: string;
   done: boolean;
+  action?: SubtaskAction;
+  lastResult?: { ok: boolean; message: string; at: string };
   status?: "idle" | "queued" | "running" | "done";
   result?: string;
 }
@@ -67,11 +75,9 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
 
     const frame = frameRef.current++;
 
-    // ─── ROOM ───
     ctx.fillStyle = "#1a1a2e";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Floor
     for (let y = 2; y < ROOM_H - 1; y++)
       for (let x = 1; x < ROOM_W - 1; x++) {
         ctx.fillStyle = (x + y) % 2 === 0 ? "#3d3524" : "#352e1f";
@@ -81,7 +87,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
         ctx.fillRect(x * PX, y * PX, SCALE, PX);
       }
 
-    // Walls
     const rect = (tx: number, ty: number, tw: number, th: number, c: string) => {
       ctx.fillStyle = c;
       ctx.fillRect(tx * PX, ty * PX, tw * PX, th * PX);
@@ -94,7 +99,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
     ctx.fillStyle = "#5a6577";
     ctx.fillRect(PX, 2 * PX - 2 * SCALE, (ROOM_W - 2) * PX, 2 * SCALE);
 
-    // Windows
     for (const wx of [4, 10, 16]) {
       rect(wx, 0, 3, 2, "#2d3748");
       ctx.fillStyle = "#1e3a5f";
@@ -103,7 +107,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
       ctx.fillRect(wx * PX + 6 * SCALE, 3 * SCALE, 8 * SCALE, 6 * SCALE);
     }
 
-    // Rug
     ctx.fillStyle = "#5b2040";
     ctx.fillRect(9 * PX, 7 * PX, 6 * PX, 4 * PX);
     ctx.fillStyle = "#7b3060";
@@ -111,7 +114,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
     ctx.fillStyle = "#9b4080";
     ctx.fillRect(9 * PX + 8 * SCALE, 7 * PX + 8 * SCALE, 6 * PX - 16 * SCALE, 4 * PX - 16 * SCALE);
 
-    // Plants
     const drawPlant = (tx: number, ty: number) => {
       const b = tx * PX, t = ty * PX;
       ctx.fillStyle = "#8b4513"; ctx.fillRect(b + 4 * SCALE, t + 10 * SCALE, 8 * SCALE, 6 * SCALE);
@@ -123,7 +125,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
     drawPlant(2, 2);
     drawPlant(ROOM_W - 3, 2);
 
-    // Couch
     const cb = 10 * PX, ct = 12 * PX;
     ctx.fillStyle = "#4a2060"; ctx.fillRect(cb, ct, 4 * PX, 4 * SCALE);
     ctx.fillStyle = "#6b3090"; ctx.fillRect(cb, ct + 4 * SCALE, 4 * PX, 10 * SCALE);
@@ -134,38 +135,32 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
     ctx.fillStyle = "#c084fc"; ctx.fillRect(cb + 2 * SCALE, ct + 5 * SCALE, 6 * SCALE, 6 * SCALE);
     ctx.fillRect(cb + 4 * PX - 8 * SCALE, ct + 5 * SCALE, 6 * SCALE, 6 * SCALE);
 
-    // Coffee table
     const tb = 11 * PX, tt = 11 * PX;
     ctx.fillStyle = "#5c3a1e"; ctx.fillRect(tb, tt + 4 * SCALE, 2 * PX, 8 * SCALE);
     ctx.fillStyle = "#7c5a3e"; ctx.fillRect(tb + 2 * SCALE, tt + 5 * SCALE, 2 * PX - 4 * SCALE, 6 * SCALE);
     ctx.fillStyle = "#fff"; ctx.fillRect(tb + 6 * SCALE, tt + 6 * SCALE, 4 * SCALE, 4 * SCALE);
 
-    // Water cooler
     const wb = 1 * PX, wt = 8 * PX;
     ctx.fillStyle = "#9ca3af"; ctx.fillRect(wb + 4 * SCALE, wt + 8 * SCALE, 8 * SCALE, 8 * SCALE);
     ctx.fillStyle = "#60a5fa"; ctx.fillRect(wb + 5 * SCALE, wt + SCALE, 6 * SCALE, 8 * SCALE);
     ctx.fillStyle = "#93c5fd"; ctx.fillRect(wb + 6 * SCALE, wt + 2 * SCALE, 4 * SCALE, 5 * SCALE);
     ctx.fillStyle = "#e0e0e0"; ctx.fillRect(wb + 6 * SCALE, wt, 4 * SCALE, 2 * SCALE);
 
-    // Whiteboard
     ctx.fillStyle = "#e5e7eb"; ctx.fillRect(PX, 3 * PX + 2 * SCALE, 2 * SCALE, 3 * PX - 4 * SCALE);
     ctx.fillStyle = "#ef4444"; ctx.fillRect(PX, 3 * PX + 6 * SCALE, SCALE, 8 * SCALE);
     ctx.fillStyle = "#3b82f6"; ctx.fillRect(PX, 3 * PX + 18 * SCALE, SCALE, 6 * SCALE);
     ctx.fillStyle = "#10b981"; ctx.fillRect(PX, 3 * PX + 28 * SCALE, SCALE, 10 * SCALE);
 
-    // Clock
     const cx2 = 12 * PX + 4 * SCALE, cy2 = 4 * SCALE;
     ctx.fillStyle = "#e5e7eb"; ctx.fillRect(cx2, cy2, 8 * SCALE, 8 * SCALE);
     ctx.fillStyle = "#1a1a2e"; ctx.fillRect(cx2 + SCALE, cy2 + SCALE, 6 * SCALE, 6 * SCALE);
     ctx.fillStyle = "#ef4444"; ctx.fillRect(cx2 + 3 * SCALE, cy2 + 2 * SCALE, SCALE, 3 * SCALE);
     ctx.fillStyle = "#fff"; ctx.fillRect(cx2 + 3 * SCALE, cy2 + 3 * SCALE, 2 * SCALE, SCALE);
 
-    // Door
     rect(ROOM_W - 2, ROOM_H - 1, 1, 1, "#5c3a1e");
     ctx.fillStyle = "#7c5a3e";
     ctx.fillRect((ROOM_W - 2) * PX + 2 * SCALE, (ROOM_H - 1) * PX + 2 * SCALE, PX - 4 * SCALE, PX - 2 * SCALE);
 
-    // ─── DESK DRAWING ───
     const drawDesk = (tx: number, ty: number) => {
       const b = tx * PX, t = ty * PX;
       ctx.fillStyle = "#6b5030"; ctx.fillRect(b - 2 * SCALE, t, 2 * PX + 4 * SCALE, PX + 4 * SCALE);
@@ -194,7 +189,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
       }
     };
 
-    // ─── CHARACTER DRAWING ───
     const drawSitting = (cx: number, cy: number, bot: AiBot, fr: number) => {
       const s = SCALE;
       ctx.fillStyle = "#374151"; ctx.fillRect(cx - 3 * s, cy + 4 * s, 10 * s, 8 * s);
@@ -301,7 +295,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
       ctx.globalAlpha = 1;
     };
 
-    // ─── DRAW ALL DESKS & BOTS ───
     const newBounds: typeof boundsRef.current = [];
 
     DESKS.slice(0, Math.max(bots.length, 6)).forEach((d) => drawDesk(d.x, d.y));
@@ -343,7 +336,6 @@ export function VirtualOffice({ bots, selectedBotId, onSelectBot }: Props) {
         h: 28 * SCALE,
       });
 
-      // Selection highlight
       if (selectedBotId === bot.id) {
         ctx.strokeStyle = "#c084fc";
         ctx.lineWidth = 2 * SCALE;

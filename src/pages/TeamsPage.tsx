@@ -66,46 +66,54 @@ export default function TeamsPage() {
   const AI_BOTS_KEY = "simora_ai_bots";
   const DEFAULT_AI_BOTS: AiBot[] = [
     { id: "bot-1", name: "Елена", role: "Уеб Разработчик", process: "eufashioninstitute.com", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: [], skills: ["уеб", "код", "deploy", "SEO", "build", "оптимизация", "поддръжка"], taskGroups: [
-      { id: "tg-1a", title: "Поддръжка на сайта", subtasks: [
-        { id: "st-1a1", text: "Проверка за грешки в конзолата", done: false },
-        { id: "st-1a2", text: "Оптимизация на скоростта", done: false },
-        { id: "st-1a3", text: "Актуализация на съдържанието", done: false },
+      { id: "tg-1a", title: "Проверка на eufashioninstitute.com", subtasks: [
+        { id: "st-1a1", text: "Начална страница (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com" } },
+        { id: "st-1a2", text: "Страница Модели (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/models" } },
+        { id: "st-1a3", text: "API модели — JSON не е празен", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/api/models", expect: "json_not_empty" } },
+        { id: "st-1a4", text: "Кандидатствай (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/apply" } },
+        { id: "st-1a5", text: "Услуги (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/services" } },
+        { id: "st-1a6", text: "За нас (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/about" } },
+        { id: "st-1a7", text: "Контакти (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/contact" } },
+      ]},
+      { id: "tg-1b", title: "Проверка на simora.bg", subtasks: [
+        { id: "st-1b1", text: "Начална страница", done: false, action: { type: "fetch", url: "https://simora.bg" } },
+      ]},
+      { id: "tg-1c", title: "Проверка на socialempire.bg", subtasks: [
+        { id: "st-1c1", text: "Начална страница", done: false, action: { type: "fetch", url: "https://socialempire.bg" } },
       ]},
     ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "idle" },
     { id: "bot-2", name: "Мария", role: "Email & Комуникации", process: "Resend Notifications", frequency: "При заявка", automations: ["Apply Forms", "Book Forms", "Newsletter"], tasks: [], skills: ["имейл", "комуникация", "формуляри", "newsletter", "нотификации", "кандидатури"], taskGroups: [
-      { id: "tg-2a", title: "Обработка на формуляри", subtasks: [
-        { id: "st-2a1", text: "Проверка за нови кандидатури", done: false },
-        { id: "st-2a2", text: "Изпращане на потвърждения", done: false },
-        { id: "st-2a3", text: "Обработка на booking заявки", done: false },
+      { id: "tg-2a", title: "Админ панели", subtasks: [
+        { id: "st-2a1", text: "Отвори Resend Dashboard", done: false, action: { type: "open_url", url: "https://resend.com/overview" } },
+        { id: "st-2a2", text: "Отвори Supabase Dashboard", done: false, action: { type: "open_url", url: "https://supabase.com/dashboard" } },
       ]},
     ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "idle" },
     { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар"], taskGroups: [
-      { id: "tg-3a", title: "Създаване на съдържание", subtasks: [
-        { id: "st-3a1", text: "Планиране на месечен контент календар", done: false },
-        { id: "st-3a2", text: "Снимане/заснемане на Reels (3-5 бр./седмица)", done: false },
-        { id: "st-3a3", text: "Подготовка на Stories (ежедневни)", done: false },
-        { id: "st-3a4", text: "Дизайн на карусел постове (2 бр./седмица)", done: false },
-        { id: "st-3a5", text: "Написване на copywriting за всеки пост", done: false },
+      { id: "tg-3a", title: "Социални мрежи", subtasks: [
+        { id: "st-3a1", text: "Отвори Instagram", done: false, action: { type: "open_url", url: "https://www.instagram.com" } },
+        { id: "st-3a2", text: "Отвори Canva за дизайн", done: false, action: { type: "open_url", url: "https://www.canva.com" } },
+        { id: "st-3a3", text: "Отвори Facebook Business Suite", done: false, action: { type: "open_url", url: "https://business.facebook.com" } },
       ]},
     ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
     { id: "bot-4", name: "Софи", role: "Модел Мениджмънт", process: "Model Database", frequency: "При нужда", automations: ["Profiles", "Photos", "Casting"], tasks: [], skills: ["модели", "кастинг", "портфолио", "снимки", "профили", "база данни"], taskGroups: [
-      { id: "tg-4a", title: "Управление на профили", subtasks: [
-        { id: "st-4a1", text: "Обновяване на портфолио снимки", done: false },
-        { id: "st-4a2", text: "Организиране на кастинги", done: false },
+      { id: "tg-4a", title: "Управление на модели", subtasks: [
+        { id: "st-4a1", text: "Отвори страница Модели", done: false, action: { type: "open_url", url: "https://eufashioninstitute.com/models" } },
+        { id: "st-4a2", text: "Провери API за модели", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/api/models", expect: "json_not_empty" } },
       ]},
     ], skinColor: "#f0c8a0", hairColor: "#2c1608", shirtColor: "#fbbf24", state: "idle" },
     { id: "bot-5", name: "Дара", role: "Анализи & Мониторинг", process: "Site Monitoring", frequency: "На всеки 24ч", automations: ["Uptime", "Performance", "Reports"], tasks: [], skills: ["анализи", "мониторинг", "uptime", "performance", "доклади", "Core Web Vitals"], taskGroups: [
-      { id: "tg-5a", title: "Проверка на сайта", subtasks: [
-        { id: "st-5a1", text: "Мониторинг на uptime", done: false },
-        { id: "st-5a2", text: "Проверка на Core Web Vitals", done: false },
-        { id: "st-5a3", text: "Седмичен доклад", done: false },
+      { id: "tg-5a", title: "Мониторинг", subtasks: [
+        { id: "st-5a1", text: "Uptime — eufashioninstitute.com", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com" } },
+        { id: "st-5a2", text: "Uptime — simora.bg", done: false, action: { type: "fetch", url: "https://simora.bg" } },
+        { id: "st-5a3", text: "Uptime — socialempire.bg", done: false, action: { type: "fetch", url: "https://socialempire.bg" } },
+        { id: "st-5a4", text: "PageSpeed Insights", done: false, action: { type: "open_url", url: "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Feufashioninstitute.com" } },
+        { id: "st-5a5", text: "Отвори Vercel Dashboard", done: false, action: { type: "open_url", url: "https://vercel.com/dashboard" } },
       ]},
     ], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#60a5fa", state: "idle" },
     { id: "bot-6", name: "Лина", role: "Продажби & Клиенти", process: "Social Empire", frequency: "При нужда", automations: ["Stripe", "Leads", "Follow-up"], tasks: [], skills: ["продажби", "Stripe", "плащания", "лийдове", "follow-up", "клиенти", "имейл"], taskGroups: [
-      { id: "tg-6a", title: "Обработка на поръчки", subtasks: [
-        { id: "st-6a1", text: "Проверка на Stripe плащания", done: false },
-        { id: "st-6a2", text: "Следване на лийдове", done: false },
-        { id: "st-6a3", text: "Follow-up имейли", done: false },
+      { id: "tg-6a", title: "Продажби & Плащания", subtasks: [
+        { id: "st-6a1", text: "Отвори Stripe Dashboard", done: false, action: { type: "open_url", url: "https://dashboard.stripe.com" } },
+        { id: "st-6a2", text: "Провери socialempire.bg", done: false, action: { type: "fetch", url: "https://socialempire.bg" } },
       ]},
     ], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
   ];
