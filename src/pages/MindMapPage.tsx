@@ -40,6 +40,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -959,6 +965,117 @@ export default function MindMapPage() {
     { id: "auto-chatbot", title: "AI чатбот за сайт", description: "Автоматични отговори на клиенти", requiredApi: "none", icon: MessageCircle, category: "Технически" },
   ];
 
+  const [guideOpen, setGuideOpen] = useState<string | null>(null);
+
+  // API setup guides - detailed step-by-step instructions
+  const API_GUIDES: Record<string, { title: string; steps: string[]; tip: string; settingsPath: string }> = {
+    resend: {
+      title: "Resend API — Изпращане на имейли",
+      steps: [
+        "Отвори resend.com и натисни 'Sign Up' (регистрация). Може да влезеш с Google акаунта си.",
+        "След като влезеш, отиди на 'API Keys' от лявото меню.",
+        "Натисни бутона 'Create API Key'. Дай му име (напр. 'Simora') и натисни 'Add'.",
+        "Ще ти се покаже ключ, който започва с 're_...' — КОПИРАЙ ГО веднага! Показва се САМО веднъж.",
+        "Върни се в Симора → Настройки → Resend интеграция.",
+        "Постави API ключа в полето и натисни 'Запази'.",
+        "БОНУС: За да изпращаш от свой домейн (не @resend.dev), отиди в Resend → Domains → Add Domain и следвай инструкциите за DNS записи.",
+      ],
+      tip: "Безплатният план на Resend позволява 100 имейла на ден и 3000 на месец — достатъчно за начало!",
+      settingsPath: "/settings",
+    },
+    meta: {
+      title: "Meta Business API — Facebook & Instagram",
+      steps: [
+        "Отвори business.facebook.com и влез с Facebook акаунта си.",
+        "Ако нямаш Business акаунт, натисни 'Създай акаунт' и попълни данните на фирмата.",
+        "Отиди в Business Settings (Настройки) → System Users → натисни 'Add'.",
+        "Създай System User с име 'Simora' и роля 'Admin'.",
+        "Натисни 'Generate New Token' на този System User.",
+        "Избери permissions: ads_management, pages_manage_posts, pages_read_engagement, instagram_basic.",
+        "Копирай генерирания token (дълъг текст).",
+        "Върни се в Симора → Настройки → Интеграции → добави като 'Meta' интеграция.",
+      ],
+      tip: "Meta токените изтичат! Създай 'Never Expiring' токен от System User, за да не спират автоматизациите.",
+      settingsPath: "/settings",
+    },
+    google_ads: {
+      title: "Google Ads API — Рекламни кампании",
+      steps: [
+        "Отвори ads.google.com и влез с Google акаунта си.",
+        "Ако нямаш акаунт, създай нов рекламен акаунт (може без кредитна карта за начало).",
+        "Отиди на console.cloud.google.com → създай нов проект.",
+        "Включи 'Google Ads API' от APIs & Services → Library.",
+        "Създай OAuth 2.0 credentials: APIs & Services → Credentials → Create Credentials → OAuth Client ID.",
+        "Избери 'Web Application', добави redirect URI.",
+        "Запиши Client ID и Client Secret.",
+        "Отиди в Симора → Настройки → добави ги като Google Ads интеграция.",
+      ],
+      tip: "Google Ads API изисква одобрение за Developer Token. За тест може да се използва test акаунт.",
+      settingsPath: "/settings",
+    },
+    stripe: {
+      title: "Stripe API — Онлайн плащания",
+      steps: [
+        "Отвори stripe.com и натисни 'Sign Up'. Попълни имейл и парола.",
+        "След регистрация отиди на dashboard.stripe.com.",
+        "В горния десен ъгъл виж дали си в 'Test mode' (оранжев) или 'Live mode'. За начало остани в Test mode.",
+        "Отиди на Developers → API Keys (от лявото меню).",
+        "Ще видиш два ключа: Publishable key (pk_...) и Secret key (sk_...). Натисни 'Reveal' на Secret key.",
+        "КОПИРАЙ Secret key (sk_test_... или sk_live_...).",
+        "Върни се в Симора → Настройки → добави го като Stripe интеграция.",
+        "Когато си готов за истински плащания, превключи на Live mode и вземи Live ключовете.",
+      ],
+      tip: "В Test mode може да тестваш с карта 4242 4242 4242 4242, дата 12/34, CVV 123. Няма да се таксува нищо!",
+      settingsPath: "/settings",
+    },
+    ghl: {
+      title: "GoHighLevel API — CRM система",
+      steps: [
+        "Влез в app.gohighlevel.com с акаунта си.",
+        "Отиди на Settings (зъбчето долу вляво).",
+        "Натисни 'Business Info' — копирай Location ID (ще ти трябва).",
+        "Сега отиди на Settings → Integrations → Private Integrations.",
+        "Натисни 'Create' за нова интеграция. Дай име 'Simora'.",
+        "Ще получиш API Key — КОПИРАЙ ГО.",
+        "Върни се в Симора → Настройки → GoHighLevel интеграция.",
+        "Постави API ключа и Location ID в съответните полета и натисни 'Запази'.",
+      ],
+      tip: "GoHighLevel е платен ($97-$497/мес). Ако нямаш акаунт, може да започнеш с 14-дневен безплатен trial.",
+      settingsPath: "/settings",
+    },
+    google_analytics: {
+      title: "Google Analytics — Уеб анализи",
+      steps: [
+        "Отвори analytics.google.com и влез с Google акаунта си.",
+        "Ако нямаш property, натисни 'Admin' (зъбче долу вляво) → Create → Property.",
+        "Попълни името на сайта и URL. Избери 'Web' като платформа.",
+        "Ще получиш Measurement ID (G-XXXXXXXXXX). Запиши го.",
+        "За API достъп: отиди на console.cloud.google.com.",
+        "Включи 'Google Analytics Data API' от Library.",
+        "Създай Service Account: IAM & Admin → Service Accounts → Create.",
+        "Генерирай JSON ключ за този Service Account и го запази.",
+        "В Google Analytics → Admin → Property Access Management → добави имейла на Service Account.",
+      ],
+      tip: "Measurement ID (G-...) е за tracking на сайта. Service Account JSON ключът е за API достъп до данните.",
+      settingsPath: "/settings",
+    },
+    google_search: {
+      title: "Google Search Console — SEO мониторинг",
+      steps: [
+        "Отвори search.google.com/search-console и влез с Google акаунта си.",
+        "Натисни 'Add Property' и въведи URL на сайта (напр. https://eufashioninstitute.com).",
+        "Избери начин за потвърждение — най-лесно е чрез DNS запис или HTML таг.",
+        "След потвърждение, сайтът ще се появи в списъка ти.",
+        "За API: отиди на console.cloud.google.com.",
+        "Включи 'Google Search Console API' от Library.",
+        "Използвай същия Service Account от Google Analytics (или създай нов).",
+        "Добави имейла на Service Account като потребител в Search Console → Settings → Users and permissions.",
+      ],
+      tip: "Search Console е напълно БЕЗПЛАТЕН! Показва за кои думи се класираш в Google и колко кликове получаваш.",
+      settingsPath: "/settings",
+    },
+  };
+
   // Check which APIs are connected
   useEffect(() => {
     if (!user) return;
@@ -1330,14 +1447,17 @@ export default function MindMapPage() {
                     google_search: "Google Search Console",
                     none: "Вградено",
                   };
+                  const hasGuide = !isConnected && API_GUIDES[auto.requiredApi];
                   return (
                     <div
                       key={auto.id}
+                      onClick={() => hasGuide && setGuideOpen(auto.requiredApi)}
                       className={cn(
                         "flex items-start gap-3 p-3 rounded-xl border transition-all",
                         isConnected
                           ? "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-800/30"
-                          : "bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-800/30"
+                          : "bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-800/30",
+                        hasGuide && "cursor-pointer hover:border-red-400 dark:hover:border-red-600 hover:shadow-md"
                       )}
                     >
                       <div className={cn(
@@ -1363,9 +1483,9 @@ export default function MindMapPage() {
                               {apiLabels[auto.requiredApi] || auto.requiredApi}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-red-500 flex items-center gap-0.5">
+                            <span className="text-[10px] text-red-500 flex items-center gap-0.5 underline decoration-dotted">
                               <AlertCircle className="w-2.5 h-2.5" />
-                              Свържете {apiLabels[auto.requiredApi] || auto.requiredApi}
+                              Как да свържа {apiLabels[auto.requiredApi] || auto.requiredApi}?
                             </span>
                           )}
                         </div>
@@ -1378,6 +1498,51 @@ export default function MindMapPage() {
           })()}
         </div>
       </div>
+      {/* API Setup Guide Dialog */}
+      <Dialog open={!!guideOpen} onOpenChange={() => setGuideOpen(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {guideOpen && API_GUIDES[guideOpen] && (() => {
+            const guide = API_GUIDES[guideOpen];
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-lg">
+                    <Zap className="h-5 w-5 text-amber-500" />
+                    {guide.title}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-2">
+                  <div className="space-y-3">
+                    {guide.steps.map((step, i) => (
+                      <div key={i} className="flex gap-3">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-sm font-bold">
+                          {i + 1}
+                        </div>
+                        <p className="text-sm leading-relaxed pt-0.5">{step}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 p-3">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">💡 Полезно:</p>
+                    <p className="text-xs text-amber-700/80 dark:text-amber-400/80">{guide.tip}</p>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      setGuideOpen(null);
+                      window.location.href = guide.settingsPath;
+                    }}
+                  >
+                    Отвори Настройки и свържи
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
