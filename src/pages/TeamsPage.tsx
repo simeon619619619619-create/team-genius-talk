@@ -71,14 +71,14 @@ export default function TeamsPage() {
         { id: "st-1a2", text: "Оптимизация на скоростта", done: false },
         { id: "st-1a3", text: "Актуализация на съдържанието", done: false },
       ]},
-    ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "working" },
+    ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "idle" },
     { id: "bot-2", name: "Мария", role: "Email & Комуникации", process: "Resend Notifications", frequency: "При заявка", automations: ["Apply Forms", "Book Forms", "Newsletter"], tasks: [], skills: ["имейл", "комуникация", "формуляри", "newsletter", "нотификации", "кандидатури"], taskGroups: [
       { id: "tg-2a", title: "Обработка на формуляри", subtasks: [
         { id: "st-2a1", text: "Проверка за нови кандидатури", done: false },
         { id: "st-2a2", text: "Изпращане на потвърждения", done: false },
         { id: "st-2a3", text: "Обработка на booking заявки", done: false },
       ]},
-    ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "working" },
+    ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "idle" },
     { id: "bot-3", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", automations: ["Posts", "Stories", "Reels Script"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар"], taskGroups: [
       { id: "tg-3a", title: "Създаване на съдържание", subtasks: [
         { id: "st-3a1", text: "Планиране на месечен контент календар", done: false },
@@ -240,7 +240,22 @@ export default function TeamsPage() {
   const [aiBots, setAiBots] = useState<AiBot[]>(() => {
     try {
       const saved = localStorage.getItem(AI_BOTS_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_AI_BOTS;
+      if (saved) {
+        const parsed: AiBot[] = JSON.parse(saved);
+        // Normalize: reset stale working/running states and subtask statuses on load
+        return parsed.map(bot => ({
+          ...bot,
+          state: (bot.state === "working" || bot.state === "running") ? "idle" : (bot.state || "idle"),
+          taskGroups: bot.taskGroups?.map(tg => ({
+            ...tg,
+            subtasks: tg.subtasks.map(st => ({
+              ...st,
+              status: (st.status === "running" || st.status === "queued") ? "idle" : (st.status || "idle"),
+            })),
+          })),
+        }));
+      }
+      return DEFAULT_AI_BOTS;
     } catch {
       return DEFAULT_AI_BOTS;
     }
