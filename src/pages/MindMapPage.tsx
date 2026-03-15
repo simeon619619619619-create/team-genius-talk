@@ -33,12 +33,16 @@ import {
   EyeOff,
   XCircle,
   ListTodo,
+  Zap,
+  Link2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
+import { useOrganizations } from "@/hooks/useOrganizations";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -887,6 +891,8 @@ function StepDetail({
 export default function MindMapPage() {
   const { user } = useAuth();
   const { tasks, addTask } = useTasks();
+  const { currentOrganization } = useOrganizations();
+  const [connectedApis, setConnectedApis] = useState<Set<string>>(new Set());
   const [processes, setProcesses] = useState<ProcessData[]>(DEFAULT_PROCESSES);
   const [selectedProcess, setSelectedProcess] = useState<ProcessData | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("acquisition");
@@ -932,6 +938,72 @@ export default function MindMapPage() {
       }
     } catch { /* ignore */ }
   }, [user?.id]);
+
+  // Automatable processes with required integrations
+  const AUTOMATIONS = [
+    { id: "auto-email-welcome", title: "Автоматичен welcome имейл", description: "При нова регистрация/заявка", requiredApi: "resend", icon: Mail, category: "Email" },
+    { id: "auto-email-nurture", title: "Drip email последователност", description: "5 имейла за нови абонати", requiredApi: "resend", icon: Mail, category: "Email" },
+    { id: "auto-newsletter", title: "Седмичен newsletter", description: "Автоматично изпращане всеки петък", requiredApi: "resend", icon: Mail, category: "Email" },
+    { id: "auto-abandoned", title: "Имейл за изоставена количка", description: "Автоматичен follow-up", requiredApi: "resend", icon: Mail, category: "Email" },
+    { id: "auto-meta-ads", title: "Meta Ads кампании", description: "Facebook & Instagram реклами", requiredApi: "meta", icon: Megaphone, category: "Реклама" },
+    { id: "auto-google-ads", title: "Google Ads кампании", description: "Search & Display мрежа", requiredApi: "google_ads", icon: Megaphone, category: "Реклама" },
+    { id: "auto-retargeting", title: "Retargeting аудитории", description: "Pixel/CAPI базиран ретаргетинг", requiredApi: "meta", icon: Target, category: "Реклама" },
+    { id: "auto-stripe-checkout", title: "Stripe плащания", description: "Автоматичен checkout и фактури", requiredApi: "stripe", icon: CreditCard, category: "Продажби" },
+    { id: "auto-stripe-subscription", title: "Stripe абонаменти", description: "Recurring плащания", requiredApi: "stripe", icon: CreditCard, category: "Продажби" },
+    { id: "auto-ghl-leads", title: "CRM лийд тракинг", description: "Автоматично добавяне в GoHighLevel", requiredApi: "ghl", icon: Users, category: "CRM" },
+    { id: "auto-ghl-followup", title: "CRM follow-up автоматизации", description: "Автоматични SMS/имейл", requiredApi: "ghl", icon: Users, category: "CRM" },
+    { id: "auto-analytics", title: "Google Analytics отчети", description: "Автоматични седмични отчети", requiredApi: "google_analytics", icon: TrendingUp, category: "Анализи" },
+    { id: "auto-uptime", title: "Uptime мониторинг", description: "24/7 проверка на сайтове", requiredApi: "none", icon: Globe, category: "Технически" },
+    { id: "auto-seo-audit", title: "SEO одит", description: "Автоматична проверка на позиции", requiredApi: "google_search", icon: Globe, category: "SEO" },
+    { id: "auto-social-schedule", title: "Публикуване в соц. мрежи", description: "Автоматично по график", requiredApi: "meta", icon: Share2, category: "Соц. мрежи" },
+    { id: "auto-chatbot", title: "AI чатбот за сайт", description: "Автоматични отговори на клиенти", requiredApi: "none", icon: MessageCircle, category: "Технически" },
+  ];
+
+  // Check which APIs are connected
+  useEffect(() => {
+    if (!user) return;
+    const connected = new Set<string>();
+
+    // Always available (built-in)
+    connected.add("none");
+
+    // Check Resend (localStorage)
+    try {
+      const resend = localStorage.getItem(`simora_resend_settings_${user.id}`);
+      if (resend) {
+        const parsed = JSON.parse(resend);
+        if (parsed.apiKey) connected.add("resend");
+      }
+    } catch { /* ignore */ }
+
+    // Check GHL
+    (async () => {
+      const { data: ghl } = await supabase
+        .from("ghl_integrations")
+        .select("api_key")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (ghl?.api_key) connected.add("ghl");
+
+      // Check org integrations (Stripe, Meta, etc.)
+      if (currentOrganization?.id) {
+        const { data: integrations } = await supabase
+          .from("organization_integrations")
+          .select("integration_type, api_key, is_active")
+          .eq("organization_id", currentOrganization.id);
+
+        if (integrations) {
+          for (const int of integrations) {
+            if (int.api_key && int.is_active) {
+              connected.add(int.integration_type);
+            }
+          }
+        }
+      }
+
+      setConnectedApis(new Set(connected));
+    })();
+  }, [user, currentOrganization?.id]);
 
   // Save
   const save = useCallback((procs: ProcessData[]) => {
@@ -1226,6 +1298,84 @@ export default function MindMapPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Automations Section */}
+      <div className="border-t border-border bg-card/50 px-4 md:px-8 py-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-display font-semibold">Автоматизации</h2>
+            <span className="text-xs text-muted-foreground ml-2">
+              {AUTOMATIONS.filter(a => connectedApis.has(a.requiredApi)).length}/{AUTOMATIONS.length} свързани
+            </span>
+          </div>
+
+          {/* Group by category */}
+          {(() => {
+            const categories = [...new Set(AUTOMATIONS.map(a => a.category))];
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {AUTOMATIONS.map(auto => {
+                  const isConnected = connectedApis.has(auto.requiredApi);
+                  const Icon = auto.icon;
+                  const apiLabels: Record<string, string> = {
+                    resend: "Resend API",
+                    meta: "Meta Business API",
+                    google_ads: "Google Ads API",
+                    stripe: "Stripe API",
+                    ghl: "GoHighLevel API",
+                    google_analytics: "Google Analytics API",
+                    google_search: "Google Search Console",
+                    none: "Вградено",
+                  };
+                  return (
+                    <div
+                      key={auto.id}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-xl border transition-all",
+                        isConnected
+                          ? "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200/50 dark:border-emerald-800/30"
+                          : "bg-red-50/50 dark:bg-red-950/10 border-red-200/50 dark:border-red-800/30"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                        isConnected
+                          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600"
+                          : "bg-red-100 dark:bg-red-900/40 text-red-500"
+                      )}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "text-sm font-medium",
+                          !isConnected && "text-red-700 dark:text-red-400"
+                        )}>
+                          {auto.title}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{auto.description}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {isConnected ? (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                              <Link2 className="w-2.5 h-2.5" />
+                              {apiLabels[auto.requiredApi] || auto.requiredApi}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-red-500 flex items-center gap-0.5">
+                              <AlertCircle className="w-2.5 h-2.5" />
+                              Свържете {apiLabels[auto.requiredApi] || auto.requiredApi}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </MainLayout>
