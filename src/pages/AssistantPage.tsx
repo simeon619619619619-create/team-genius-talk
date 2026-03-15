@@ -1,12 +1,14 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { ChevronDown, ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ArrowLeft, ChevronRight, Bot } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
@@ -16,6 +18,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { MODULES } from "./ModulesPage";
+import type { AiBot } from "@/components/teams/VirtualOffice";
 
 const defaultSuggestions = [
   {
@@ -42,7 +45,17 @@ const models = [
 
 export default function AssistantPage() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
+  const [aiBots, setAiBots] = useState<AiBot[]>([]);
+  const [selectedBot, setSelectedBot] = useState<AiBot | null>(null);
   const { markAsViewed } = useDailyTasks();
+
+  // Load AI bots from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("simora_ai_bots");
+      if (saved) setAiBots(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
   const { overdueTasks } = useOverdueTasks();
   const [showOverdue, setShowOverdue] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -65,9 +78,19 @@ export default function AssistantPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const autoSentRef = useRef(false);
 
+  const botSystemPrompt = selectedBot
+    ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, кажи кой друг бот може да помогне.`
+    : undefined;
+
+  const botInitialMessage = selectedBot
+    ? `Здравейте! Аз съм ${selectedBot.name} — ${selectedBot.role}. Мога да помогна с: ${(selectedBot.skills || []).join(", ")}.\n\nКакво да направя?`
+    : undefined;
+
   const chatKey = moduleState
     ? "module:" + moduleState.systemPrompt.substring(0, 80)
-    : "business";
+    : selectedBot
+      ? "bot:" + selectedBot.id
+      : "business";
 
   const {
     sessions,
@@ -197,23 +220,63 @@ export default function AssistantPage() {
                   {moduleState.label} ({usedPrompts.size}/{moduleState.prompts.length})
                 </span>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1.5 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-xl transition-colors focus:outline-none">
-                  <span className="font-semibold text-sm">{selectedModel.name}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="min-w-[140px]">
-                  {models.map((model) => (
-                    <DropdownMenuItem
-                      key={model.id}
-                      onClick={() => setSelectedModel(model)}
-                      className={selectedModel.id === model.id ? "bg-secondary" : ""}
-                    >
-                      {model.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                {/* Model selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1.5 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-xl transition-colors focus:outline-none">
+                    <span className="font-semibold text-sm">{selectedModel.name}</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="min-w-[140px]">
+                    {models.map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => setSelectedModel(model)}
+                        className={selectedModel.id === model.id ? "bg-secondary" : ""}
+                      >
+                        {model.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Bot selector */}
+                {!moduleState && aiBots.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-1.5 text-foreground hover:bg-secondary/50 px-3 py-1.5 rounded-xl transition-colors focus:outline-none border border-border/50">
+                      <Bot className="h-3.5 w-3.5 text-purple-500" />
+                      <span className="text-sm font-medium">
+                        {selectedBot ? selectedBot.name : "Симора"}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="min-w-[180px]">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedBot(null)}
+                        className={!selectedBot ? "bg-secondary" : ""}
+                      >
+                        <span className="mr-2">💬</span> Симора (общ асистент)
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase">AI Ботове</DropdownMenuLabel>
+                      {aiBots.map((b) => (
+                        <DropdownMenuItem
+                          key={b.id}
+                          onClick={() => setSelectedBot(b)}
+                          className={selectedBot?.id === b.id ? "bg-secondary" : ""}
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full mr-2 shrink-0"
+                            style={{ background: b.shirtColor }}
+                          />
+                          <span className="flex-1">{b.name}</span>
+                          <span className="text-[10px] text-muted-foreground ml-1">{b.role}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </div>
 
@@ -254,8 +317,8 @@ export default function AssistantPage() {
             <ChatInterface
               suggestions={suggestions}
               context="business"
-              moduleSystemPrompt={moduleState?.systemPrompt}
-              moduleInitialMessage={moduleState?.initialMessage}
+              moduleSystemPrompt={moduleState?.systemPrompt || botSystemPrompt}
+              moduleInitialMessage={moduleState?.initialMessage || botInitialMessage}
               sessionId={activeSessionId}
               onFirstMessage={handleFirstMessage}
               autoSendPrompt={autoSendPrompt}

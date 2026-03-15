@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, Play, Loader2, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, Play, Loader2, ExternalLink, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 import type { AiBot, AiBotTaskGroup, AiBotSubtask, SubtaskAction } from "./VirtualOffice";
 
 interface Props {
@@ -22,9 +23,42 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
     return init;
   });
   const [runningTasks, setRunningTasks] = useState<Record<string, boolean>>({});
+  const [expandedResults, setExpandedResults] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
+  // AI execution — sends task to edge function with bot persona
+  const executeWithAI = async (groupId: string, subtask: AiBotSubtask) => {
+    setRunningTasks(prev => ({ ...prev, [subtask.id]: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("assistant-chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `Ти си ${bot.name}, ${bot.role}. Твоят процес е: ${bot.process}. Умения: ${(bot.skills || []).join(", ")}.\n\nИзпълни тази задача и дай кратък резултат (макс 3 изречения). Ако не можеш да я изпълниш, обясни КАКВО ти трябва (API ключ, достъп, интеграция) за да успееш:\n\n"${subtask.text}"`,
+            },
+          ],
+          context: "business",
+        },
+      });
+
+      const result = error
+        ? "Грешка при изпълнение"
+        : data?.content || "Задачата е изпълнена.";
+
+      const isSuccess = !error && !result.toLowerCase().includes("не мога") && !result.toLowerCase().includes("нямам достъп");
+
+      updateSubtaskResult(groupId, subtask.id, isSuccess, result);
+      setExpandedResults(prev => ({ ...prev, [subtask.id]: true }));
+    } catch {
+      updateSubtaskResult(groupId, subtask.id, false, "Грешка при връзката с AI");
+    } finally {
+      setRunningTasks(prev => ({ ...prev, [subtask.id]: false }));
+    }
   };
 
   const executeAction = async (groupId: string, subtaskId: string, action: SubtaskAction) => {
@@ -111,8 +145,11 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
 
   const runAllInGroup = async (group: AiBotTaskGroup) => {
     for (const st of group.subtasks) {
-      if (st.action && !st.done) {
+      if (st.done) continue;
+      if (st.action) {
         await executeAction(group.id, st.id, st.action);
+      } else {
+        await executeWithAI(group.id, st);
       }
     }
   };
@@ -255,7 +292,6 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
               const total = group.subtasks.length;
               const pct = total > 0 ? (done / total) * 100 : 0;
               const expanded = expandedGroups[group.id] !== false;
-              const hasActions = group.subtasks.some(s => s.action);
               const groupRunning = group.subtasks.some(s => runningTasks[s.id]);
 
               return (
@@ -276,20 +312,18 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
                       <span className="text-xs font-semibold truncate">{group.title}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Run all actions button */}
-                      {hasActions && (
-                        <button
-                          className="text-emerald-500 hover:text-emerald-600 transition-colors p-0.5 disabled:opacity-50"
-                          onClick={(e) => { e.stopPropagation(); runAllInGroup(group); }}
-                          disabled={groupRunning}
-                          title="Изпълни всички"
-                        >
-                          {groupRunning
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Play className="h-3.5 w-3.5" />
-                          }
-                        </button>
-                      )}
+                      {/* Run all button */}
+                      <button
+                        className="text-emerald-500 hover:text-emerald-600 transition-colors p-0.5 disabled:opacity-50"
+                        onClick={(e) => { e.stopPropagation(); runAllInGroup(group); }}
+                        disabled={groupRunning}
+                        title="Изпълни всички"
+                      >
+                        {groupRunning
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Play className="h-3.5 w-3.5" />
+                        }
+                      </button>
                       <div className="w-16 h-1.5 bg-border/50 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary rounded-full transition-all"
@@ -315,71 +349,76 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
                       {group.subtasks.map((st) => {
                         const isRunning = runningTasks[st.id];
                         const hasAction = !!st.action;
+                        const showResult = expandedResults[st.id];
 
                         return (
                           <div key={st.id} className="group/st">
                             <div className="flex items-center gap-2">
-                              {/* Action execute button or checkbox */}
-                              {hasAction ? (
-                                <button
-                                  className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all text-[10px] font-bold ${
-                                    isRunning
-                                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300"
-                                      : st.done
-                                        ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                        : "bg-primary/10 text-primary hover:bg-primary/20"
-                                  }`}
-                                  onClick={() => st.action && executeAction(group.id, st.id, st.action)}
-                                  disabled={isRunning}
-                                  title={st.action?.type === "open_url" ? "Отвори" : "Изпълни"}
-                                >
-                                  {isRunning ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : st.done ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                  ) : st.action?.type === "open_url" ? (
-                                    <ExternalLink className="h-3 w-3" />
-                                  ) : (
-                                    <Play className="h-3 w-3" />
-                                  )}
-                                </button>
-                              ) : (
-                                <button
-                                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                    st.done
-                                      ? "border-primary bg-primary"
-                                      : "border-muted-foreground/30 hover:border-primary/50"
-                                  }`}
-                                  onClick={() => toggleSubtask(group.id, st.id)}
-                                >
-                                  {st.done && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </button>
-                              )}
+                              {/* Execute button — all subtasks are executable */}
+                              <button
+                                className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all text-[10px] font-bold ${
+                                  isRunning
+                                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300"
+                                    : st.done
+                                      ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                      : "bg-primary/10 text-primary hover:bg-primary/20"
+                                }`}
+                                onClick={() => {
+                                  if (hasAction && st.action) {
+                                    executeAction(group.id, st.id, st.action);
+                                  } else {
+                                    executeWithAI(group.id, st);
+                                  }
+                                }}
+                                disabled={isRunning}
+                                title={hasAction && st.action?.type === "open_url" ? "Отвори" : "Изпълни"}
+                              >
+                                {isRunning ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : st.done ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : hasAction && st.action?.type === "open_url" ? (
+                                  <ExternalLink className="h-3 w-3" />
+                                ) : (
+                                  <Play className="h-3 w-3" />
+                                )}
+                              </button>
 
-                              <span className={`text-xs flex-1 ${st.done && !hasAction ? "line-through text-muted-foreground/50" : "text-foreground"}`}>
+                              <span className={`text-xs flex-1 ${st.done ? "text-muted-foreground/70" : "text-foreground"}`}>
                                 {st.text}
                               </span>
 
-                              {hasAction && (
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 shrink-0 bg-blue-50/50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800">
-                                  {st.action?.type === "fetch" ? "проверка" : "линк"}
-                                </Badge>
-                              )}
-
-                              <button
-                                className="opacity-0 group-hover/st:opacity-100 text-muted-foreground hover:text-destructive transition-all p-0.5"
-                                onClick={() => deleteSubtask(group.id, st.id)}
-                              >
-                                <Trash2 className="h-2.5 w-2.5" />
-                              </button>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                {hasAction && (
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-50/50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800">
+                                    {st.action?.type === "fetch" ? "проверка" : "линк"}
+                                  </Badge>
+                                )}
+                                {!hasAction && (
+                                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-purple-50/50 text-purple-600 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-800">
+                                    AI
+                                  </Badge>
+                                )}
+                                {st.lastResult && (
+                                  <button
+                                    className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                                    onClick={() => setExpandedResults(prev => ({ ...prev, [st.id]: !prev[st.id] }))}
+                                    title={showResult ? "Скрий резултат" : "Виж резултат"}
+                                  >
+                                    {showResult ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                  </button>
+                                )}
+                                <button
+                                  className="opacity-0 group-hover/st:opacity-100 text-muted-foreground hover:text-destructive transition-all p-0.5"
+                                  onClick={() => deleteSubtask(group.id, st.id)}
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" />
+                                </button>
+                              </div>
                             </div>
 
-                            {/* Result indicator */}
-                            {st.lastResult && (
+                            {/* Short result status */}
+                            {st.lastResult && !showResult && (
                               <div className={`flex items-center gap-1.5 ml-8 mt-0.5 text-[10px] ${
                                 st.lastResult.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
                               }`}>
@@ -387,8 +426,24 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
                                   ? <CheckCircle2 className="h-2.5 w-2.5" />
                                   : <XCircle className="h-2.5 w-2.5" />
                                 }
-                                <span>{st.lastResult.message}</span>
+                                <span className="truncate max-w-[200px]">
+                                  {st.lastResult.message.length > 50
+                                    ? st.lastResult.message.substring(0, 50) + "..."
+                                    : st.lastResult.message}
+                                </span>
                                 <span className="text-muted-foreground/50">({st.lastResult.at})</span>
+                              </div>
+                            )}
+
+                            {/* Expanded AI result */}
+                            {st.lastResult && showResult && (
+                              <div className={`ml-8 mt-1 mb-1 p-2 rounded-lg border text-xs leading-relaxed whitespace-pre-wrap ${
+                                st.lastResult.ok
+                                  ? "bg-emerald-50/50 border-emerald-200/50 text-foreground/80 dark:bg-emerald-950/20 dark:border-emerald-800/30"
+                                  : "bg-red-50/50 border-red-200/50 text-foreground/80 dark:bg-red-950/20 dark:border-red-800/30"
+                              }`}>
+                                {st.lastResult.message}
+                                <div className="text-[10px] text-muted-foreground/50 mt-1">({st.lastResult.at})</div>
                               </div>
                             )}
                           </div>
