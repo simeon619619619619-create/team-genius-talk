@@ -24,7 +24,7 @@ export default function PlanPage() {
   const { projectId, projectName, loading: projectLoading } = useCurrentProject();
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
   const [showSyncPreview, setShowSyncPreview] = useState(false);
-  const { tasks, addTask } = useTasks();
+  const { tasks, addTask, addSubtask } = useTasks();
   const [taskTitle, setTaskTitle] = useState("");
   const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high">("medium");
   const [taskDueDate, setTaskDueDate] = useState("");
@@ -564,20 +564,30 @@ export default function PlanPage() {
                       "rounded-2xl border border-border/50 p-4 md:p-5 transition-all hover:shadow-lg hover:border-primary/20 cursor-pointer group",
                       campaign.bgColor
                     )}
-                    onClick={() => {
-                      // Assign campaign tasks to team members in round-robin
+                    onClick={async () => {
+                      // Check if campaign task already exists
+                      const alreadyExists = tasks.some(t => t.title === campaign.title && t.status !== "done");
+                      if (alreadyExists) return;
+
+                      // Create ONE parent task for the campaign
                       const members = marketingTeam.map(m => m.name);
-                      campaign.tasks.forEach((task, i) => {
-                        const assignee = members[i % members.length];
-                        const alreadyExists = tasks.some(t => t.title === task && t.assignee_name === assignee && t.status !== "done");
-                        if (!alreadyExists) {
-                          addTask({
-                            title: task,
+                      const parentTask = await addTask({
+                        title: campaign.title,
+                        description: campaign.description,
+                        priority: "high",
+                        assignee_name: members[0] || null,
+                      });
+
+                      if (parentTask) {
+                        // Add each campaign step as a subtask
+                        for (let i = 0; i < campaign.tasks.length; i++) {
+                          const assignee = members[i % members.length];
+                          await addSubtask(parentTask.id, {
+                            title: campaign.tasks[i],
                             assignee_name: assignee,
-                            priority: i < 2 ? "high" : i < 4 ? "medium" : "low",
                           });
                         }
-                      });
+                      }
                       triggerConfetti();
                     }}
                   >
