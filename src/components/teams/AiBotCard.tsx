@@ -134,6 +134,22 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
           </div>
         </div>
 
+        {/* Skills */}
+        {bot.skills && bot.skills.length > 0 && (
+          <div>
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+              Умения
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {bot.skills.map((s) => (
+                <Badge key={s} variant="outline" className="text-[11px] bg-amber-50 text-amber-700 border-amber-200">
+                  {s}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Task Groups with Subtasks */}
         <div>
           <div className="flex items-center justify-between mb-1">
