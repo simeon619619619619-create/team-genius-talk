@@ -84,17 +84,34 @@ const claudeTools = [
   }
 ];
 
-// Helper: call Claude API
-async function callClaude(apiKey: string, system: string, messages: any[], tools?: any[]): Promise<any> {
+// OpenAI-format tools (same functionality, different schema format)
+const openaiTools = claudeTools.map(t => ({
+  type: "function" as const,
+  function: {
+    name: t.name,
+    description: t.description,
+    parameters: t.input_schema,
+  }
+}));
+
+// Gemini-format tools
+const geminiTools = [{
+  function_declarations: claudeTools.map(t => ({
+    name: t.name,
+    description: t.description,
+    parameters: t.input_schema,
+  }))
+}];
+
+// ── Provider: Claude ──
+async function callClaude(apiKey: string, model: string, system: string, messages: any[], tools?: any[]): Promise<any> {
   const body: any = {
-    model: "claude-sonnet-4-20250514",
+    model,
     max_tokens: 4096,
     system,
     messages,
   };
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-  }
+  if (tools && tools.length > 0) body.tools = tools;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -109,28 +126,195 @@ async function callClaude(apiKey: string, system: string, messages: any[], tools
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Claude API error:", response.status, errorText);
-
-    if (response.status === 429) {
-      throw new Error("RATE_LIMIT");
-    }
+    if (response.status === 429) throw new Error("RATE_LIMIT");
     throw new Error(`Claude API error: ${response.status} - ${errorText}`);
   }
-
   return await response.json();
 }
 
-// Convert frontend messages (OpenAI format) to Claude format
+function getClaudeText(response: any): string {
+  if (!response.content) return "Как мога да ви помогна?";
+  const textBlocks = response.content.filter((b: any) => b.type === "text");
+  return textBlocks.map((b: any) => b.text).join("\n") || "Как мога да ви помогна?";
+}
+
+function getClaudeToolCalls(response: any): any[] {
+  return (response.content || []).filter((b: any) => b.type === "tool_use");
+}
+
+// ── Provider: OpenAI / ChatGPT ──
+async function callOpenAI(apiKey: string, model: string, system: string, messages: any[], tools?: any[]): Promise<any> {
+  const openaiMessages = [
+    { role: "system", content: system },
+    ...messages,
+  ];
+
+  const body: any = { model, messages: openaiMessages };
+  if (tools && tools.length > 0) body.tools = tools;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI API error:", response.status, errorText);
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+  }
+  return await response.json();
+}
+
+function getOpenAIText(response: any): string {
+  return response.choices?.[0]?.message?.content || "Как мога да ви помогна?";
+}
+
+function getOpenAIToolCalls(response: any): any[] {
+  return response.choices?.[0]?.message?.tool_calls || [];
+}
+
+// ── Provider: Gemini ──
+async function callGemini(apiKey: string, model: string, system: string, messages: any[], tools?: any[]): Promise<any> {
+  const geminiContents = messages.map((m: any) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
+  }));
+
+  const body: any = {
+    contents: geminiContents,
+    systemInstruction: { parts: [{ text: system }] },
+    generationConfig: { maxOutputTokens: 4096 },
+  };
+  if (tools && tools.length > 0) body.tools = tools;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Gemini API error:", response.status, errorText);
+    if (response.status === 429) throw new Error("RATE_LIMIT");
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+  return await response.json();
+}
+
+function getGeminiText(response: any): string {
+  const parts = response.candidates?.[0]?.content?.parts || [];
+  return parts.filter((p: any) => p.text).map((p: any) => p.text).join("\n") || "Как мога да ви помогна?";
+}
+
+function getGeminiToolCalls(response: any): any[] {
+  const parts = response.candidates?.[0]?.content?.parts || [];
+  return parts.filter((p: any) => p.functionCall);
+}
+
+// ── Unified AI call ──
+interface AIConfig {
+  provider: string; // "claude" | "openai" | "gemini"
+  apiKey: string;
+  model: string;
+}
+
+async function callAI(config: AIConfig, system: string, messages: any[], withTools: boolean): Promise<{ text: string; toolCalls: any[]; rawResponse: any }> {
+  const { provider, apiKey, model } = config;
+
+  if (provider === "openai") {
+    const resp = await callOpenAI(apiKey, model, system, messages, withTools ? openaiTools : undefined);
+    return { text: getOpenAIText(resp), toolCalls: getOpenAIToolCalls(resp), rawResponse: resp };
+  }
+
+  if (provider === "gemini") {
+    const resp = await callGemini(apiKey, model, system, messages, withTools ? geminiTools : undefined);
+    return { text: getGeminiText(resp), toolCalls: getGeminiToolCalls(resp), rawResponse: resp };
+  }
+
+  // Default: Claude
+  const resp = await callClaude(apiKey, model, system, messages, withTools ? claudeTools : undefined);
+  return { text: getClaudeText(resp), toolCalls: getClaudeToolCalls(resp), rawResponse: resp };
+}
+
+// Build follow-up messages with tool results per provider
+function buildToolFollowUp(config: AIConfig, originalMessages: any[], rawResponse: any, toolResults: Array<{ name: string; id: string; result: string }>): any[] {
+  if (config.provider === "openai") {
+    const assistantMsg = rawResponse.choices[0].message;
+    return [
+      ...originalMessages,
+      assistantMsg,
+      ...toolResults.map(tr => ({
+        role: "tool",
+        tool_call_id: tr.id,
+        content: tr.result,
+      })),
+    ];
+  }
+
+  if (config.provider === "gemini") {
+    // Gemini uses functionResponse parts
+    const modelParts = rawResponse.candidates[0].content.parts;
+    return [
+      ...originalMessages,
+      { role: "model", parts: modelParts },
+      {
+        role: "user",
+        parts: toolResults.map(tr => ({
+          functionResponse: { name: tr.name, response: JSON.parse(tr.result) },
+        })),
+      },
+    ];
+  }
+
+  // Claude
+  return [
+    ...originalMessages,
+    { role: "assistant", content: rawResponse.content },
+    {
+      role: "user",
+      content: toolResults.map(tr => ({
+        type: "tool_result",
+        tool_use_id: tr.id,
+        content: tr.result,
+      })),
+    },
+  ];
+}
+
+// Extract tool name and args from any provider's tool call
+function parseToolCall(config: AIConfig, tc: any): { name: string; args: any; id: string } {
+  if (config.provider === "openai") {
+    return {
+      name: tc.function.name,
+      args: JSON.parse(tc.function.arguments || "{}"),
+      id: tc.id,
+    };
+  }
+  if (config.provider === "gemini") {
+    return {
+      name: tc.functionCall.name,
+      args: tc.functionCall.args || {},
+      id: tc.functionCall.name + "_" + Date.now(),
+    };
+  }
+  // Claude
+  return { name: tc.name, args: tc.input || {}, id: tc.id };
+}
+
+// Convert frontend messages to the format each provider expects
 function convertMessages(messages: Array<{ role: string; content: string }>): any[] {
   return messages
     .filter(m => m.role === "user" || m.role === "assistant")
     .map(m => ({ role: m.role, content: m.content }));
-}
-
-// Extract text content from Claude response
-function getTextContent(response: any): string {
-  if (!response.content) return "Как мога да ви помогна?";
-  const textBlocks = response.content.filter((b: any) => b.type === "text");
-  return textBlocks.map((b: any) => b.text).join("\n") || "Как мога да ви помогна?";
 }
 
 serve(async (req) => {
@@ -145,7 +329,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Resolve organization ID: use provided one, or derive from project
+    // Resolve organization ID
     let orgId = organizationId || null;
     if (!orgId && projectId) {
       const { data: proj } = await supabase
@@ -156,27 +340,38 @@ serve(async (req) => {
       if (proj?.organization_id) orgId = proj.organization_id;
     }
 
-    // Look up org-specific API key, fall back to global env var
-    let ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
+    // Look up org-specific active AI integration
+    let aiConfig: AIConfig = {
+      provider: "claude",
+      apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+      model: "claude-sonnet-4-20250514",
+    };
+
     if (orgId) {
       const { data: integration } = await supabase
         .from("organization_integrations")
-        .select("api_key")
+        .select("integration_type, api_key, model")
         .eq("organization_id", orgId)
-        .eq("integration_type", "claude")
         .eq("is_active", true)
+        .in("integration_type", ["claude", "gemini", "openai"])
         .maybeSingle();
+
       if (integration?.api_key) {
-        ANTHROPIC_API_KEY = integration.api_key;
+        aiConfig = {
+          provider: integration.integration_type,
+          apiKey: integration.api_key,
+          model: integration.model || aiConfig.model,
+        };
       }
     }
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!aiConfig.apiKey) {
       throw new Error("Няма конфигуриран API ключ. Добавете го в Настройки → Интеграции.");
     }
 
+    console.log(`Using AI provider: ${aiConfig.provider}, model: ${aiConfig.model}`);
+
     const dateContext = getDateContext();
-    console.log("Date context:", dateContext);
 
     // Get business plan for context
     let businessPlanContext = "";
@@ -298,11 +493,11 @@ serve(async (req) => {
       }
     }
 
-    const claudeMessages = convertMessages(messages);
+    const convertedMessages = convertMessages(messages);
 
     // Video context
     if (context === "video") {
-      const videoSystemPrompt = `Ти си Симора - експерт по видео обработка с ffmpeg, създаден от Симеон Димитров. Говориш на български език. Никога не споменавай Claude, Anthropic или друга AI компания.
+      const videoSystemPrompt = `Ти си Симора - експерт по видео обработка с ffmpeg, създаден от Симеон Димитров. Говориш на български език. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.
 
 🎬 ТВОЯТА СПЕЦИАЛНОСТ:
 - Изрязване на клипове
@@ -337,27 +532,23 @@ ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
 - Ако потребителят има видео файл, питай за пътя до него или качи го
 - Ако искат нещо друго - просто кажи как да го направят`;
 
-      const aiResponse = await callClaude(ANTHROPIC_API_KEY, videoSystemPrompt, claudeMessages);
-      const content = getTextContent(aiResponse);
-
-      return new Response(JSON.stringify({ content }), {
+      const result = await callAI(aiConfig, videoSystemPrompt, convertedMessages, false);
+      return new Response(JSON.stringify({ content: result.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Module context
     if (moduleSystemPrompt) {
-      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
-      const aiResponse = await callClaude(ANTHROPIC_API_KEY, fullModulePrompt, claudeMessages);
-      const content = getTextContent(aiResponse);
-
-      return new Response(JSON.stringify({ content }), {
+      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
+      const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
+      return new Response(JSON.stringify({ content: result.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Business context
-    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
+    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
 📆 Седмица: ${dateContext.weekNumber} от 52
@@ -390,19 +581,15 @@ ${chatHistoryContext}
 - Когато създаваш задача, потвърди какво си добавил
 - Цитирай конкретни елементи от маркетинг плана когато предлагаш задачи`;
 
-    // Initial Claude call with tools
-    const aiResponse = await callClaude(ANTHROPIC_API_KEY, systemPrompt, claudeMessages, claudeTools);
+    // Initial AI call with tools
+    const aiResult = await callAI(aiConfig, systemPrompt, convertedMessages, true);
 
-    // Check if Claude wants to use tools
-    const toolUseBlocks = (aiResponse.content || []).filter((b: any) => b.type === "tool_use");
+    // Check if AI wants to use tools
+    if (aiResult.toolCalls.length > 0) {
+      const toolResults: Array<{ name: string; id: string; result: string }> = [];
 
-    if (toolUseBlocks.length > 0) {
-      const toolResults: any[] = [];
-
-      for (const toolBlock of toolUseBlocks) {
-        const functionName = toolBlock.name;
-        const args = toolBlock.input || {};
-
+      for (const tc of aiResult.toolCalls) {
+        const { name: functionName, args, id: toolId } = parseToolCall(aiConfig, tc);
         console.log(`Executing tool: ${functionName}`, args);
 
         if (functionName === "create_weekly_task" && businessPlanId) {
@@ -421,9 +608,9 @@ ${chatHistoryContext}
             });
 
           toolResults.push({
-            type: "tool_result",
-            tool_use_id: toolBlock.id,
-            content: error
+            name: functionName,
+            id: toolId,
+            result: error
               ? JSON.stringify({ success: false, error: error.message })
               : JSON.stringify({ success: true, message: `Задачата "${args.title}" е добавена в седмица ${args.week_number}` })
           });
@@ -436,9 +623,9 @@ ${chatHistoryContext}
             .eq("is_completed", false);
 
           toolResults.push({
-            type: "tool_result",
-            tool_use_id: toolBlock.id,
-            content: JSON.stringify({ tasks: overdue || [] })
+            name: functionName,
+            id: toolId,
+            result: JSON.stringify({ tasks: overdue || [] })
           });
         } else if (functionName === "get_current_week_tasks" && businessPlanId) {
           const { data: current } = await supabase
@@ -448,9 +635,9 @@ ${chatHistoryContext}
             .eq("week_number", dateContext.weekNumber);
 
           toolResults.push({
-            type: "tool_result",
-            tool_use_id: toolBlock.id,
-            content: JSON.stringify({ tasks: current || [] })
+            name: functionName,
+            id: toolId,
+            result: JSON.stringify({ tasks: current || [] })
           });
         } else if (functionName === "create_ghl_contact") {
           const { data: ghlInt, error: ghlErr } = await supabase
@@ -461,9 +648,9 @@ ${chatHistoryContext}
 
           if (ghlErr || !ghlInt) {
             toolResults.push({
-              type: "tool_result",
-              tool_use_id: toolBlock.id,
-              content: JSON.stringify({ success: false, error: "Няма конфигуриран GoHighLevel API ключ. Моля, добавете го в Настройки → Интеграции." })
+              name: functionName,
+              id: toolId,
+              result: JSON.stringify({ success: false, error: "Няма конфигуриран GoHighLevel API ключ. Моля, добавете го в Настройки → Интеграции." })
             });
           } else {
             const contactPayload: Record<string, unknown> = {
@@ -484,47 +671,39 @@ ${chatHistoryContext}
             if (ghlRes.ok) {
               const ghlData = await ghlRes.json();
               toolResults.push({
-                type: "tool_result",
-                tool_use_id: toolBlock.id,
-                content: JSON.stringify({ success: true, contactId: ghlData.contact?.id, message: `Контактът "${args.firstName} ${args.lastName || ""}" е добавен в GHL CRM.` })
+                name: functionName,
+                id: toolId,
+                result: JSON.stringify({ success: true, contactId: ghlData.contact?.id, message: `Контактът "${args.firstName} ${args.lastName || ""}" е добавен в GHL CRM.` })
               });
             } else {
               const errText = await ghlRes.text();
               toolResults.push({
-                type: "tool_result",
-                tool_use_id: toolBlock.id,
-                content: JSON.stringify({ success: false, error: `GHL API грешка: ${ghlRes.status} - ${errText}` })
+                name: functionName,
+                id: toolId,
+                result: JSON.stringify({ success: false, error: `GHL API грешка: ${ghlRes.status} - ${errText}` })
               });
             }
           }
         } else {
           toolResults.push({
-            type: "tool_result",
-            tool_use_id: toolBlock.id,
-            content: JSON.stringify({ error: "Unknown tool or missing context" })
+            name: functionName,
+            id: toolId,
+            result: JSON.stringify({ error: "Unknown tool or missing context" })
           });
         }
       }
 
       // Second call with tool results
-      const followUpMessages = [
-        ...claudeMessages,
-        { role: "assistant", content: aiResponse.content },
-        { role: "user", content: toolResults },
-      ];
+      const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
+      const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, true);
 
-      const followUpResponse = await callClaude(ANTHROPIC_API_KEY, systemPrompt, followUpMessages, claudeTools);
-      const finalContent = getTextContent(followUpResponse);
-
-      return new Response(JSON.stringify({ content: finalContent }), {
+      return new Response(JSON.stringify({ content: followUpResult.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // No tool calls, return direct response
-    const content = getTextContent(aiResponse);
-
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify({ content: aiResult.text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

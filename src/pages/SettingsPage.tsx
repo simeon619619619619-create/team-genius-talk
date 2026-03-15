@@ -14,7 +14,7 @@ import { PricingPlans } from "@/components/subscription/PricingPlans";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PushNotificationSettings } from "@/components/settings/PushNotificationSettings";
 import { GHLIntegrationSettings } from "@/components/settings/GHLIntegrationSettings";
-import { ClaudeIntegrationSettings } from "@/components/settings/ClaudeIntegrationSettings";
+import { AIModelSettings } from "@/components/settings/AIModelSettings";
 
 interface ProfileData {
   full_name: string;
@@ -376,8 +376,8 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">Свържете външни CRM и инструменти</p>
             </div>
           </div>
-          <div className="space-y-4">
-            <ClaudeIntegrationSettings />
+          <div className="space-y-6">
+            <AIModelSettings />
             <GHLIntegrationSettings />
           </div>
         </div>
