@@ -106,5 +106,24 @@ export function useProjectTeamMembers() {
     fetchMembers();
   }, [projectId]);
 
-  return { members, loading };
+  // Load AI bots from localStorage and merge
+  const [allMembers, setAllMembers] = useState<ProjectTeamMember[]>([]);
+
+  useEffect(() => {
+    try {
+      const botsJson = localStorage.getItem("simora_ai_bots");
+      const bots = botsJson ? JSON.parse(botsJson) : [];
+      const botMembers: ProjectTeamMember[] = bots.map((bot: { id: string; name: string; role: string }) => ({
+        id: `ai-${bot.id}`,
+        email: "",
+        full_name: `🤖 ${bot.name}`,
+        role: bot.role,
+      }));
+      setAllMembers([...members, ...botMembers]);
+    } catch {
+      setAllMembers(members);
+    }
+  }, [members]);
+
+  return { members: allMembers, loading };
 }

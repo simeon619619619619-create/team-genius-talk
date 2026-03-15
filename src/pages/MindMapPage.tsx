@@ -696,6 +696,22 @@ export default function MindMapPage() {
     if (savedMembers) {
       try { setTeamMembers(JSON.parse(savedMembers)); } catch { /* defaults */ }
     }
+    // Load AI bots
+    try {
+      const botsJson = localStorage.getItem("simora_ai_bots");
+      if (botsJson) {
+        const bots = JSON.parse(botsJson);
+        const botNames = bots.map((b: { name: string }) => `🤖 ${b.name}`);
+        setTeamMembers(prev => {
+          const existing = new Set(prev);
+          const merged = [...prev];
+          for (const name of botNames) {
+            if (!existing.has(name)) merged.push(name);
+          }
+          return merged;
+        });
+      }
+    } catch { /* ignore */ }
   }, [user?.id]);
 
   // Save
