@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, CheckCircle2, ArrowRight, Sparkles, Target, Loader2 } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, ArrowRight, Sparkles, Target, Loader2, Play, XCircle } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ export function DailyPlanWidget() {
   const [nextStep, setNextStep] = useState<NextStep | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [greeting, setGreeting] = useState("");
+  const { execute, isRunning, results, clearResult } = useAIExecution();
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -191,15 +193,32 @@ export function DailyPlanWidget() {
     const task = dailyTasks.find(t => t.id === taskId);
     if (!task || taskId.startsWith('sample-')) return;
 
-    const { error } = await supabase
-      .from('weekly_tasks')
-      .update({ is_completed: !task.isCompleted })
-      .eq('id', taskId);
+    // If already completed, allow unchecking directly
+    if (task.isCompleted) {
+      const { error } = await supabase
+        .from('weekly_tasks')
+        .update({ is_completed: false })
+        .eq('id', taskId);
+      if (!error) {
+        setDailyTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, isCompleted: false } : t
+        ));
+      }
+      return;
+    }
 
-    if (!error) {
-      setDailyTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t
-      ));
+    // Run AI execution first
+    const result = await execute(taskId, task.title);
+    if (result.ok) {
+      const { error } = await supabase
+        .from('weekly_tasks')
+        .update({ is_completed: true })
+        .eq('id', taskId);
+      if (!error) {
+        setDailyTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, isCompleted: true } : t
+        ));
+      }
     }
   };
 
@@ -289,54 +308,72 @@ export function DailyPlanWidget() {
             <Calendar className="h-4 w-4" />
             <span>Задачи за днес</span>
           </div>
-          {dailyTasks.map((task) => (
-            <button
-              key={task.id}
-              onClick={() => toggleTaskComplete(task.id)}
-              className={cn(
-                "w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-200",
-                "border hover:shadow-sm",
-                task.isCompleted 
-                  ? "bg-success/5 border-success/20 opacity-60" 
-                  : priorityColors[task.priority]
-              )}
-            >
-              <div className={cn(
-                "h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all duration-200",
-                task.isCompleted 
-                  ? "bg-success border-success" 
-                  : "border-current"
-              )}>
-                {task.isCompleted && <CheckCircle2 className="h-3 w-3 text-success-foreground" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={cn(
-                  "font-medium text-sm",
-                  task.isCompleted && "line-through"
-                )}>
-                  {task.title}
-                </p>
-                {task.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                    {task.description}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                {task.taskType && (
-                  <Badge variant="secondary" className="text-xs">
-                    {taskTypeLabels[task.taskType] || task.taskType}
-                  </Badge>
-                )}
-                {task.timeSlot && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {task.timeSlot}
+          {dailyTasks.map((task) => {
+            const running = isRunning(task.id);
+            const result = results[task.id];
+            return (
+              <div key={task.id}>
+                <button
+                  onClick={() => !running && toggleTaskComplete(task.id)}
+                  disabled={running}
+                  className={cn(
+                    "w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all duration-200",
+                    "border hover:shadow-sm",
+                    task.isCompleted
+                      ? "bg-success/5 border-success/20 opacity-60"
+                      : priorityColors[task.priority],
+                    running && "opacity-70 cursor-wait"
+                  )}
+                >
+                  <div className="shrink-0 mt-0.5">
+                    {running ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    ) : task.isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                    ) : (
+                      <Play className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "font-medium text-sm",
+                      task.isCompleted && "line-through"
+                    )}>
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {task.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {task.taskType && (
+                      <Badge variant="secondary" className="text-xs">
+                        {taskTypeLabels[task.taskType] || task.taskType}
+                      </Badge>
+                    )}
+                    {task.timeSlot && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {task.timeSlot}
+                      </div>
+                    )}
+                  </div>
+                </button>
+                {result && (
+                  <div className={cn(
+                    "mx-3 mt-1 mb-2 px-3 py-2 rounded-lg text-xs flex items-start gap-2",
+                    result.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                  )}>
+                    {result.ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+                    <span className="flex-1 line-clamp-2">{result.message}</span>
+                    <button onClick={() => clearResult(task.id)} className="text-muted-foreground hover:text-foreground shrink-0">&times;</button>
                   </div>
                 )}
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       ) : !nextStep ? (
         <div className="text-center py-8">

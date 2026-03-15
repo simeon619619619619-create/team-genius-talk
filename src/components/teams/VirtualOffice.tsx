@@ -36,6 +36,7 @@ export interface AiBot {
   hairColor: string;
   skinColor: string;
   state?: "working" | "idle";
+  locked?: boolean;
 }
 
 interface Props {

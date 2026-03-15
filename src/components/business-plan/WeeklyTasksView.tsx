@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Calendar, CheckCircle2, Clock, Briefcase, Target, Zap, Edit2, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Calendar, CheckCircle2, Clock, Briefcase, Target, Zap, Edit2, Trash2, Play, XCircle } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,6 +103,7 @@ export function WeeklyTasksView({
   onTasksUpdate,
 }: WeeklyTasksViewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { execute, isRunning, results, clearResult } = useAIExecution();
 
   const handleGenerateTasks = async () => {
     if (goals.length === 0 && items.length === 0) {
@@ -161,35 +163,50 @@ export function WeeklyTasksView({
 
   const toggleTaskComplete = async (taskId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     const taskToUpdate = tasks.find((t) => t.id === taskId);
     if (!taskToUpdate) return;
-    
-    const newCompletedState = !taskToUpdate.isCompleted;
-    
-    // Update local state immediately for responsive UI
-    const updatedTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, isCompleted: newCompletedState } : t
-    );
-    onTasksUpdate(updatedTasks);
-    
-    // Update in database
-    try {
-      const { error } = await supabase
-        .from("weekly_tasks")
-        .update({ is_completed: newCompletedState })
-        .eq("id", taskId);
-      
-      if (error) {
-        console.error("Error updating task:", error);
-        // Revert on error
+
+    // If already completed, allow unchecking directly
+    if (taskToUpdate.isCompleted) {
+      const updatedTasks = tasks.map((t) =>
+        t.id === taskId ? { ...t, isCompleted: false } : t
+      );
+      onTasksUpdate(updatedTasks);
+      try {
+        const { error } = await supabase
+          .from("weekly_tasks")
+          .update({ is_completed: false })
+          .eq("id", taskId);
+        if (error) {
+          onTasksUpdate(tasks);
+          toast.error("Грешка при обновяване на задачата");
+        }
+      } catch {
         onTasksUpdate(tasks);
-        toast.error("Грешка при обновяване на задачата");
       }
-    } catch (error) {
-      console.error("Error updating task:", error);
-      onTasksUpdate(tasks);
-      toast.error("Грешка при обновяване на задачата");
+      return;
+    }
+
+    // Run AI execution first
+    const result = await execute(taskId, taskToUpdate.title);
+    if (result.ok) {
+      const updatedTasks = tasks.map((t) =>
+        t.id === taskId ? { ...t, isCompleted: true } : t
+      );
+      onTasksUpdate(updatedTasks);
+      try {
+        const { error } = await supabase
+          .from("weekly_tasks")
+          .update({ is_completed: true })
+          .eq("id", taskId);
+        if (error) {
+          onTasksUpdate(tasks);
+          toast.error("Грешка при обновяване на задачата");
+        }
+      } catch {
+        onTasksUpdate(tasks);
+      }
     }
   };
 
@@ -357,7 +374,10 @@ export function WeeklyTasksView({
                               draggableId={taskId}
                               index={taskIndex}
                             >
-                              {(provided, snapshot) => (
+                              {(provided, snapshot) => {
+                                const running = isRunning(task.id);
+                                const aiResult = results[task.id];
+                                return (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
@@ -368,15 +388,23 @@ export function WeeklyTasksView({
                                     typeStyle.border,
                                     priorityIndicators[task.priority],
                                     task.isCompleted && "opacity-50",
+                                    running && "opacity-70",
                                     snapshot.isDragging && "shadow-lg ring-2 ring-primary cursor-grabbing"
                                   )}
                                 >
                                   <div className="flex items-start gap-2">
                                     <button
-                                      onClick={(e) => toggleTaskComplete(task.id, e)}
+                                      onClick={(e) => !running && toggleTaskComplete(task.id, e)}
+                                      disabled={running}
                                       className="mt-0.5"
                                     >
-                                      <Icon className={cn("h-3 w-3 shrink-0", typeStyle.text)} />
+                                      {running ? (
+                                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
+                                      ) : task.isCompleted ? (
+                                        <CheckCircle2 className={cn("h-3 w-3 shrink-0", typeStyle.text)} />
+                                      ) : (
+                                        <Play className={cn("h-3 w-3 shrink-0", typeStyle.text)} />
+                                      )}
                                     </button>
                                     <div className="flex-1 min-w-0">
                                       <p className={cn(
@@ -390,6 +418,15 @@ export function WeeklyTasksView({
                                           {task.estimatedHours}ч
                                         </span>
                                       </div>
+                                      {aiResult && (
+                                        <div className={cn(
+                                          "mt-1 text-[10px] flex items-center gap-1",
+                                          aiResult.ok ? "text-success" : "text-destructive"
+                                        )}>
+                                          {aiResult.ok ? <CheckCircle2 className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
+                                          <span className="line-clamp-1">{aiResult.message}</span>
+                                        </div>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-0.5 opacity-0 group-hover/task:opacity-100 transition-opacity">
                                       <ManualTaskDialog
@@ -434,7 +471,7 @@ export function WeeklyTasksView({
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              );}}
                             </Draggable>
                           );
                         })

@@ -65,7 +65,7 @@ export default function TeamsPage() {
   // ─── AI BOTS STATE ───
   const AI_BOTS_KEY = "simora_ai_bots";
   const DEFAULT_AI_BOTS: AiBot[] = [
-    { id: "bot-1", name: "Елена", role: "Уеб Разработчик", process: "eufashioninstitute.com", frequency: "24/7", automations: ["Deploy", "SEO Check", "Build"], tasks: [], skills: ["уеб", "код", "deploy", "SEO", "build", "оптимизация", "поддръжка"], taskGroups: [
+    { id: "bot-1", name: "Елена", role: "Web Developer", process: "eufashioninstitute.com", frequency: "24/7", locked: true, automations: ["Deploy", "SEO Check", "Build"], tasks: [], skills: ["уеб", "код", "deploy", "SEO", "build", "оптимизация", "поддръжка"], taskGroups: [
       { id: "tg-1a", title: "Проверка на eufashioninstitute.com", subtasks: [
         { id: "st-1a1", text: "Начална страница (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com" } },
         { id: "st-1a2", text: "Страница Модели (200)", done: false, action: { type: "fetch", url: "https://eufashioninstitute.com/models" } },
@@ -251,7 +251,7 @@ export default function TeamsPage() {
       if (saved) {
         const parsed: AiBot[] = JSON.parse(saved);
         // Normalize: reset stale working/running states and subtask statuses on load
-        return parsed.map(bot => ({
+        const normalized = parsed.map(bot => ({
           ...bot,
           state: (bot.state === "working" || bot.state === "running") ? "idle" : (bot.state || "idle"),
           taskGroups: bot.taskGroups?.map(tg => ({
@@ -262,6 +262,14 @@ export default function TeamsPage() {
             })),
           })),
         }));
+        // Ensure locked bots from defaults are always present
+        const lockedDefaults = DEFAULT_AI_BOTS.filter(b => b.locked);
+        for (const locked of lockedDefaults) {
+          if (!normalized.find(b => b.id === locked.id)) {
+            normalized.unshift(locked);
+          }
+        }
+        return normalized;
       }
       return DEFAULT_AI_BOTS;
     } catch {
@@ -341,6 +349,8 @@ export default function TeamsPage() {
   };
 
   const handleDeleteAiBot = (id: string) => {
+    const bot = aiBots.find(b => b.id === id);
+    if (bot?.locked) return;
     saveAiBots(aiBots.filter(b => b.id !== id));
     toast.success("Ботът е изтрит");
   };

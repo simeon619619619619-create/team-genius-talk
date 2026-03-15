@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight, Trash2, FileText, CalendarDays } from "lucide-react";
+import { Calendar, Flag, User, ChevronDown, ChevronUp, CheckCircle2, Circle, ArrowRight, Trash2, FileText, CalendarDays, Play, Loader2, XCircle } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import { cn } from "@/lib/utils";
 import { AddSubtaskDialog } from "./AddSubtaskDialog";
 import { Progress } from "@/components/ui/progress";
@@ -63,7 +64,8 @@ export function TaskCard({
   onDeleteSubtask,
 }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false);
-  
+  const { execute, isRunning, results, clearResult } = useAIExecution();
+
   const subtasks = task.subtasks || [];
   const completedSubtasks = subtasks.filter(s => s.status === "done").length;
   const progressPercent = subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
@@ -196,66 +198,90 @@ export function TaskCard({
 
         {expanded && subtasks.length > 0 && (
           <div className="mt-3 space-y-2">
-            {subtasks.map((subtask) => (
-              <div 
-                key={subtask.id} 
-                className={cn(
-                  "flex items-start gap-2 p-2 rounded-md text-sm",
-                  subtask.status === "done" ? "bg-success/5" : "bg-background/50"
-                )}
-              >
-                <button
-                  onClick={() => onSubtaskStatusChange(
-                    task.id, 
-                    subtask.id, 
-                    subtask.status === "done" ? "todo" : "done"
-                  )}
-                  className="mt-0.5 flex-shrink-0"
-                >
-                  {subtask.status === "done" ? (
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  )}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "font-medium truncate",
-                    subtask.status === "done" && "line-through text-muted-foreground"
-                  )}>
-                    {subtask.title}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
-                    {subtask.assignee_name && (
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {subtask.assignee_name}
-                      </span>
+            {subtasks.map((subtask) => {
+              const running = isRunning(subtask.id);
+              const aiResult = results[subtask.id];
+              return (
+                <div key={subtask.id}>
+                  <div
+                    className={cn(
+                      "flex items-start gap-2 p-2 rounded-md text-sm",
+                      subtask.status === "done" ? "bg-success/5" : "bg-background/50",
+                      running && "opacity-70"
                     )}
-                    {subtask.due_date && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(subtask.due_date).toLocaleDateString("bg-BG")}
-                      </span>
-                    )}
-                    {subtask.handoff_to && (
-                      <span className="flex items-center gap-1 text-primary">
-                        <ArrowRight className="h-3 w-3" />
-                        {subtask.handoff_to}
-                      </span>
-                    )}
+                  >
+                    <button
+                      onClick={async () => {
+                        if (subtask.status === "done") {
+                          onSubtaskStatusChange(task.id, subtask.id, "todo");
+                          return;
+                        }
+                        const result = await execute(subtask.id, subtask.title);
+                        if (result.ok) {
+                          onSubtaskStatusChange(task.id, subtask.id, "done");
+                        }
+                      }}
+                      disabled={running}
+                      className="mt-0.5 flex-shrink-0"
+                    >
+                      {running ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : subtask.status === "done" ? (
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                      ) : (
+                        <Play className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium truncate",
+                        subtask.status === "done" && "line-through text-muted-foreground"
+                      )}>
+                        {subtask.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+                        {subtask.assignee_name && (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {subtask.assignee_name}
+                          </span>
+                        )}
+                        {subtask.due_date && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(subtask.due_date).toLocaleDateString("bg-BG")}
+                          </span>
+                        )}
+                        {subtask.handoff_to && (
+                          <span className="flex items-center gap-1 text-primary">
+                            <ArrowRight className="h-3 w-3" />
+                            {subtask.handoff_to}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => onDeleteSubtask(task.id, subtask.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
+                  {aiResult && (
+                    <div className={cn(
+                      "ml-6 mt-1 px-2 py-1.5 rounded text-xs flex items-start gap-1.5",
+                      aiResult.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                    )}>
+                      {aiResult.ok ? <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" /> : <XCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                      <span className="flex-1 line-clamp-2">{aiResult.message}</span>
+                      <button onClick={() => clearResult(subtask.id)} className="text-muted-foreground hover:text-foreground">&times;</button>
+                    </div>
+                  )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  onClick={() => onDeleteSubtask(task.id, subtask.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

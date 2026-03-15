@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
   Calendar,
@@ -11,7 +10,12 @@ import {
   Clock,
   Plus,
   Trash2,
+  Play,
+  Loader2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import {
   Collapsible,
   CollapsibleContent,
@@ -85,6 +89,7 @@ export function DailyTasksView({
   onToggleComplete,
   onDeleteTask,
 }: DailyTasksViewProps) {
+  const { execute, isRunning, results, clearResult } = useAIExecution();
   const [openDays, setOpenDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -287,45 +292,71 @@ export function DailyTasksView({
           </CardHeader>
           <CardContent className="py-2">
             <div className="space-y-2">
-              {unassignedTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <Checkbox
-                    checked={task.status === "done"}
-                    onCheckedChange={(checked) =>
-                      onToggleComplete(task.id, checked ? "done" : "todo")
-                    }
-                  />
-                  <span
-                    className={`flex-1 text-sm ${
-                      task.status === "done"
-                        ? "line-through text-muted-foreground"
-                        : ""
-                    }`}
-                  >
-                    {task.title}
-                  </span>
-                  <Select
-                    value=""
-                    onValueChange={(v) =>
-                      onUpdateTaskDay(task.id, parseInt(v))
-                    }
-                  >
-                    <SelectTrigger className="w-[140px] h-8">
-                      <SelectValue placeholder="Избери ден" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dayNames.map((name, idx) => (
-                        <SelectItem key={idx + 1} value={String(idx + 1)}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+              {unassignedTasks.map((task) => {
+                const running = isRunning(task.id);
+                const aiResult = results[task.id];
+                return (
+                  <div key={task.id}>
+                    <div
+                      className={`flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors ${running ? "opacity-70" : ""}`}
+                    >
+                      <button
+                        disabled={running}
+                        onClick={async () => {
+                          if (task.status === "done") {
+                            onToggleComplete(task.id, "todo");
+                            return;
+                          }
+                          const result = await execute(task.id, task.title);
+                          if (result.ok) onToggleComplete(task.id, "done");
+                        }}
+                        className="shrink-0"
+                      >
+                        {running ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : task.status === "done" ? (
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                        ) : (
+                          <Play className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                      <span
+                        className={`flex-1 text-sm ${
+                          task.status === "done"
+                            ? "line-through text-muted-foreground"
+                            : ""
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                      <Select
+                        value=""
+                        onValueChange={(v) =>
+                          onUpdateTaskDay(task.id, parseInt(v))
+                        }
+                      >
+                        <SelectTrigger className="w-[140px] h-8">
+                          <SelectValue placeholder="Избери ден" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dayNames.map((name, idx) => (
+                            <SelectItem key={idx + 1} value={String(idx + 1)}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {aiResult && (
+                      <div className={`ml-7 mt-1 px-2 py-1.5 rounded text-xs flex items-start gap-1.5 ${aiResult.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                        {aiResult.ok ? <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" /> : <XCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                        <span className="flex-1 line-clamp-2">{aiResult.message}</span>
+                        <button onClick={() => clearResult(task.id)} className="text-muted-foreground hover:text-foreground">&times;</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -391,88 +422,111 @@ export function DailyTasksView({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {dayTasks.map((task) => (
-                          <div
-                            key={task.id}
-                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-all group"
-                          >
-                            <Checkbox
-                              checked={task.status === "done"}
-                              onCheckedChange={(checked) =>
-                                onToggleComplete(
-                                  task.id,
-                                  checked ? "done" : "todo"
-                                )
-                              }
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`text-sm font-medium ${
-                                    task.status === "done"
-                                      ? "line-through text-muted-foreground"
-                                      : ""
-                                  }`}
+                        {dayTasks.map((task) => {
+                          const running = isRunning(task.id);
+                          const aiResult = results[task.id];
+                          return (
+                            <div key={task.id}>
+                              <div
+                                className={`flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-all group ${running ? "opacity-70" : ""}`}
+                              >
+                                <button
+                                  disabled={running}
+                                  onClick={async () => {
+                                    if (task.status === "done") {
+                                      onToggleComplete(task.id, "todo");
+                                      return;
+                                    }
+                                    const result = await execute(task.id, task.title);
+                                    if (result.ok) onToggleComplete(task.id, "done");
+                                  }}
+                                  className="shrink-0"
                                 >
-                                  {task.title}
-                                </span>
-                                <Badge
-                                  variant="secondary"
-                                  className={priorityColors[task.priority]}
-                                >
-                                  {task.priority === "low"
-                                    ? "Нисък"
-                                    : task.priority === "medium"
-                                    ? "Среден"
-                                    : "Висок"}
-                                </Badge>
+                                  {running ? (
+                                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                  ) : task.status === "done" ? (
+                                    <CheckCircle2 className="h-4 w-4 text-success" />
+                                  ) : (
+                                    <Play className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-sm font-medium ${
+                                        task.status === "done"
+                                          ? "line-through text-muted-foreground"
+                                          : ""
+                                      }`}
+                                    >
+                                      {task.title}
+                                    </span>
+                                    <Badge
+                                      variant="secondary"
+                                      className={priorityColors[task.priority]}
+                                    >
+                                      {task.priority === "low"
+                                        ? "Нисък"
+                                        : task.priority === "medium"
+                                        ? "Среден"
+                                        : "Висок"}
+                                    </Badge>
+                                  </div>
+                                  {task.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                                      {task.description}
+                                    </p>
+                                  )}
+                                  {task.assignee_name && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {task.assignee_name}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Select
+                                    value={String(task.day_of_week)}
+                                    onValueChange={(v) =>
+                                      onUpdateTaskDay(
+                                        task.id,
+                                        v === "none" ? null : parseInt(v)
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="w-[120px] h-8">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">
+                                        Премахни ден
+                                      </SelectItem>
+                                      {dayNames.map((name, i) => (
+                                        <SelectItem key={i + 1} value={String(i + 1)}>
+                                          {name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => onDeleteTask(task.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              {task.description && (
-                                <p className="text-xs text-muted-foreground mt-1 truncate">
-                                  {task.description}
-                                </p>
-                              )}
-                              {task.assignee_name && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  👤 {task.assignee_name}
-                                </p>
+                              {aiResult && (
+                                <div className={`ml-7 mt-1 px-2 py-1.5 rounded text-xs flex items-start gap-1.5 ${aiResult.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                                  {aiResult.ok ? <CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" /> : <XCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  <span className="flex-1 line-clamp-2">{aiResult.message}</span>
+                                  <button onClick={() => clearResult(task.id)} className="text-muted-foreground hover:text-foreground">&times;</button>
+                                </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Select
-                                value={String(task.day_of_week)}
-                                onValueChange={(v) =>
-                                  onUpdateTaskDay(
-                                    task.id,
-                                    v === "none" ? null : parseInt(v)
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="w-[120px] h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">
-                                    Премахни ден
-                                  </SelectItem>
-                                  {dayNames.map((name, i) => (
-                                    <SelectItem key={i + 1} value={String(i + 1)}>
-                                      {name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => onDeleteTask(task.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>

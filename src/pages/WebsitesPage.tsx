@@ -396,7 +396,7 @@ export default function WebsitesPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Създаване на уебсайтове</h1>
-            <p className="text-sm text-muted-foreground">Елена — Уеб Разработчик</p>
+            <p className="text-sm text-muted-foreground">Елена — Web Developer</p>
           </div>
           <div className="ml-auto flex items-center gap-4">
             {websites.length > 0 && (
@@ -719,7 +719,7 @@ export default function WebsitesPage() {
                   </div>
                   <div>
                     <CardTitle className="text-base">Елена</CardTitle>
-                    <p className="text-xs text-muted-foreground">Уеб Разработчик — готова да помогне</p>
+                    <p className="text-xs text-muted-foreground">Web Developer — готова да помогне</p>
                   </div>
                 </div>
               </CardHeader>

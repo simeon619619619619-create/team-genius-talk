@@ -7,7 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Circle, ChevronRight, Sparkles, Lightbulb, FlaskConical, FileText, Rocket, TrendingUp } from "lucide-react";
+import { CheckCircle2, Circle, ChevronRight, Sparkles, Lightbulb, FlaskConical, FileText, Rocket, TrendingUp, Loader2, Play, XCircle } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -79,6 +80,8 @@ export default function StartupPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const { execute, isRunning, results, clearResult } = useAIExecution();
 
   const { data: milestones = [] } = useQuery({
     queryKey: ["startup_milestones", user?.id],
@@ -231,23 +234,52 @@ export default function StartupPage() {
                     <div className="space-y-2 pl-1">
                       {phase.milestones.map((m, mi) => {
                         const done = isCompleted(phase.key, m.title);
+                        const taskKey = `${phase.key}:${mi}`;
+                        const running = isRunning(taskKey);
+                        const aiResult = results[taskKey];
                         return (
-                          <button
-                            key={mi}
-                            className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors text-left group"
-                            onClick={() => toggleMilestone.mutate({ phase: phase.key, title: m.title, completed: !done })}
-                          >
-                            <div className="shrink-0 mt-0.5">
-                              {done
-                                ? <CheckCircle2 className="h-5 w-5 text-primary" />
-                                : <Circle className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                              }
-                            </div>
-                            <div>
-                              <p className={cn("font-medium text-sm", done && "line-through text-muted-foreground")}>{m.title}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
-                            </div>
-                          </button>
+                          <div key={mi}>
+                            <button
+                              className={cn(
+                                "w-full flex items-start gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors text-left group",
+                                running && "opacity-70 cursor-wait"
+                              )}
+                              disabled={running}
+                              onClick={async () => {
+                                if (done) {
+                                  toggleMilestone.mutate({ phase: phase.key, title: m.title, completed: false });
+                                  return;
+                                }
+                                const result = await execute(taskKey, m.title, m.description);
+                                if (result.ok) {
+                                  toggleMilestone.mutate({ phase: phase.key, title: m.title, completed: true });
+                                }
+                              }}
+                            >
+                              <div className="shrink-0 mt-0.5">
+                                {running
+                                  ? <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                  : done
+                                    ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                                    : <Play className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                }
+                              </div>
+                              <div className="flex-1">
+                                <p className={cn("font-medium text-sm", done && "line-through text-muted-foreground")}>{m.title}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
+                              </div>
+                            </button>
+                            {aiResult && (
+                              <div className={cn(
+                                "ml-11 mr-3 mt-1 mb-1 px-3 py-2 rounded-lg text-xs flex items-start gap-2",
+                                aiResult.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                              )}>
+                                {aiResult.ok ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+                                <span className="flex-1 line-clamp-2">{aiResult.message}</span>
+                                <button onClick={() => clearResult(taskKey)} className="text-muted-foreground hover:text-foreground shrink-0">&times;</button>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

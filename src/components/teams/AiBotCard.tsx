@@ -503,14 +503,16 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate }: Props) {
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => onEdit(bot)}>
           <Pencil className="h-3 w-3" /> Редактирай
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs text-destructive hover:text-destructive gap-1"
-          onClick={() => onDelete(bot.id)}
-        >
-          <Trash2 className="h-3 w-3" /> Изтрий
-        </Button>
+        {!bot.locked && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-destructive hover:text-destructive gap-1"
+            onClick={() => onDelete(bot.id)}
+          >
+            <Trash2 className="h-3 w-3" /> Изтрий
+          </Button>
+        )}
       </div>
     </div>
   );

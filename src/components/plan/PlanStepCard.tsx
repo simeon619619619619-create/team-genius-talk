@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { Check, Circle, Lock } from "lucide-react";
+import { Check, Circle, Lock, Loader2 } from "lucide-react";
+import { useAIExecution } from "@/hooks/useAIExecution";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -73,6 +74,7 @@ export function PlanStepCard({
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [totalFields, setTotalFields] = useState(0);
   const [isAnimatingProgress, setIsAnimatingProgress] = useState(false);
+  const { execute, isRunning } = useAIExecution();
 
   const handleCompletionStatusChange = useCallback((canCompleteNow: boolean, missing: string[], total?: number) => {
     setCanComplete(canCompleteNow);
@@ -82,48 +84,58 @@ export function PlanStepCard({
     }
   }, []);
 
-  const handleToggleComplete = () => {
+  const handleToggleComplete = async () => {
     // If already completed, allow uncompleting
     if (step.completed) {
       onToggleComplete();
       return;
     }
-    
+
     // Only allow completing if all required fields are answered
     if (canComplete) {
-      onToggleComplete();
-      // Navigate to the next step after completing
-      if (onGoToNextStep) {
-        setTimeout(() => {
-          onGoToNextStep();
-        }, 500); // Small delay for confetti animation
+      // Run AI verification first
+      const stepKey = `plan-step-${step.id}`;
+      const result = await execute(stepKey, step.title, `Провери дали стъпка "${step.title}" е завършена коректно.`);
+      if (result.ok) {
+        onToggleComplete();
+        if (onGoToNextStep) {
+          setTimeout(() => {
+            onGoToNextStep();
+          }, 500);
+        }
       }
     }
   };
 
   // Combined handler: mark as complete AND go to next step with confetti
-  const handleCompleteAndGoNext = useCallback(() => {
+  const handleCompleteAndGoNext = useCallback(async () => {
     // If already completed, just navigate to next
     if (step.completed) {
       onGoToNextStep?.();
       return;
     }
-    
+
     if (canComplete && !isAnimatingProgress) {
+      // Run AI verification first
+      const stepKey = `plan-step-${step.id}`;
+      const aiRunning = isRunning(stepKey);
+      if (aiRunning) return;
+
+      const result = await execute(stepKey, step.title, `Провери дали стъпка "${step.title}" е завършена коректно.`);
+      if (!result.ok) return;
+
       // Start progress bar animation to 100%
       setIsAnimatingProgress(true);
-      
+
       // After progress bar fills (600ms), fire confetti
       setTimeout(() => {
-        // Fire confetti celebration!
         confetti({
           particleCount: 120,
           spread: 80,
           origin: { y: 0.6 },
           colors: ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fbbf24', '#f59e0b']
         });
-        
-        // Also fire a second burst for extra celebration
+
         setTimeout(() => {
           confetti({
             particleCount: 60,
@@ -140,11 +152,9 @@ export function PlanStepCard({
             colors: ['#10b981', '#34d399', '#6ee7b7']
           });
         }, 150);
-        
-        // Mark as complete
+
         onToggleComplete();
-        
-        // Navigate after confetti animation
+
         if (onGoToNextStep) {
           setTimeout(() => {
             setIsAnimatingProgress(false);
@@ -155,7 +165,7 @@ export function PlanStepCard({
         }
       }, 600);
     }
-  }, [step.completed, canComplete, isAnimatingProgress, onToggleComplete, onGoToNextStep]);
+  }, [step.completed, step.id, step.title, canComplete, isAnimatingProgress, onToggleComplete, onGoToNextStep, execute, isRunning]);
 
   const getMissingFieldLabels = () => {
     if (missingFields.length === 0) return [];
