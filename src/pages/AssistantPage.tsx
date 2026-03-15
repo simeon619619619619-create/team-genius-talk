@@ -56,6 +56,16 @@ export default function AssistantPage() {
       if (saved) setAiBots(JSON.parse(saved));
     } catch { /* ignore */ }
   }, []);
+
+  // Auto-select bot when navigating from game
+  useEffect(() => {
+    const navBot = location.state?.selectedBot as AiBot | undefined;
+    if (navBot) {
+      setSelectedBot(navBot);
+      // Clear the navigation state so it doesn't re-select on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   const { overdueTasks } = useOverdueTasks();
   const [showOverdue, setShowOverdue] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);

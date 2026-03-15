@@ -113,6 +113,12 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         setIsAdmin(false);
         return;
       }
+      // Super admin by email
+      const superAdminEmails = ["info@eufashioninstitute.com", "simeon619619619619@gmail.com"];
+      if (superAdminEmails.includes(user.email || "")) {
+        setIsAdmin(true);
+        return;
+      }
       const { data } = await supabase
         .from('user_roles')
         .select('role')

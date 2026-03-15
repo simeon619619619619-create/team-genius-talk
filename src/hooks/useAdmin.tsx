@@ -50,6 +50,13 @@ export function useAdmin() {
       return false;
     }
 
+    // Only these emails have admin access
+    const ADMIN_EMAILS = ["info@eufashioninstitute.com", "simeon619619619619@gmail.com"];
+    if (ADMIN_EMAILS.includes(user.email || "")) {
+      setIsAdmin(true);
+      return true;
+    }
+
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')

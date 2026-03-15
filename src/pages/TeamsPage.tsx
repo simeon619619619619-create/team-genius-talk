@@ -33,8 +33,10 @@ import { Team, TeamMember } from "@/types";
 import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/MemberPermissionsEditor";
 import { useMemberPermissions } from "@/hooks/useMemberPermissions";
 import { VirtualOffice, type AiBot } from "@/components/teams/VirtualOffice";
+import { VirtualOfficeGame } from "@/components/teams/VirtualOfficeGame";
 import { AiBotCard } from "@/components/teams/AiBotCard";
 import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "react-router-dom";
 
 export default function TeamsPage() {
   const { user } = useAuth();
@@ -42,7 +44,23 @@ export default function TeamsPage() {
   const { teams, loading, createTeam, updateTeam, createMemberDirectly, removeMember, refreshTeams } = useTeams(currentProjectId);
   const { projects: orgProjects, loading: projectsLoading } = useOrganizationProjects();
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
-  
+  const navigate = useNavigate();
+
+  // Navigate to assistant with selected bot
+  const handleOpenBotChat = useCallback((bot: AiBot) => {
+    // Save bots to localStorage so AssistantPage picks them up
+    try {
+      const saved = localStorage.getItem("simora_ai_bots");
+      const existingBots: AiBot[] = saved ? JSON.parse(saved) : [];
+      const botExists = existingBots.find(b => b.id === bot.id);
+      if (!botExists) {
+        localStorage.setItem("simora_ai_bots", JSON.stringify([...existingBots, bot]));
+      }
+    } catch { /* ignore */ }
+    // Navigate to assistant and auto-select this bot
+    navigate("/assistant", { state: { selectedBotId: bot.id, selectedBot: bot } });
+  }, [navigate]);
+
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
   const [newTeamOpen, setNewTeamOpen] = useState(false);
   const [newMemberOpen, setNewMemberOpen] = useState(false);
@@ -1084,10 +1102,11 @@ export default function TeamsPage() {
             </div>
           ) : (
             <>
-              <VirtualOffice
+              <VirtualOfficeGame
                 bots={aiBots}
                 selectedBotId={selectedAiBot}
                 onSelectBot={setSelectedAiBot}
+                onOpenChat={handleOpenBotChat}
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
