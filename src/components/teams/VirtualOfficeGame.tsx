@@ -12,29 +12,27 @@ interface Props {
 const SCALE = 3;
 const S = SCALE;
 const PX = 16 * SCALE;
-const ROOM_W = 28;
-const ROOM_H = 18;
-const MOVE_SPEED = 1.8;
-const INTERACT_DIST = 2.5;
+const ROOM_W = 24;
+const ROOM_H = 16;
+const MOVE_SPEED = 2;
+const INTERACT_DIST = 2.8;
 
-// Desks positions (tile coords)
+// Desks - 2 rows of 4
 const DESKS = [
-  { x: 4, y: 4 }, { x: 8, y: 4 },
-  { x: 18, y: 4 }, { x: 22, y: 4 },
-  { x: 4, y: 11 }, { x: 8, y: 11 },
-  { x: 18, y: 11 }, { x: 22, y: 11 },
+  { x: 3, y: 3 }, { x: 7, y: 3 }, { x: 17, y: 3 }, { x: 21, y: 3 },
+  { x: 3, y: 10 }, { x: 7, y: 10 }, { x: 17, y: 10 }, { x: 21, y: 10 },
 ];
 
 interface BotState {
   bot: AiBot;
-  tx: number; // tile x
-  ty: number; // tile y
+  tx: number;
+  ty: number;
   targetX: number;
   targetY: number;
   deskIdx: number;
   atDesk: boolean;
   walkingToPlayer: boolean;
-  dir: 0 | 1 | 2 | 3; // 0=down 1=up 2=left 3=right
+  dir: 0 | 1 | 2 | 3;
   animFrame: number;
   bubble: string;
   bubbleTimer: number;
@@ -48,54 +46,54 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
   const keysRef = useRef<Set<string>>(new Set());
   const [gameMode, setGameMode] = useState(true);
   const [nearBot, setNearBot] = useState<AiBot | null>(null);
-  const [showInteractHint, setShowInteractHint] = useState(false);
+  const nearBotRef = useRef<AiBot | null>(null);
 
-  // Player state
+  // Player state - start in center
   const playerRef = useRef({
-    x: 14, y: 14, dir: 0 as 0 | 1 | 2 | 3, animFrame: 0, moving: false,
+    x: 12, y: 8, targetX: 12, targetY: 8, dir: 0 as 0 | 1 | 2 | 3, animFrame: 0, moving: false,
   });
 
   // Bot states
   const botStatesRef = useRef<BotState[]>([]);
 
-  // Initialize bot states when bots change
+  // Initialize bot states
   useEffect(() => {
     const states: BotState[] = bots.map((bot, i) => {
       const existing = botStatesRef.current.find(s => s.bot.id === bot.id);
       const deskIdx = i % DESKS.length;
       const desk = DESKS[deskIdx];
-      const isWorking = bot.state === "working";
 
       if (existing) {
         return { ...existing, bot, deskIdx };
       }
 
       return {
-        bot,
-        tx: isWorking ? desk.x + 0.3 : desk.x + 0.3,
-        ty: isWorking ? desk.y + 1.5 : desk.y + 1.5,
-        targetX: desk.x + 0.3,
-        targetY: desk.y + 1.5,
-        deskIdx,
-        atDesk: true,
-        walkingToPlayer: false,
-        dir: 0,
-        animFrame: 0,
-        bubble: "",
-        bubbleTimer: 0,
-        taskDone: false,
+        bot, tx: desk.x + 0.3, ty: desk.y + 1.5,
+        targetX: desk.x + 0.3, targetY: desk.y + 1.5,
+        deskIdx, atDesk: true, walkingToPlayer: false,
+        dir: 0, animFrame: 0, bubble: "", bubbleTimer: 0, taskDone: false,
       };
     });
     botStatesRef.current = states;
   }, [bots]);
 
-  // Handle keyboard
+  // Auto-focus canvas when game mode is on
   useEffect(() => {
-    if (!gameMode) return;
+    if (gameMode && canvasRef.current) {
+      canvasRef.current.focus();
+    }
+  }, [gameMode]);
+
+  // Keyboard handling
+  useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      keysRef.current.add(e.key.toLowerCase());
-      if (e.key.toLowerCase() === "e" && nearBot && onOpenChat) {
-        onOpenChat(nearBot);
+      const key = e.key.toLowerCase();
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+        e.preventDefault();
+        keysRef.current.add(key);
+      }
+      if (key === "e" && nearBotRef.current && onOpenChat && gameMode) {
+        onOpenChat(nearBotRef.current);
       }
     };
     const onUp = (e: KeyboardEvent) => {
@@ -107,7 +105,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
     };
-  }, [gameMode, nearBot, onOpenChat]);
+  }, [gameMode, onOpenChat]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -127,17 +125,30 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       if (keys.has("a") || keys.has("arrowleft")) { dx = -MOVE_SPEED; player.dir = 2; }
       if (keys.has("d") || keys.has("arrowright")) { dx = MOVE_SPEED; player.dir = 3; }
 
+      const keyMoving = dx !== 0 || dy !== 0;
+
+      // Also move towards click target
+      if (!keyMoving) {
+        const cdx = player.targetX - player.x;
+        const cdy = player.targetY - player.y;
+        const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+        if (cdist > 0.15) {
+          dx = (cdx / cdist) * MOVE_SPEED;
+          dy = (cdy / cdist) * MOVE_SPEED;
+          if (Math.abs(cdx) > Math.abs(cdy)) player.dir = cdx > 0 ? 3 : 2;
+          else player.dir = cdy > 0 ? 0 : 1;
+        }
+      }
+
       player.moving = dx !== 0 || dy !== 0;
       if (player.moving) player.animFrame++;
 
-      // Normalize diagonal
       if (dx && dy) { dx *= 0.707; dy *= 0.707; }
 
-      const nx = player.x + dx * 0.06;
-      const ny = player.y + dy * 0.06;
+      const nx = player.x + dx * 0.055;
+      const ny = player.y + dy * 0.055;
 
-      // Bounds
-      if (nx > 1.5 && nx < ROOM_W - 2.5) player.x = nx;
+      if (nx > 1.5 && nx < ROOM_W - 2) player.x = nx;
       if (ny > 2.5 && ny < ROOM_H - 1.5) player.y = ny;
     }
 
@@ -146,15 +157,13 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     let closestDist = INTERACT_DIST;
 
     for (const bs of botStates) {
-      // Move towards target
       const ddx = bs.targetX - bs.tx;
       const ddy = bs.targetY - bs.ty;
       const dist = Math.sqrt(ddx * ddx + ddy * ddy);
 
       if (dist > 0.1) {
-        const speed = 0.03;
-        bs.tx += (ddx / dist) * speed;
-        bs.ty += (ddy / dist) * speed;
+        bs.tx += (ddx / dist) * 0.03;
+        bs.ty += (ddy / dist) * 0.03;
         bs.animFrame++;
         if (Math.abs(ddx) > Math.abs(ddy)) bs.dir = ddx > 0 ? 3 : 2;
         else bs.dir = ddy > 0 ? 0 : 1;
@@ -162,32 +171,32 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
         bs.atDesk = true;
       }
 
-      // When task is done, walk to player
       if (bs.taskDone && !bs.walkingToPlayer) {
         bs.walkingToPlayer = true;
         bs.targetX = player.x - 1;
         bs.targetY = player.y;
-        bs.bubble = "Готово! Имам резултати";
+        bs.bubble = "Готово!";
         bs.bubbleTimer = 300;
       }
 
       if (bs.bubbleTimer > 0) bs.bubbleTimer--;
       if (bs.bubbleTimer === 0) bs.bubble = "";
 
-      // Check distance to player
-      const pdx = bs.tx - player.x;
-      const pdy = bs.ty - player.y;
-      const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
-      if (pdist < closestDist) {
-        closestDist = pdist;
-        closestBot = bs.bot;
+      if (gameMode) {
+        const pdx = bs.tx - player.x;
+        const pdy = bs.ty - player.y;
+        const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+        if (pdist < closestDist) {
+          closestDist = pdist;
+          closestBot = bs.bot;
+        }
       }
     }
 
+    nearBotRef.current = closestBot;
     setNearBot(closestBot);
-    setShowInteractHint(!!closestBot);
 
-    // ─── DRAW ───
+    // ─── DRAW ROOM ───
     ctx.fillStyle = "#0f0f1a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -215,7 +224,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     ctx.fillRect(PX, 2 * PX - 2 * S, (ROOM_W - 2) * PX, 2 * S);
 
     // Windows
-    for (const wx of [4, 11, 18]) {
+    for (const wx of [4, 10, 16]) {
       rect(wx, 0, 3, 2, "#2d3748");
       ctx.fillStyle = "#1e3a5f";
       ctx.fillRect(wx * PX + 4 * S, 2 * S, 3 * PX - 8 * S, 2 * PX - 6 * S);
@@ -223,13 +232,13 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       ctx.fillRect(wx * PX + 6 * S, 3 * S, 8 * S, 6 * S);
     }
 
-    // Meeting area
+    // Meeting carpet (smaller)
     ctx.fillStyle = "#5b2040";
-    ctx.fillRect(11 * PX, 8 * PX, 6 * PX, 4 * PX);
+    ctx.fillRect(10 * PX, 7 * PX, 4 * PX, 3 * PX);
     ctx.fillStyle = "#7b3060";
-    ctx.fillRect(11 * PX + 4 * S, 8 * PX + 4 * S, 6 * PX - 8 * S, 4 * PX - 8 * S);
+    ctx.fillRect(10 * PX + 4 * S, 7 * PX + 4 * S, 4 * PX - 8 * S, 3 * PX - 8 * S);
     ctx.fillStyle = "#9b4080";
-    ctx.fillRect(11 * PX + 8 * S, 8 * PX + 8 * S, 6 * PX - 16 * S, 4 * PX - 16 * S);
+    ctx.fillRect(10 * PX + 8 * S, 7 * PX + 8 * S, 4 * PX - 16 * S, 3 * PX - 16 * S);
 
     // Plants
     const drawPlant = (tx: number, ty: number) => {
@@ -242,10 +251,9 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     };
     drawPlant(2, 2);
     drawPlant(ROOM_W - 3, 2);
-    drawPlant(13, 13);
 
     // Couch
-    const cb = 12 * PX, ct = 13 * PX;
+    const cb = 10 * PX, ct = 12 * PX;
     ctx.fillStyle = "#4a2060"; ctx.fillRect(cb, ct, 4 * PX, 4 * S);
     ctx.fillStyle = "#6b3090"; ctx.fillRect(cb, ct + 4 * S, 4 * PX, 10 * S);
     ctx.fillStyle = "#5a2878"; ctx.fillRect(cb - 2 * S, ct + 2 * S, 4 * S, 12 * S);
@@ -253,29 +261,42 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     ctx.fillStyle = "#8040b0"; ctx.fillRect(cb + 4 * S, ct + 5 * S, 2 * PX - 6 * S, 8 * S);
     ctx.fillRect(cb + 2 * PX + 2 * S, ct + 5 * S, 2 * PX - 6 * S, 8 * S);
 
-    // Whiteboard
+    // Table in meeting area
+    const tb = 11 * PX, tt = 8 * PX;
+    ctx.fillStyle = "#5c3a1e"; ctx.fillRect(tb, tt + 4 * S, 2 * PX, 8 * S);
+    ctx.fillStyle = "#7c5a3e"; ctx.fillRect(tb + 2 * S, tt + 5 * S, 2 * PX - 4 * S, 6 * S);
+
+    // Whiteboard on left wall
     ctx.fillStyle = "#e5e7eb"; ctx.fillRect(PX, 3 * PX + 2 * S, 2 * S, 3 * PX - 4 * S);
     ctx.fillStyle = "#ef4444"; ctx.fillRect(PX, 3 * PX + 6 * S, S, 8 * S);
     ctx.fillStyle = "#3b82f6"; ctx.fillRect(PX, 3 * PX + 18 * S, S, 6 * S);
     ctx.fillStyle = "#10b981"; ctx.fillRect(PX, 3 * PX + 28 * S, S, 10 * S);
 
-    // Coffee machine
-    const cmx = ROOM_W - 2, cmy = ROOM_H - 2;
-    ctx.fillStyle = "#5c3a1e"; ctx.fillRect(cmx * PX, cmy * PX, PX, PX);
-    ctx.fillStyle = "#7c5a3e"; ctx.fillRect(cmx * PX + 2 * S, cmy * PX + 2 * S, PX - 4 * S, PX - 2 * S);
-
     // Water cooler
-    const wcx = 1 * PX, wcy = 9 * PX;
+    const wcx = 1 * PX, wcy = 8 * PX;
     ctx.fillStyle = "#9ca3af"; ctx.fillRect(wcx + 4 * S, wcy + 8 * S, 8 * S, 8 * S);
     ctx.fillStyle = "#60a5fa"; ctx.fillRect(wcx + 5 * S, wcy + S, 6 * S, 8 * S);
     ctx.fillStyle = "#93c5fd"; ctx.fillRect(wcx + 6 * S, wcy + 2 * S, 4 * S, 5 * S);
 
-    // Desks
+    // Coffee machine
+    rect(ROOM_W - 2, ROOM_H - 2, 1, 1, "#5c3a1e");
+    ctx.fillStyle = "#7c5a3e";
+    ctx.fillRect((ROOM_W - 2) * PX + 2 * S, (ROOM_H - 2) * PX + 2 * S, PX - 4 * S, PX - 2 * S);
+
+    // Clock on top wall
+    const cx2 = 12 * PX + 4 * S, cy2 = 4 * S;
+    ctx.fillStyle = "#e5e7eb"; ctx.fillRect(cx2, cy2, 8 * S, 8 * S);
+    ctx.fillStyle = "#1a1a2e"; ctx.fillRect(cx2 + S, cy2 + S, 6 * S, 6 * S);
+    ctx.fillStyle = "#ef4444"; ctx.fillRect(cx2 + 3 * S, cy2 + 2 * S, S, 3 * S);
+    ctx.fillStyle = "#fff"; ctx.fillRect(cx2 + 3 * S, cy2 + 3 * S, 2 * S, S);
+
+    // ─── DESKS ───
     const drawDesk = (tx: number, ty: number) => {
       const b = tx * PX, t = ty * PX;
       ctx.fillStyle = "#6b5030"; ctx.fillRect(b - 2 * S, t, 2 * PX + 4 * S, PX + 4 * S);
       ctx.fillStyle = "#8b7050"; ctx.fillRect(b, t + 2 * S, 2 * PX, PX);
-      ctx.fillStyle = "#5a4020"; ctx.fillRect(b, t + PX + 2 * S, 3 * S, 4 * S);
+      ctx.fillStyle = "#5a4020";
+      ctx.fillRect(b, t + PX + 2 * S, 3 * S, 4 * S);
       ctx.fillRect(b + 2 * PX - 3 * S, t + PX + 2 * S, 3 * S, 4 * S);
       // Monitor
       ctx.fillStyle = "#1f2937"; ctx.fillRect(b + 4 * S, t - 6 * S, 12 * S, 10 * S);
@@ -302,18 +323,17 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       }
     };
 
-    // Draw all desks
     DESKS.slice(0, Math.max(bots.length, 6)).forEach(d => drawDesk(d.x, d.y));
 
-    // ─── DRAW CHARACTERS (sorted by Y for depth) ───
+    // ─── CHARACTERS (Y-sorted) ───
     const entities: { y: number; draw: () => void }[] = [];
 
-    // Bots
     for (const bs of botStates) {
       const px = bs.tx * PX;
       const py = bs.ty * PX;
       const isWorking = bs.bot.state === "working" && bs.atDesk;
       const desk = DESKS[bs.deskIdx];
+      const isNear = nearBot?.id === bs.bot.id;
 
       entities.push({
         y: py,
@@ -327,24 +347,21 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
             drawStanding(ctx, px, py, bs.bot, frame);
           }
 
-          // Name tag
           drawNameTag(ctx, px, py, bs.bot.name, isWorking ? "working" : "idle");
 
-          // Bubble
           if (bs.bubble && bs.bubbleTimer > 0) {
             drawBubble(ctx, px, py, bs.bubble, frame);
           }
 
-          // Selected highlight
           if (selectedBotId === bs.bot.id) {
             ctx.strokeStyle = "#c084fc";
             ctx.lineWidth = 2 * S;
             ctx.strokeRect(px - 4 * S, py - 12 * S, 14 * S, 28 * S);
           }
 
-          // Interaction glow for nearby bot
-          if (nearBot?.id === bs.bot.id && gameMode) {
-            ctx.strokeStyle = `rgba(192, 132, 252, ${0.4 + Math.sin(frame * 0.1) * 0.3})`;
+          // Glow when near
+          if (isNear && gameMode) {
+            ctx.strokeStyle = `rgba(192, 132, 252, ${0.5 + Math.sin(frame * 0.1) * 0.3})`;
             ctx.lineWidth = 2 * S;
             ctx.strokeRect(px - 6 * S, py - 14 * S, 18 * S, 32 * S);
           }
@@ -358,97 +375,75 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       const ppy = player.y * PX;
       entities.push({
         y: ppy,
-        draw: () => {
-          drawPlayer(ctx, ppx, ppy, player.dir, player.moving ? player.animFrame : 0, frame);
-        },
+        draw: () => drawPlayer(ctx, ppx, ppy, player.dir, player.moving ? player.animFrame : 0, frame),
       });
     }
 
-    // Sort by Y and draw
     entities.sort((a, b) => a.y - b.y);
     entities.forEach(e => e.draw());
 
     // ─── HUD ───
-    if (gameMode) {
-      // Mini-map dot for player
-      ctx.fillStyle = "#fbbf24";
-      ctx.fillRect(player.x * PX - 2 * S, ROOM_H * PX + 2 * S, 4 * S, 4 * S);
-    }
-
     // Interaction hint
-    if (showInteractHint && nearBot && gameMode) {
+    if (nearBot && gameMode) {
       const hx = canvas.width / 2;
-      const hy = canvas.height - 30 * S;
+      const hy = canvas.height - 22 * S;
       ctx.font = `bold ${7 * S}px monospace`;
-      const text = `[E] Говори с ${nearBot.name}`;
+      const text = `[ E ] Говори с ${nearBot.name}`;
       const m = ctx.measureText(text);
-      ctx.fillStyle = "#0f0f1aDD";
-      ctx.fillRect(hx - m.width / 2 - 6 * S, hy - 8 * S, m.width + 12 * S, 14 * S);
-      ctx.strokeStyle = "#c084fc55";
+      ctx.fillStyle = "#0f0f1aEE";
+      ctx.fillRect(hx - m.width / 2 - 8 * S, hy - 9 * S, m.width + 16 * S, 15 * S);
+      ctx.strokeStyle = "#c084fc88";
       ctx.lineWidth = S;
-      ctx.strokeRect(hx - m.width / 2 - 6 * S, hy - 8 * S, m.width + 12 * S, 14 * S);
+      ctx.strokeRect(hx - m.width / 2 - 8 * S, hy - 9 * S, m.width + 16 * S, 15 * S);
       ctx.fillStyle = "#e0e0e0";
       ctx.fillText(text, hx - m.width / 2, hy);
     }
 
-    // Controls help
-    if (gameMode) {
-      ctx.font = `${5 * S}px monospace`;
-      ctx.fillStyle = "#ffffff44";
-      ctx.fillText("WASD / Arrows = Движение  |  E = Говори  |  Click = Избери", 2 * PX, (ROOM_H - 0.3) * PX);
+    // Controls (bottom)
+    if (gameMode && !nearBot) {
+      ctx.font = `${4 * S}px monospace`;
+      ctx.fillStyle = "#ffffff33";
+      ctx.fillText("WASD = Движение  |  E = Говори  |  Click = Отиди", 2 * PX, (ROOM_H - 0.3) * PX);
     }
 
     animRef.current = requestAnimationFrame(draw);
-  }, [bots, selectedBotId, gameMode, nearBot, showInteractHint]);
+  }, [bots, selectedBotId, gameMode, nearBot]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animRef.current);
   }, [draw]);
 
-  // Click to select bot
+  // Click handler
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    canvas.focus(); // ensure focus for keyboard
     const r = canvas.getBoundingClientRect();
     const sx = canvas.width / r.width;
     const sy = canvas.height / r.height;
     const mx = (e.clientX - r.left) * sx / PX;
     const my = (e.clientY - r.top) * sy / PX;
 
-    // Check if clicked near a bot
+    // Check if clicked a bot
     for (const bs of botStatesRef.current) {
       const dx = mx - bs.tx;
       const dy = my - bs.ty;
-      if (Math.sqrt(dx * dx + dy * dy) < 1.5) {
-        if (onSelectBot) {
-          onSelectBot(selectedBotId === bs.bot.id ? null : bs.bot.id);
-        }
-        if (gameMode && onOpenChat) {
-          onOpenChat(bs.bot);
-        }
+      if (Math.sqrt(dx * dx + dy * dy) < 1.8) {
+        if (onSelectBot) onSelectBot(selectedBotId === bs.bot.id ? null : bs.bot.id);
+        if (gameMode && onOpenChat) onOpenChat(bs.bot);
         return;
       }
     }
 
-    // If game mode, move player by clicking
+    // Click to move player (smooth walk, not teleport)
     if (gameMode) {
-      playerRef.current.x = Math.max(1.5, Math.min(ROOM_W - 2.5, mx));
-      playerRef.current.y = Math.max(2.5, Math.min(ROOM_H - 1.5, my));
+      playerRef.current.targetX = Math.max(1.5, Math.min(ROOM_W - 2, mx));
+      playerRef.current.targetY = Math.max(2.5, Math.min(ROOM_H - 1.5, my));
     }
 
     if (onSelectBot) onSelectBot(null);
   };
-
-  // Simulate a bot finishing task
-  const simulateTaskDone = useCallback((botId: string) => {
-    const bs = botStatesRef.current.find(s => s.bot.id === botId);
-    if (bs) {
-      bs.taskDone = true;
-      bs.bubble = "Задачата е готова!";
-      bs.bubbleTimer = 200;
-    }
-  }, []);
 
   const working = bots.filter(b => b.state === "working").length;
   const idle = bots.length - working;
@@ -493,46 +488,23 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
           className="max-w-full h-auto cursor-pointer focus:outline-none"
           style={{ imageRendering: "pixelated" }}
           tabIndex={0}
+          autoFocus
         />
         {/* Mobile controls */}
         {gameMode && (
-          <div className="absolute bottom-4 right-4 md:hidden flex flex-col items-center gap-1">
-            <button
-              className="w-10 h-10 rounded-lg bg-purple-600/50 text-white flex items-center justify-center text-lg active:bg-purple-600"
-              onTouchStart={() => keysRef.current.add("w")}
-              onTouchEnd={() => keysRef.current.delete("w")}
-            >
-              W
-            </button>
+          <div className="absolute bottom-4 right-4 md:hidden flex flex-col items-center gap-1 select-none">
+            <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
+              onTouchStart={() => keysRef.current.add("w")} onTouchEnd={() => keysRef.current.delete("w")}>W</button>
             <div className="flex gap-1">
-              <button
-                className="w-10 h-10 rounded-lg bg-purple-600/50 text-white flex items-center justify-center text-lg active:bg-purple-600"
-                onTouchStart={() => keysRef.current.add("a")}
-                onTouchEnd={() => keysRef.current.delete("a")}
-              >
-                A
-              </button>
-              <button
-                className="w-10 h-10 rounded-lg bg-yellow-500/50 text-white flex items-center justify-center text-xs font-bold active:bg-yellow-500"
-                onTouchStart={() => { if (nearBot && onOpenChat) onOpenChat(nearBot); }}
-              >
-                E
-              </button>
-              <button
-                className="w-10 h-10 rounded-lg bg-purple-600/50 text-white flex items-center justify-center text-lg active:bg-purple-600"
-                onTouchStart={() => keysRef.current.add("d")}
-                onTouchEnd={() => keysRef.current.delete("d")}
-              >
-                D
-              </button>
+              <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
+                onTouchStart={() => keysRef.current.add("a")} onTouchEnd={() => keysRef.current.delete("a")}>A</button>
+              <button className="w-11 h-11 rounded-lg bg-yellow-500/60 text-white flex items-center justify-center text-xs font-bold active:bg-yellow-500"
+                onTouchStart={() => { if (nearBotRef.current && onOpenChat) onOpenChat(nearBotRef.current); }}>E</button>
+              <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
+                onTouchStart={() => keysRef.current.add("d")} onTouchEnd={() => keysRef.current.delete("d")}>D</button>
             </div>
-            <button
-              className="w-10 h-10 rounded-lg bg-purple-600/50 text-white flex items-center justify-center text-lg active:bg-purple-600"
-              onTouchStart={() => keysRef.current.add("s")}
-              onTouchEnd={() => keysRef.current.delete("s")}
-            >
-              S
-            </button>
+            <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
+              onTouchStart={() => keysRef.current.add("s")} onTouchEnd={() => keysRef.current.delete("s")}>S</button>
           </div>
         )}
       </div>
@@ -543,21 +515,16 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
 // ─── DRAWING HELPERS ───
 
 function drawSitting(ctx: CanvasRenderingContext2D, cx: number, cy: number, bot: AiBot, fr: number) {
-  // Chair
   ctx.fillStyle = "#374151"; ctx.fillRect(cx - 3 * S, cy + 4 * S, 10 * S, 8 * S);
   ctx.fillStyle = "#4b5563"; ctx.fillRect(cx - 2 * S, cy + 5 * S, 8 * S, 6 * S);
   ctx.fillStyle = "#374151"; ctx.fillRect(cx - 1 * S, cy + 10 * S, 6 * S, 4 * S);
-  // Body
   ctx.fillStyle = bot.shirtColor; ctx.fillRect(cx, cy + 4 * S, 4 * S, 5 * S);
   ctx.fillRect(cx - 2 * S, cy + 4 * S, 8 * S, 2 * S);
-  // Head
   ctx.fillStyle = bot.skinColor; ctx.fillRect(cx, cy, 4 * S, 4 * S);
-  // Hair
   ctx.fillStyle = bot.hairColor;
   ctx.fillRect(cx - 1 * S, cy - 1 * S, 6 * S, 3 * S);
   ctx.fillRect(cx - 1 * S, cy, 1 * S, 4 * S);
   ctx.fillRect(cx + 4 * S, cy, 1 * S, 4 * S);
-  // Arms typing
   ctx.fillStyle = bot.skinColor;
   ctx.fillRect(cx - 2 * S, cy + 3 * S, 2 * S, 2 * S);
   ctx.fillRect(cx + 4 * S, cy + 3 * S, 2 * S, 2 * S);
@@ -567,77 +534,61 @@ function drawSitting(ctx: CanvasRenderingContext2D, cx: number, cy: number, bot:
 
 function drawStanding(ctx: CanvasRenderingContext2D, cx: number, cy: number, bot: AiBot, fr: number) {
   const bob = Math.sin(fr * 0.08) > 0 ? S : 0;
-  // Legs
   ctx.fillStyle = "#2d2d4a";
   ctx.fillRect(cx, cy + 12 * S, 2 * S, 4 * S);
   ctx.fillRect(cx + 3 * S, cy + 12 * S, 2 * S, 4 * S);
-  // Pants
   ctx.fillStyle = bot.shirtColor + "88";
   ctx.fillRect(cx - 1 * S, cy + 9 * S, 7 * S, 4 * S);
-  // Body
   ctx.fillStyle = bot.shirtColor;
   ctx.fillRect(cx, cy + 4 * S - bob, 5 * S, 6 * S);
   ctx.fillRect(cx - 1 * S, cy + 4 * S - bob, 7 * S, 2 * S);
-  // Arms
   ctx.fillStyle = bot.skinColor;
   ctx.fillRect(cx - 2 * S, cy + 5 * S - bob, 2 * S, 5 * S);
   ctx.fillRect(cx + 5 * S, cy + 5 * S - bob, 2 * S, 5 * S);
-  // Head
   ctx.fillRect(cx, cy - bob, 5 * S, 5 * S);
-  // Hair
   ctx.fillStyle = bot.hairColor;
   ctx.fillRect(cx - 1 * S, cy - 1 * S - bob, 7 * S, 3 * S);
   ctx.fillRect(cx - 1 * S, cy + 1 * S - bob, 1 * S, 5 * S);
   ctx.fillRect(cx + 5 * S, cy + 1 * S - bob, 1 * S, 5 * S);
-  // Eyes
   ctx.fillStyle = "#1a1a2e";
   ctx.fillRect(cx + 1 * S, cy + 2 * S - bob, 1 * S, 1 * S);
   ctx.fillRect(cx + 3 * S, cy + 2 * S - bob, 1 * S, 1 * S);
-  // Blink
   if (fr % 60 > 55) {
     ctx.fillStyle = bot.skinColor;
     ctx.fillRect(cx + 1 * S, cy + 2 * S - bob, 1 * S, 1 * S);
     ctx.fillRect(cx + 3 * S, cy + 2 * S - bob, 1 * S, 1 * S);
   }
+  ctx.fillStyle = "#d97070"; ctx.fillRect(cx + 2 * S, cy + 3 * S - bob, 1 * S, 1 * S);
 }
 
 function drawWalking(ctx: CanvasRenderingContext2D, cx: number, cy: number, bot: AiBot, dir: number, fr: number) {
   const step = Math.floor(fr / 6) % 4;
   const legOff = step % 2 === 0 ? S : -S;
-
-  // Legs with walking animation
   ctx.fillStyle = "#2d2d4a";
   ctx.fillRect(cx, cy + 12 * S + legOff, 2 * S, 4 * S);
   ctx.fillRect(cx + 3 * S, cy + 12 * S - legOff, 2 * S, 4 * S);
-  // Body
   ctx.fillStyle = bot.shirtColor;
   ctx.fillRect(cx, cy + 4 * S, 5 * S, 6 * S);
   ctx.fillRect(cx - 1 * S, cy + 4 * S, 7 * S, 2 * S);
-  // Arms swinging
   ctx.fillStyle = bot.skinColor;
   ctx.fillRect(cx - 2 * S, cy + 5 * S + legOff, 2 * S, 5 * S);
   ctx.fillRect(cx + 5 * S, cy + 5 * S - legOff, 2 * S, 5 * S);
-  // Pants
   ctx.fillStyle = bot.shirtColor + "88";
   ctx.fillRect(cx - 1 * S, cy + 9 * S, 7 * S, 4 * S);
-  // Head
   ctx.fillStyle = bot.skinColor;
   ctx.fillRect(cx, cy, 5 * S, 5 * S);
-  // Hair
   ctx.fillStyle = bot.hairColor;
   ctx.fillRect(cx - 1 * S, cy - 1 * S, 7 * S, 3 * S);
   ctx.fillRect(cx - 1 * S, cy + 1 * S, 1 * S, 5 * S);
   ctx.fillRect(cx + 5 * S, cy + 1 * S, 1 * S, 5 * S);
-  // Eyes based on direction
   ctx.fillStyle = "#1a1a2e";
-  if (dir === 0) { // down
+  if (dir === 0) {
     ctx.fillRect(cx + 1 * S, cy + 2 * S, 1 * S, 1 * S);
     ctx.fillRect(cx + 3 * S, cy + 2 * S, 1 * S, 1 * S);
-  } else if (dir === 1) { // up - no eyes visible
-  } else if (dir === 2) { // left
-    ctx.fillRect(cx + 0 * S, cy + 2 * S, 1 * S, 1 * S);
+  } else if (dir === 2) {
+    ctx.fillRect(cx, cy + 2 * S, 1 * S, 1 * S);
     ctx.fillRect(cx + 2 * S, cy + 2 * S, 1 * S, 1 * S);
-  } else { // right
+  } else if (dir === 3) {
     ctx.fillRect(cx + 2 * S, cy + 2 * S, 1 * S, 1 * S);
     ctx.fillRect(cx + 4 * S, cy + 2 * S, 1 * S, 1 * S);
   }
@@ -649,7 +600,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, cx: number, cy: number, dir: 
   const bob = walkFrame > 0 ? (step % 2 === 0 ? S : 0) : 0;
 
   // Shadow
-  ctx.fillStyle = "#00000033";
+  ctx.fillStyle = "#00000044";
   ctx.fillRect(cx - 1 * S, cy + 15 * S, 7 * S, 2 * S);
 
   // Legs
@@ -664,7 +615,6 @@ function drawPlayer(ctx: CanvasRenderingContext2D, cx: number, cy: number, dir: 
   ctx.fillStyle = "#fbbf24";
   ctx.fillRect(cx, cy + 4 * S - bob, 5 * S, 6 * S);
   ctx.fillRect(cx - 1 * S, cy + 4 * S - bob, 7 * S, 2 * S);
-  // Collar
   ctx.fillStyle = "#f59e0b";
   ctx.fillRect(cx + 1 * S, cy + 4 * S - bob, 3 * S, S);
   // Arms
@@ -687,40 +637,36 @@ function drawPlayer(ctx: CanvasRenderingContext2D, cx: number, cy: number, dir: 
   ctx.fillRect(cx - 1 * S, cy - 1 * S - bob, 7 * S, 3 * S);
   ctx.fillRect(cx - 1 * S, cy + 1 * S - bob, 1 * S, 3 * S);
   ctx.fillRect(cx + 5 * S, cy + 1 * S - bob, 1 * S, 3 * S);
-
-  // Crown / indicator
+  // Crown
   ctx.fillStyle = "#fbbf24";
   ctx.fillRect(cx + S, cy - 3 * S - bob, S, S);
   ctx.fillRect(cx + 3 * S, cy - 3 * S - bob, S, S);
   ctx.fillRect(cx, cy - 2 * S - bob, 5 * S, S);
-
-  // Eyes based on direction
+  // Eyes
   ctx.fillStyle = "#1a1a2e";
   if (dir === 0) {
     ctx.fillRect(cx + 1 * S, cy + 2 * S - bob, 1 * S, 1 * S);
     ctx.fillRect(cx + 3 * S, cy + 2 * S - bob, 1 * S, 1 * S);
     ctx.fillStyle = "#d97070"; ctx.fillRect(cx + 2 * S, cy + 3 * S - bob, 1 * S, 1 * S);
-  } else if (dir === 1) {
-    // Back of head, no eyes
   } else if (dir === 2) {
-    ctx.fillRect(cx + 0 * S, cy + 2 * S - bob, 1 * S, 1 * S);
+    ctx.fillRect(cx, cy + 2 * S - bob, 1 * S, 1 * S);
     ctx.fillRect(cx + 2 * S, cy + 2 * S - bob, 1 * S, 1 * S);
-  } else {
+  } else if (dir === 3) {
     ctx.fillRect(cx + 2 * S, cy + 2 * S - bob, 1 * S, 1 * S);
     ctx.fillRect(cx + 4 * S, cy + 2 * S - bob, 1 * S, 1 * S);
   }
 
-  // "YOU" label
+  // "ТИ" label
   ctx.font = `bold ${6 * S}px monospace`;
   const label = "TI";
   const lm = ctx.measureText(label);
   const lx = cx + 2.5 * S - lm.width / 2;
-  ctx.fillStyle = "#fbbf2488";
-  ctx.fillRect(lx - 3 * S, cy - 12 * S - bob, lm.width + 6 * S, 9 * S);
+  ctx.fillStyle = "#fbbf2499";
+  ctx.fillRect(lx - 3 * S, cy - 13 * S - bob, lm.width + 6 * S, 9 * S);
   ctx.fillStyle = "#fbbf24";
-  ctx.fillRect(lx - 3 * S, cy - 4 * S - bob, lm.width + 6 * S, S);
+  ctx.fillRect(lx - 3 * S, cy - 5 * S - bob, lm.width + 6 * S, S);
   ctx.fillStyle = "#fff";
-  ctx.fillText(label, lx, cy - 5 * S - bob);
+  ctx.fillText(label, lx, cy - 6 * S - bob);
 }
 
 function drawNameTag(ctx: CanvasRenderingContext2D, cx: number, cy: number, name: string, state: string) {
@@ -740,15 +686,12 @@ function drawBubble(ctx: CanvasRenderingContext2D, cx: number, cy: number, text:
   ctx.font = `${6 * S}px sans-serif`;
   const m = ctx.measureText(short);
   const tx = cx - m.width / 2, ty = cy - 22 * S;
-  ctx.globalAlpha = 0.8 + Math.sin(fr * 0.05) * 0.15;
+  ctx.globalAlpha = 0.85;
   ctx.fillStyle = "#1a1a2eEE";
   ctx.fillRect(tx - 4 * S, ty - 8 * S, m.width + 8 * S, 12 * S);
   ctx.strokeStyle = "#c084fc55";
   ctx.lineWidth = S;
   ctx.strokeRect(tx - 4 * S, ty - 8 * S, m.width + 8 * S, 12 * S);
-  // Pointer triangle
-  ctx.fillStyle = "#1a1a2eEE";
-  ctx.fillRect(cx, ty + 3 * S, 3 * S, 3 * S);
   ctx.fillStyle = "#c084fc";
   ctx.fillText(short, tx, ty);
   ctx.globalAlpha = 1;
