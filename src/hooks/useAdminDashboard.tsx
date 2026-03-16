@@ -115,6 +115,7 @@ export function useAdminDashboard() {
 
   // Fetch dashboard statistics
   const fetchStats = useCallback(async () => {
+    try {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
@@ -204,6 +205,9 @@ export function useAdminDashboard() {
     }
 
     if (subs) setSubscriptions(subs);
+    } catch (err) {
+      console.error("fetchStats error:", err);
+    }
   }, []);
 
   // Fetch promo codes
@@ -421,17 +425,23 @@ export function useAdminDashboard() {
     return true;
   }, [fetchStats]);
 
-  // Initial load
+  // Initial load - run once when user changes
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      const isAdmin = await checkSuperAdmin();
-      if (isAdmin) {
-        await Promise.all([fetchStats(), fetchPromoCodes()]);
+      try {
+        const isAdmin = await checkSuperAdmin();
+        if (isAdmin && !cancelled) {
+          await Promise.allSettled([fetchStats(), fetchPromoCodes()]);
+        }
+      } catch (err) {
+        console.error("Admin dashboard load error:", err);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
-  }, [checkSuperAdmin, fetchStats, fetchPromoCodes]);
+    return () => { cancelled = true; };
+  }, [user?.id]); // Only re-run when user changes, not on every callback recreation
 
   return {
     isSuperAdmin,
