@@ -171,8 +171,35 @@ serve(async (req: Request): Promise<Response> => {
       );
 
       if (inviteError) {
-        // User already exists — find them and send a magic link instead
-        if (inviteError.message?.includes("already been registered")) {
+        // If email sending fails, create user directly without invite email
+        if (inviteError.message?.includes("Error sending") || inviteError.message?.includes("email")) {
+          console.log("Invite email failed, creating user directly:", inviteError.message);
+          const tempPassword = crypto.randomUUID();
+          const { data: directUser, error: directError } = await supabaseAdmin.auth.admin.createUser({
+            email: memberEmail,
+            password: tempPassword,
+            email_confirm: true,
+            user_metadata: { full_name: name, created_by_owner: userId, is_team_member: true },
+          });
+          if (directError || !directUser.user) {
+            // Maybe user already exists
+            const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+            const found = existingUsers?.users?.find((u: any) => u.email === memberEmail);
+            if (found) {
+              newUserId = found.id;
+              existingUser = true;
+              console.log("User already exists:", newUserId);
+            } else {
+              return new Response(
+                JSON.stringify({ error: `Не може да се създаде потребител: ${directError?.message}` }),
+                { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
+              );
+            }
+          } else {
+            newUserId = directUser.user.id;
+            console.log("User created directly (no invite email):", newUserId);
+          }
+        } else if (inviteError.message?.includes("already been registered")) {
           console.log("User already exists, looking up and sending magic link...");
           const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
           const found = existingUsers?.users?.find((u: any) => u.email === memberEmail);
