@@ -1,6 +1,10 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { AiBot } from "./VirtualOffice";
-import { Gamepad2, MessageSquare } from "lucide-react";
+import { Gamepad2, MessageSquare, X, Send, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCurrentProject } from "@/hooks/useCurrentProject";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
   bots: AiBot[];
@@ -49,6 +53,17 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
   const nearBotRef = useRef<AiBot | null>(null);
   const gameModeRef = useRef(true);
 
+  // In-game chat
+  const [chatBot, setChatBot] = useState<AiBot | null>(null);
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const { projectId } = useCurrentProject();
+  const { currentOrganization } = useOrganizations();
+  const { user } = useAuth();
+
   // Player state - start in center
   const playerRef = useRef({
     x: 12, y: 8, targetX: 12, targetY: 8, dir: 0 as 0 | 1 | 2 | 3, animFrame: 0, moving: false,
@@ -90,16 +105,62 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
   const onOpenChatRef = useRef(onOpenChat);
   onOpenChatRef.current = onOpenChat;
 
+  // Open in-game chat with a bot
+  const openInGameChat = useCallback((bot: AiBot) => {
+    setChatBot(bot);
+    setChatMessages([{
+      role: "assistant",
+      content: `Здравейте! Аз съм ${bot.name} — ${bot.role}.\n\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`
+    }]);
+    setChatInput("");
+    setTimeout(() => chatInputRef.current?.focus(), 100);
+  }, []);
+
+  const sendChatMessage = useCallback(async () => {
+    if (!chatInput.trim() || !chatBot || chatLoading) return;
+    const msg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role: "user", content: msg }]);
+    setChatLoading(true);
+
+    try {
+      const systemPrompt = `Ти си ${chatBot.name}, ${chatBot.role}. Процес: ${chatBot.process}. Умения: ${(chatBot.skills || []).join(", ")}. Автоматизации: ${chatBot.automations.join(", ")}. Отговаряй винаги на български. Кратко и конкретно. Ако ти дадат задача, потвърди и обясни какво ще направиш.`;
+
+      const history = chatMessages.slice(-8).map(m => ({ role: m.role, content: m.content }));
+
+      const { data, error } = await supabase.functions.invoke("assistant-chat", {
+        body: {
+          messages: [...history, { role: "user", content: msg }],
+          projectId,
+          organizationId: currentOrganization?.id,
+          context: "business",
+          userId: user?.id,
+          moduleSystemPrompt: systemPrompt,
+        },
+      });
+
+      const reply = data?.content || data?.error || "Грешка при отговор.";
+      setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: "assistant", content: "⚠️ Грешка при връзката." }]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }, [chatInput, chatBot, chatLoading, chatMessages, projectId, currentOrganization, user]);
+
   // Keyboard handling - runs once, uses refs
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
+      // Don't capture keys when chat is open (typing in input)
+      if (document.activeElement?.tagName === "INPUT") return;
       const key = e.key.toLowerCase();
       if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
         e.preventDefault();
         keysRef.current.add(key);
       }
-      if (key === "e" && nearBotRef.current && onOpenChatRef.current && gameModeRef.current) {
-        onOpenChatRef.current(nearBotRef.current);
+      if (key === "e" && nearBotRef.current && gameModeRef.current) {
+        openInGameChat(nearBotRef.current);
       }
     };
     const onUp = (e: KeyboardEvent) => {
@@ -433,12 +494,13 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
     const mx = (e.clientX - r.left) * sx / PX;
     const my = (e.clientY - r.top) * sy / PX;
 
-    // Check if clicked a bot — just select, don't open chat
+    // Check if clicked a bot
     for (const bs of botStatesRef.current) {
       const dx = mx - bs.tx;
       const dy = my - bs.ty;
       if (Math.sqrt(dx * dx + dy * dy) < 1.8) {
         if (onSelectBot) onSelectBot(selectedBotId === bs.bot.id ? null : bs.bot.id);
+        if (gameModeRef.current) openInGameChat(bs.bot);
         return;
       }
     }
@@ -486,19 +548,96 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
           </button>
         </div>
       </div>
-      <div className="flex justify-center bg-[#12121f] relative">
-        <canvas
-          ref={canvasRef}
-          width={ROOM_W * PX}
-          height={ROOM_H * PX}
-          onClick={handleClick}
-          className="max-w-full h-auto cursor-pointer focus:outline-none"
-          style={{ imageRendering: "pixelated" }}
-          tabIndex={0}
-          autoFocus
-        />
+      <div className="flex bg-[#12121f] relative">
+        <div className={`flex justify-center ${chatBot ? "flex-1 min-w-0" : "w-full"}`}>
+          <canvas
+            ref={canvasRef}
+            width={ROOM_W * PX}
+            height={ROOM_H * PX}
+            onClick={handleClick}
+            className="max-w-full h-auto cursor-pointer focus:outline-none"
+            style={{ imageRendering: "pixelated" }}
+            tabIndex={0}
+            autoFocus
+          />
+        </div>
+
+        {/* In-game chat panel */}
+        {chatBot && (
+          <div className="w-[340px] shrink-0 flex flex-col bg-[#0f0f1a] border-l border-[#2a2a4a]">
+            {/* Chat header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a4a]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: chatBot.shirtColor }} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{chatBot.name}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{chatBot.role}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setChatBot(null); canvasRef.current?.focus(); }}
+                className="text-gray-500 hover:text-white transition-colors p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0" style={{ maxHeight: "calc(16 * 48px - 100px)" }}>
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-purple-600 text-white rounded-br-md"
+                      : "bg-[#1a1a2e] text-gray-200 border border-[#2a2a4a] rounded-bl-md"
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl rounded-bl-md px-3 py-2">
+                    <div className="flex gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="p-2 border-t border-[#2a2a4a]">
+              <div className="flex items-center gap-2 bg-[#1a1a2e] rounded-full px-3 py-1.5 border border-[#2a2a4a] focus-within:border-purple-500/50">
+                <input
+                  ref={chatInputRef}
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") sendChatMessage(); }}
+                  placeholder={`Говори с ${chatBot.name}...`}
+                  className="flex-1 bg-transparent text-xs text-white placeholder:text-gray-600 focus:outline-none"
+                  disabled={chatLoading}
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className={`shrink-0 h-6 w-6 rounded-full flex items-center justify-center transition-colors ${
+                    chatInput.trim() && !chatLoading ? "bg-purple-600 text-white" : "text-gray-600"
+                  }`}
+                >
+                  {chatLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Mobile controls */}
-        {gameMode && (
+        {gameMode && !chatBot && (
           <div className="absolute bottom-4 right-4 md:hidden flex flex-col items-center gap-1 select-none">
             <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
               onTouchStart={() => keysRef.current.add("w")} onTouchEnd={() => keysRef.current.delete("w")}>W</button>
@@ -506,7 +645,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
               <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
                 onTouchStart={() => keysRef.current.add("a")} onTouchEnd={() => keysRef.current.delete("a")}>A</button>
               <button className="w-11 h-11 rounded-lg bg-yellow-500/60 text-white flex items-center justify-center text-xs font-bold active:bg-yellow-500"
-                onTouchStart={() => { if (nearBotRef.current && onOpenChat) onOpenChat(nearBotRef.current); }}>E</button>
+                onTouchStart={() => { if (nearBotRef.current) openInGameChat(nearBotRef.current); }}>E</button>
               <button className="w-11 h-11 rounded-lg bg-purple-600/60 text-white flex items-center justify-center text-sm font-bold active:bg-purple-600"
                 onTouchStart={() => keysRef.current.add("d")} onTouchEnd={() => keysRef.current.delete("d")}>D</button>
             </div>
