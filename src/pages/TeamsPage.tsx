@@ -1141,6 +1141,7 @@ export default function TeamsPage() {
                         onEdit={openAiBotModal}
                         onDelete={handleDeleteAiBot}
                         onUpdate={handleUpdateAiBot}
+                        onOpenChat={handleOpenBotChat}
                         embedded
                       />
                     </div>
@@ -1157,6 +1158,7 @@ export default function TeamsPage() {
                     onEdit={openAiBotModal}
                     onDelete={handleDeleteAiBot}
                     onUpdate={handleUpdateAiBot}
+                    onOpenChat={handleOpenBotChat}
                   />
                 ))}
               </div>

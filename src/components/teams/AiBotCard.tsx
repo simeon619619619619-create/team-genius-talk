@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, Play, Loader2, ExternalLink, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown, ChevronRight, Play, Loader2, ExternalLink, CheckCircle2, XCircle, Eye, EyeOff, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,11 @@ interface Props {
   onEdit: (bot: AiBot) => void;
   onDelete: (id: string) => void;
   onUpdate: (bot: AiBot) => void;
+  onOpenChat?: (bot: AiBot) => void;
   embedded?: boolean;
 }
 
-export function AiBotCard({ bot, onEdit, onDelete, onUpdate, embedded }: Props) {
+export function AiBotCard({ bot, onEdit, onDelete, onUpdate, onOpenChat, embedded }: Props) {
   const [newGroupTitle, setNewGroupTitle] = useState("");
   const [addingGroup, setAddingGroup] = useState(false);
   const [newSubtaskTexts, setNewSubtaskTexts] = useState<Record<string, string>>({});
@@ -444,7 +445,18 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate, embedded }: Props) 
                                   : "bg-red-50/50 border-red-200/50 text-foreground/80 dark:bg-red-950/20 dark:border-red-800/30"
                               }`}>
                                 {st.lastResult.message}
-                                <div className="text-[10px] text-muted-foreground/50 mt-1">({st.lastResult.at})</div>
+                                <div className="flex items-center justify-between mt-1.5">
+                                  <span className="text-[10px] text-muted-foreground/50">({st.lastResult.at})</span>
+                                  {onOpenChat && (
+                                    <button
+                                      onClick={() => onOpenChat(bot)}
+                                      className="flex items-center gap-1 text-[10px] text-purple-500 hover:text-purple-400 transition-colors"
+                                    >
+                                      <MessageSquare className="h-3 w-3" />
+                                      Продължи в чат
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -501,6 +513,11 @@ export function AiBotCard({ bot, onEdit, onDelete, onUpdate, embedded }: Props) 
 
       {/* Actions */}
       <div className="flex justify-end gap-1 p-2 border-t border-border/50">
+        {onOpenChat && (
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-purple-500 hover:text-purple-400" onClick={() => onOpenChat(bot)}>
+            <MessageSquare className="h-3 w-3" /> Чат
+          </Button>
+        )}
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => onEdit(bot)}>
           <Pencil className="h-3 w-3" /> Редактирай
         </Button>
