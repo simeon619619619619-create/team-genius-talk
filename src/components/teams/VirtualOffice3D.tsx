@@ -120,6 +120,50 @@ function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position:
   );
 }
 
+// ─── BOT LABELS (HTML overlay projected from 3D) ───
+function BotLabels({ bots, positions, canvasRef }: { bots: AiBot[]; positions: [number, number, number][]; canvasRef: React.RefObject<HTMLDivElement> }) {
+  const [labels, setLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string }[]>([]);
+
+  // We need camera from parent - use a shared ref
+  return (
+    <>
+      {labels.map((l, i) => l.visible && (
+        <div key={i} className="absolute pointer-events-none" style={{ left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -100%)" }}>
+          <div className="text-center">
+            <span className="text-[11px] font-bold text-white bg-[#0f0f1aDD] px-2 py-0.5 rounded" style={{ borderBottom: `2px solid ${l.color}` }}>{l.name}</span>
+            <br />
+            <span className="text-[9px] text-gray-400 bg-[#0f0f1a99] px-1.5 py-0.5 rounded">{l.role}</span>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// Component inside Canvas that projects bot positions to screen coords
+function LabelProjector({ bots, positions, onUpdate }: {
+  bots: AiBot[]; positions: [number, number, number][];
+  onUpdate: (labels: { name: string; role: string; x: number; y: number; visible: boolean; color: string }[]) => void;
+}) {
+  const { camera, size } = useThree();
+  const vec = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame(() => {
+    const result = bots.map((bot, i) => {
+      if (i >= positions.length) return { name: bot.name, role: bot.role, x: -100, y: -100, visible: false, color: bot.shirtColor };
+      vec.set(positions[i][0], 1.5, positions[i][2]);
+      vec.project(camera);
+      const x = (vec.x * 0.5 + 0.5) * 100;
+      const y = (-vec.y * 0.5 + 0.5) * 100;
+      const behind = vec.z > 1;
+      return { name: bot.name, role: bot.role, x, y, visible: !behind && x > -10 && x < 110 && y > -10 && y < 110, color: bot.shirtColor };
+    });
+    onUpdate(result);
+  });
+
+  return null;
+}
+
 // ─── FIRST PERSON: WASD walk + mouse look ───
 function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
   chatOpen: boolean; onNearBot: (b: AiBot | null) => void;
@@ -234,6 +278,7 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
 export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
+  const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string }[]>([]);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -297,7 +342,19 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} />
             ) : null)}
             <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} />
+            <LabelProjector bots={bots} positions={botPositions} onUpdate={setBotLabels} />
           </Canvas>
+
+          {/* Bot name labels */}
+          {botLabels.map((l, i) => l.visible && (
+            <div key={i} className="absolute pointer-events-none" style={{ left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -100%)" }}>
+              <div className="text-center whitespace-nowrap">
+                <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded" style={{ background: "#0f0f1aDD", borderBottom: `2px solid ${l.color}` }}>{l.name}</span>
+                <br />
+                <span className="text-[9px] text-gray-400 px-1.5 rounded" style={{ background: "#0f0f1a99" }}>{l.role}</span>
+              </div>
+            </div>
+          ))}
 
           {nearBot && !chatBot && (
             <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0f0f1aEE] border border-purple-500/30 px-4 py-2 rounded-xl pointer-events-none">
