@@ -581,7 +581,15 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
                 <span className="w-3 h-3 rounded-full" style={{ background: chatBot.shirtColor }} />
                 <div><p className="text-sm font-semibold text-white">{chatBot.name}</p><p className="text-[10px] text-gray-500">{chatBot.role}</p></div>
               </div>
-              <button onClick={() => setChatBot(null)} className="text-gray-500 hover:text-white p-1" title="Затвори (ботът продължава работа)"><X className="h-4 w-4" /></button>
+              <div className="flex items-center gap-1">
+                {botActivity[chatBot.id] === "done" && (
+                  <button onClick={() => { setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" })); setChatBot(null); }}
+                    className="text-[10px] px-2 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20" title="Прати бота на дивана">
+                    Почивай
+                  </button>
+                )}
+                <button onClick={() => setChatBot(null)} className="text-gray-500 hover:text-white p-1" title="Затвори чата"><X className="h-4 w-4" /></button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
               {chatMessages.map((m, i) => (
