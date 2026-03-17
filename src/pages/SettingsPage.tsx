@@ -15,6 +15,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PushNotificationSettings } from "@/components/settings/PushNotificationSettings";
 import { GHLIntegrationSettings } from "@/components/settings/GHLIntegrationSettings";
 import { ResendIntegrationSettings } from "@/components/settings/ResendIntegrationSettings";
+import { WebsiteIntegrationSettings } from "@/components/settings/WebsiteIntegrationSettings";
 import { AIModelSettings } from "@/components/settings/AIModelSettings";
 
 interface ProfileData {
@@ -379,6 +380,7 @@ export default function SettingsPage() {
           </div>
           <div className="space-y-6">
             <AIModelSettings />
+            <WebsiteIntegrationSettings />
             <GHLIntegrationSettings />
             <ResendIntegrationSettings />
           </div>

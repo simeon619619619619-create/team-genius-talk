@@ -81,6 +81,24 @@ const claudeTools = [
       },
       required: ["firstName"]
     }
+  },
+  {
+    name: "update_website_content",
+    description: "Редактирай съдържание на уебсайта на потребителя — създай блог пост, обнови страница, промени SEO мета описания, редактирай продуктови описания. Поддържа WordPress и Shopify.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["create_post", "update_post", "update_page", "update_product", "update_meta"], description: "Тип действие" },
+        title: { type: "string", description: "Заглавие на поста/страницата" },
+        content: { type: "string", description: "HTML съдържание" },
+        slug: { type: "string", description: "URL slug за намиране на страницата (напр. about-us)" },
+        meta_title: { type: "string", description: "SEO мета заглавие" },
+        meta_description: { type: "string", description: "SEO мета описание (до 160 символа)" },
+        status: { type: "string", enum: ["draft", "publish"], description: "draft=чернова (по подразбиране), publish=публикувай" },
+        resource_id: { type: "string", description: "ID на ресурса за update (ако е известен)" }
+      },
+      required: ["action", "content"]
+    }
   }
 ];
 
@@ -693,6 +711,91 @@ ${chatHistoryContext}
                 name: functionName,
                 id: toolId,
                 result: JSON.stringify({ success: false, error: `GHL API грешка: ${ghlRes.status} - ${errText}` })
+              });
+            }
+          }
+        } else if (functionName === "update_website_content") {
+          const { data: webInt } = await supabase
+            .from("website_integrations")
+            .select("*")
+            .eq("user_id", userId)
+            .limit(1)
+            .maybeSingle();
+
+          if (!webInt) {
+            toolResults.push({ name: functionName, id: toolId,
+              result: JSON.stringify({ success: false, error: "Няма свързан уебсайт. Потребителят трябва да добави сайта си в Настройки → Интеграции → Уебсайт интеграции." })
+            });
+          } else {
+            try {
+              let apiResult: any = { success: false, error: "Неподдържана платформа" };
+              const baseUrl = (webInt as any).site_url.replace(/\/$/, "");
+              const apiKey = (webInt as any).api_key;
+              const apiUser = (webInt as any).api_username || "admin";
+
+              if ((webInt as any).platform === "wordpress") {
+                const wpHeaders: Record<string, string> = {
+                  "Content-Type": "application/json",
+                  "Authorization": `Basic ${btoa(apiUser + ":" + apiKey)}`,
+                };
+
+                if (args.action === "create_post") {
+                  const res = await fetch(`${baseUrl}/wp-json/wp/v2/posts`, {
+                    method: "POST", headers: wpHeaders,
+                    body: JSON.stringify({
+                      title: args.title || "Нов пост",
+                      content: args.content,
+                      status: args.status || "draft",
+                    }),
+                  });
+                  if (res.ok) {
+                    const d = await res.json();
+                    apiResult = { success: true, id: d.id, link: d.link, message: `Пост "${args.title}" е създаден като ${args.status || "чернова"}.` };
+                  } else {
+                    apiResult = { success: false, error: `WordPress грешка: ${res.status} ${await res.text()}` };
+                  }
+                } else if (args.action === "update_page" || args.action === "update_post") {
+                  const endpoint = args.action === "update_page" ? "pages" : "posts";
+                  let resourceId = args.resource_id;
+                  if (!resourceId && args.slug) {
+                    const search = await fetch(`${baseUrl}/wp-json/wp/v2/${endpoint}?slug=${args.slug}`, { headers: wpHeaders });
+                    if (search.ok) {
+                      const items = await search.json();
+                      if (items.length > 0) resourceId = items[0].id;
+                    }
+                  }
+                  if (!resourceId) {
+                    apiResult = { success: false, error: "Не мога да намеря страницата. Дайте slug или ID." };
+                  } else {
+                    const body: any = { content: args.content };
+                    if (args.title) body.title = args.title;
+                    const res = await fetch(`${baseUrl}/wp-json/wp/v2/${endpoint}/${resourceId}`, {
+                      method: "PUT", headers: wpHeaders, body: JSON.stringify(body),
+                    });
+                    apiResult = res.ok
+                      ? { success: true, message: "Страницата е обновена успешно." }
+                      : { success: false, error: `WordPress грешка: ${res.status}` };
+                  }
+                } else if (args.action === "update_meta") {
+                  apiResult = { success: true, message: `Мета данни генерирани:\nTitle: ${args.meta_title}\nDescription: ${args.meta_description}\n\nЗа да ги приложите, инсталирайте Yoast SEO плъгин.` };
+                }
+              } else if ((webInt as any).platform === "shopify") {
+                const shHeaders = { "Content-Type": "application/json", "X-Shopify-Access-Token": apiKey };
+                if (args.action === "update_product" && args.resource_id) {
+                  const res = await fetch(`${baseUrl}/admin/api/2024-01/products/${args.resource_id}.json`, {
+                    method: "PUT", headers: shHeaders,
+                    body: JSON.stringify({ product: { body_html: args.content, title: args.title } }),
+                  });
+                  apiResult = res.ok ? { success: true, message: "Продуктът е обновен." } : { success: false, error: `Shopify грешка: ${res.status}` };
+                } else if (args.action === "create_post") {
+                  apiResult = { success: false, error: "За Shopify блог постове, използвайте Shopify Admin." };
+                }
+              }
+
+              toolResults.push({ name: functionName, id: toolId, result: JSON.stringify(apiResult) });
+            } catch (e: any) {
+              toolResults.push({ name: functionName, id: toolId,
+                result: JSON.stringify({ success: false, error: `Грешка: ${e.message}` })
               });
             }
           }
