@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiBot } from "./VirtualOffice";
 import { X, Send, Loader2 } from "lucide-react";
@@ -153,53 +153,137 @@ const BOT_SLOTS: Record<string, [number, number, number][]> = {
   "WEB DEV": [[13.5, 0, 12], [16, 0, 12], [18.5, 0, 12], [13.5, 0, 15], [16, 0, 15], [18.5, 0, 15]],
 };
 
-// ─── CAMERA CONTROLLER ───
-function CameraController() {
-  const cameraRef = useRef({ rotY: -0.5, rotX: 0.8, dist: 22, targetX: 11, targetZ: 9 });
-  const isDragging = useRef(false);
-  const lastMouse = useRef({ x: 0, y: 0 });
-
-  useFrame(({ camera, gl }) => {
-    const c = cameraRef.current;
-
-    // Set up mouse handlers once
-    if (!gl.domElement.dataset.hasHandlers) {
-      gl.domElement.dataset.hasHandlers = "true";
-
-      gl.domElement.addEventListener("mousedown", (e) => {
-        if (e.button === 0 || e.button === 2) {
-          isDragging.current = true;
-          lastMouse.current = { x: e.clientX, y: e.clientY };
-        }
-      });
-      gl.domElement.addEventListener("mousemove", (e) => {
-        if (!isDragging.current) return;
-        const dx = e.clientX - lastMouse.current.x;
-        const dy = e.clientY - lastMouse.current.y;
-        c.rotY += dx * 0.005;
-        c.rotX = Math.max(0.3, Math.min(1.4, c.rotX + dy * 0.005));
-        lastMouse.current = { x: e.clientX, y: e.clientY };
-      });
-      window.addEventListener("mouseup", () => { isDragging.current = false; });
-      gl.domElement.addEventListener("wheel", (e) => {
-        c.dist = Math.max(8, Math.min(40, c.dist + e.deltaY * 0.02));
-      });
-      gl.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
+// ─── PLAYER CHARACTER (visible 3rd person) ───
+function PlayerChar({ position }: { position: THREE.Vector3 }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) {
+      ref.current.position.copy(position);
     }
+  });
+  return (
+    <group ref={ref}>
+      <Block position={[-0.08, 0.15, 0]} color="#1e3a5f" args={[0.12, 0.3, 0.12]} />
+      <Block position={[0.08, 0.15, 0]} color="#1e3a5f" args={[0.12, 0.3, 0.12]} />
+      <Block position={[0, 0.5, 0]} color="#fbbf24" args={[0.3, 0.35, 0.18]} />
+      <Block position={[-0.22, 0.5, 0]} color="#f5c6a0" args={[0.1, 0.3, 0.1]} />
+      <Block position={[0.22, 0.5, 0]} color="#f5c6a0" args={[0.1, 0.3, 0.1]} />
+      <Block position={[0, 0.85, 0]} color="#f5c6a0" args={[0.25, 0.25, 0.25]} />
+      <Block position={[0, 0.97, 0]} color="#3b2506" args={[0.27, 0.08, 0.27]} />
+      {/* Crown */}
+      <Block position={[0, 1.06, 0]} color="#fbbf24" args={[0.2, 0.05, 0.2]} />
+      <Block position={[-0.06, 1.1, 0]} color="#fbbf24" args={[0.04, 0.04, 0.04]} />
+      <Block position={[0.06, 1.1, 0]} color="#fbbf24" args={[0.04, 0.04, 0.04]} />
+    </group>
+  );
+}
 
+// ─── THIRD PERSON CAMERA + WASD ───
+function ThirdPersonController({ chatOpen, onNearBot, botAssignments, onInteract }: {
+  chatOpen: boolean;
+  onNearBot: (bot: AiBot | null) => void;
+  botAssignments: { bot: AiBot; position: [number, number, number] }[];
+  onInteract: (bot: AiBot) => void;
+}) {
+  const playerPos = useRef(new THREE.Vector3(11, 0, 9));
+  const rotY = useRef(0);
+  const keys = useRef<Set<string>>(new Set());
+  const nearRef = useRef<AiBot | null>(null);
+  const isDrag = useRef(false);
+  const lastX = useRef(0);
+
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      if (chatOpen || document.activeElement?.tagName === "INPUT") return;
+      const k = e.key.toLowerCase();
+      if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) {
+        e.preventDefault();
+        keys.current.add(k);
+      }
+      if (k === "e" && nearRef.current) onInteract(nearRef.current);
+    };
+    const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+
+    // Right-click drag to rotate camera
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 2 || e.button === 0) { isDrag.current = true; lastX.current = e.clientX; }
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDrag.current) return;
+      rotY.current += (e.clientX - lastX.current) * 0.005;
+      lastX.current = e.clientX;
+    };
+    const onMouseUp = () => { isDrag.current = false; };
+    const onCtx = (e: Event) => e.preventDefault();
+
+    const canvas = gl.domElement;
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("contextmenu", onCtx);
+
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("contextmenu", onCtx);
+    };
+  }, [chatOpen, gl, onInteract]);
+
+  useFrame(() => {
+    if (chatOpen) return;
+    const speed = 0.1;
+    const k = keys.current;
+    const p = playerPos.current;
+
+    const forward = new THREE.Vector3(-Math.sin(rotY.current), 0, -Math.cos(rotY.current));
+    const right = new THREE.Vector3(forward.z, 0, -forward.x);
+
+    if (k.has("w") || k.has("arrowup")) p.add(forward.clone().multiplyScalar(speed));
+    if (k.has("s") || k.has("arrowdown")) p.add(forward.clone().multiplyScalar(-speed));
+    if (k.has("a") || k.has("arrowleft")) p.add(right.clone().multiplyScalar(-speed));
+    if (k.has("d") || k.has("arrowright")) p.add(right.clone().multiplyScalar(speed));
+
+    // Bounds
+    p.x = Math.max(-1, Math.min(22, p.x));
+    p.z = Math.max(-1, Math.min(19, p.z));
+    p.y = 0;
+
+    // Camera follows player (3rd person)
+    const camDist = 6;
+    const camHeight = 4;
     camera.position.set(
-      c.targetX + Math.sin(c.rotY) * Math.cos(c.rotX) * c.dist,
-      Math.sin(c.rotX) * c.dist,
-      c.targetZ + Math.cos(c.rotY) * Math.cos(c.rotX) * c.dist,
+      p.x + Math.sin(rotY.current) * camDist,
+      camHeight,
+      p.z + Math.cos(rotY.current) * camDist,
     );
-    camera.lookAt(c.targetX, 0, c.targetZ);
+    camera.lookAt(p.x, 1, p.z);
+
+    // Check near bots
+    let nearest: AiBot | null = null;
+    let nd = 2.5;
+    for (const { bot, position } of botAssignments) {
+      const dx = p.x - position[0];
+      const dz = p.z - position[2];
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < nd) { nd = d; nearest = bot; }
+    }
+    nearRef.current = nearest;
+    onNearBot(nearest);
   });
 
-  return null;
+  return <PlayerChar position={playerPos.current} />;
 }
 
 // ─── MAIN ───
 export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
+  const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -316,7 +400,12 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               </group>
             ))}
 
-            <CameraController />
+            <ThirdPersonController
+              chatOpen={!!chatBot}
+              onNearBot={setNearBot}
+              botAssignments={botRoomAssignments}
+              onInteract={openChat}
+            />
           </Canvas>
 
           {/* Room labels overlay */}
@@ -328,9 +417,16 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
             ))}
           </div>
 
+          {/* Near bot hint */}
+          {nearBot && !chatBot && (
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[#0f0f1aEE] border border-purple-500/30 px-4 py-2 rounded-xl pointer-events-none">
+              <p className="text-sm text-white">[E] Talk to <span className="text-purple-400 font-semibold">{nearBot.name}</span> — {nearBot.role}</p>
+            </div>
+          )}
+
           {/* Instructions */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-gray-500 pointer-events-none">
-            Drag = Rotate | Scroll = Zoom | Click bot = Chat
+            WASD = Walk | Drag = Rotate camera | E = Talk | Click bot = Chat
           </div>
         </div>
 
