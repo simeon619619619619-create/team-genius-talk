@@ -145,7 +145,7 @@ export function VirtualOfficeGame({ bots, selectedBotId, onSelectBot, onOpenChat
       setChatMessages(prev => [...prev, { role: "assistant", content: "⚠️ Грешка при връзката." }]);
     } finally {
       setChatLoading(false);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      setTimeout(() => { const container = chatEndRef.current?.parentElement; if (container) container.scrollTop = container.scrollHeight; }, 50);
     }
   }, [chatInput, chatBot, chatLoading, chatMessages, projectId, currentOrganization, user]);
 

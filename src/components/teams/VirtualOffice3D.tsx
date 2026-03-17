@@ -463,7 +463,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
       setChatMessages(p => { const n = [...p, err]; botMessagesRef.current[chatBot.id] = n; return n; });
       setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" }));
     }
-    finally { setChatLoading(false); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }
+    finally { setChatLoading(false); setTimeout(() => { const container = chatEndRef.current?.parentElement; if (container) container.scrollTop = container.scrollHeight; }, 50); }
   }, [chatInput, chatBot, chatLoading, chatMessages, projectId, currentOrganization, user]);
 
   return (
