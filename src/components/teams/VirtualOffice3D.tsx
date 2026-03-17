@@ -327,26 +327,6 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
   const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]>([]);
 
-  // Check integrations & plans status
-  const [hasResendApi, setHasResendApi] = useState(false);
-  const [hasWebsiteApi, setHasWebsiteApi] = useState(false);
-  const [hasMetaApi, setHasMetaApi] = useState(false);
-  const [hasPlanSteps, setHasPlanSteps] = useState(false);
-  const [hasBusinessPlan, setHasBusinessPlan] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    // Check APIs
-    supabase.from("resend_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasResendApi(!!data));
-    supabase.from("website_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasWebsiteApi(!!data));
-    // Meta API check - stored in website_integrations metadata
-    supabase.from("website_integrations").select("metadata").eq("user_id", user.id).then(({ data }) => {
-      setHasMetaApi(!!(data || []).find((d: any) => d.metadata?.meta_token));
-    });
-    // Check plans
-    supabase.from("plan_steps").select("id").limit(1).then(({ data }) => setHasPlanSteps(!!(data && data.length > 0)));
-    supabase.from("business_plans").select("id").limit(1).then(({ data }) => setHasBusinessPlan(!!(data && data.length > 0)));
-  }, [user]);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -356,6 +336,24 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const { currentOrganization } = useOrganizations();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Check integrations & plans status
+  const [hasResendApi, setHasResendApi] = useState(false);
+  const [hasWebsiteApi, setHasWebsiteApi] = useState(false);
+  const [hasMetaApi, setHasMetaApi] = useState(false);
+  const [hasPlanSteps, setHasPlanSteps] = useState(false);
+  const [hasBusinessPlan, setHasBusinessPlan] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("resend_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasResendApi(!!data));
+    supabase.from("website_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasWebsiteApi(!!data));
+    supabase.from("website_integrations").select("metadata").eq("user_id", user.id).then(({ data }) => {
+      setHasMetaApi(!!(data || []).find((d: any) => d.metadata?.meta_token));
+    });
+    supabase.from("plan_steps").select("id").limit(1).then(({ data }) => setHasPlanSteps(!!(data && data.length > 0)));
+    supabase.from("business_plans").select("id").limit(1).then(({ data }) => setHasBusinessPlan(!!(data && data.length > 0)));
+  }, [user]);
 
   // Desk positions (where bots work)
   const deskPositions = useMemo<[number, number, number][]>(() => [
