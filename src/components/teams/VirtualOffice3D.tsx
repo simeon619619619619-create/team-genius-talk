@@ -108,9 +108,29 @@ function Office() {
         ))
       )}
 
-      {/* Ceiling (thin) */}
+      {/* Ceiling for rooms */}
       {ROOMS.map((room, ri) => (
         <Block key={`ceil${ri}`} position={[room.x + 4.5, wallH + 0.5, room.z + 3.5]} color="#374151" args={[W, 0.1, D]} />
+      ))}
+      {/* Corridor ceilings */}
+      <Block position={[11, wallH + 0.5, 9]} color="#374151" args={[5, 0.1, 20]} />
+      <Block position={[11, wallH + 0.5, 9]} color="#374151" args={[24, 0.1, 5]} />
+      {/* Corridor walls (outer edges) */}
+      {Array.from({ length: 20 }, (_, z) => (
+        <group key={`cw${z}`}>
+          {z < 7 || z > 11 ? <>
+            <Block position={[8.5, 1.5, z - 1]} color="#3d4556" args={[1, 3, 1]} />
+            <Block position={[13.5, 1.5, z - 1]} color="#3d4556" args={[1, 3, 1]} />
+          </> : null}
+        </group>
+      ))}
+      {Array.from({ length: 24 }, (_, x) => (
+        <group key={`ch${x}`}>
+          {x < 9 || x > 13 ? <>
+            <Block position={[x - 1, 1.5, 6.5]} color="#3d4556" args={[1, 3, 1]} />
+            <Block position={[x - 1, 1.5, 11.5]} color="#3d4556" args={[1, 3, 1]} />
+          </> : null}
+        </group>
       ))}
 
       {/* Lights — brighter */}
@@ -187,44 +207,45 @@ const BOT_SLOTS: Record<string, [number, number, number][]> = {
   "WEB DEV": [[13.5, 0, 12], [16, 0, 12], [18.5, 0, 12], [13.5, 0, 15], [16, 0, 15], [18.5, 0, 15]],
 };
 
-// ─── PLAYER CHARACTER (visible 3rd person) ───
-function PlayerChar({ position }: { position: THREE.Vector3 }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(() => {
-    if (ref.current) {
-      ref.current.position.copy(position);
-    }
-  });
-  return (
-    <group ref={ref}>
-      <Block position={[-0.08, 0.15, 0]} color="#1e3a5f" args={[0.12, 0.3, 0.12]} />
-      <Block position={[0.08, 0.15, 0]} color="#1e3a5f" args={[0.12, 0.3, 0.12]} />
-      <Block position={[0, 0.5, 0]} color="#fbbf24" args={[0.3, 0.35, 0.18]} />
-      <Block position={[-0.22, 0.5, 0]} color="#f5c6a0" args={[0.1, 0.3, 0.1]} />
-      <Block position={[0.22, 0.5, 0]} color="#f5c6a0" args={[0.1, 0.3, 0.1]} />
-      <Block position={[0, 0.85, 0]} color="#f5c6a0" args={[0.25, 0.25, 0.25]} />
-      <Block position={[0, 0.97, 0]} color="#3b2506" args={[0.27, 0.08, 0.27]} />
-      {/* Crown */}
-      <Block position={[0, 1.06, 0]} color="#fbbf24" args={[0.2, 0.05, 0.2]} />
-      <Block position={[-0.06, 1.1, 0]} color="#fbbf24" args={[0.04, 0.04, 0.04]} />
-      <Block position={[0.06, 1.1, 0]} color="#fbbf24" args={[0.04, 0.04, 0.04]} />
-    </group>
-  );
+// ─── COLLISION: check if a point is inside a wall ───
+function isWall(x: number, z: number): boolean {
+  const pad = 0.3;
+  for (const room of ROOMS) {
+    const rx = room.x, rz = room.z;
+    const W = 10, D = 8;
+    // Inside room = OK
+    if (x > rx + pad && x < rx + W - 1 + pad && z > rz + pad && z < rz + D - 1 + pad) return false;
+    // Door openings: side walls at z+3..z+5, front wall at x+4..x+6
+    // Left door
+    if (Math.abs(x - (rx - 0.5)) < 0.8 && z > rz + 2.5 && z < rz + 5.5) return false;
+    // Right door
+    if (Math.abs(x - (rx + W - 0.5)) < 0.8 && z > rz + 2.5 && z < rz + 5.5) return false;
+    // Front door
+    if (Math.abs(z - (rz + D - 0.5)) < 0.8 && x > rx + 3.5 && x < rx + 6.5) return false;
+  }
+  // Hallways (between rooms)
+  // Vertical hallway x: 9..13
+  if (x > 8.5 && x < 13.5 && z > -1 && z < 20) return false;
+  // Horizontal hallway z: 7..11
+  if (z > 6.5 && z < 11.5 && x > -1 && x < 23) return false;
+  // If not in any valid area, it's a wall
+  return true;
 }
 
-// ─── THIRD PERSON CAMERA + WASD ───
-function ThirdPersonController({ chatOpen, onNearBot, botAssignments, onInteract }: {
+// ─── FIRST PERSON CAMERA + WASD + COLLISION ───
+function FirstPersonController({ chatOpen, onNearBot, botAssignments, onInteract }: {
   chatOpen: boolean;
   onNearBot: (bot: AiBot | null) => void;
   botAssignments: { bot: AiBot; position: [number, number, number] }[];
   onInteract: (bot: AiBot) => void;
 }) {
-  const playerPos = useRef(new THREE.Vector3(11, 0, 9));
+  const pos = useRef(new THREE.Vector3(11, 1.6, 9));
   const rotY = useRef(0);
+  const rotX = useRef(0);
   const keys = useRef<Set<string>>(new Set());
   const nearRef = useRef<AiBot | null>(null);
   const isDrag = useRef(false);
-  const lastX = useRef(0);
+  const lastMouse = useRef({ x: 0, y: 0 });
 
   const { camera, gl } = useThree();
 
@@ -240,19 +261,17 @@ function ThirdPersonController({ chatOpen, onNearBot, botAssignments, onInteract
     };
     const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
 
-    // Right-click drag to rotate camera
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 2 || e.button === 0) { isDrag.current = true; lastX.current = e.clientX; }
-    };
+    const canvas = gl.domElement;
+    const onMouseDown = (e: MouseEvent) => { isDrag.current = true; lastMouse.current = { x: e.clientX, y: e.clientY }; };
     const onMouseMove = (e: MouseEvent) => {
       if (!isDrag.current) return;
-      rotY.current += (e.clientX - lastX.current) * 0.005;
-      lastX.current = e.clientX;
+      rotY.current -= (e.clientX - lastMouse.current.x) * 0.003;
+      rotX.current = Math.max(-1, Math.min(1, rotX.current - (e.clientY - lastMouse.current.y) * 0.003));
+      lastMouse.current = { x: e.clientX, y: e.clientY };
     };
     const onMouseUp = () => { isDrag.current = false; };
     const onCtx = (e: Event) => e.preventDefault();
 
-    const canvas = gl.domElement;
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
     canvas.addEventListener("mousedown", onMouseDown);
@@ -272,47 +291,43 @@ function ThirdPersonController({ chatOpen, onNearBot, botAssignments, onInteract
 
   useFrame(() => {
     if (chatOpen) return;
-    const speed = 0.1;
+    const speed = 0.08;
     const k = keys.current;
-    const p = playerPos.current;
+    const p = pos.current;
 
     const forward = new THREE.Vector3(-Math.sin(rotY.current), 0, -Math.cos(rotY.current));
     const right = new THREE.Vector3(forward.z, 0, -forward.x);
 
-    if (k.has("w") || k.has("arrowup")) p.add(forward.clone().multiplyScalar(speed));
-    if (k.has("s") || k.has("arrowdown")) p.add(forward.clone().multiplyScalar(-speed));
-    if (k.has("a") || k.has("arrowleft")) p.add(right.clone().multiplyScalar(-speed));
-    if (k.has("d") || k.has("arrowright")) p.add(right.clone().multiplyScalar(speed));
+    let dx = 0, dz = 0;
+    if (k.has("w") || k.has("arrowup")) { dx += forward.x * speed; dz += forward.z * speed; }
+    if (k.has("s") || k.has("arrowdown")) { dx -= forward.x * speed; dz -= forward.z * speed; }
+    if (k.has("a") || k.has("arrowleft")) { dx -= right.x * speed; dz -= right.z * speed; }
+    if (k.has("d") || k.has("arrowright")) { dx += right.x * speed; dz += right.z * speed; }
 
-    // Bounds
-    p.x = Math.max(-1, Math.min(22, p.x));
-    p.z = Math.max(-1, Math.min(19, p.z));
-    p.y = 0;
+    // Collision: try X and Z separately
+    if (!isWall(p.x + dx, p.z)) p.x += dx;
+    if (!isWall(p.x, p.z + dz)) p.z += dz;
 
-    // Camera follows player (3rd person)
-    const camDist = 6;
-    const camHeight = 4;
-    camera.position.set(
-      p.x + Math.sin(rotY.current) * camDist,
-      camHeight,
-      p.z + Math.cos(rotY.current) * camDist,
-    );
-    camera.lookAt(p.x, 1, p.z);
+    // First-person camera at eye height
+    p.y = 1.6;
+    camera.position.copy(p);
+    const euler = new THREE.Euler(rotX.current, rotY.current, 0, "YXZ");
+    camera.quaternion.setFromEuler(euler);
 
-    // Check near bots
+    // Near bots
     let nearest: AiBot | null = null;
     let nd = 2.5;
     for (const { bot, position } of botAssignments) {
-      const dx = p.x - position[0];
-      const dz = p.z - position[2];
-      const d = Math.sqrt(dx * dx + dz * dz);
+      const bx = p.x - position[0];
+      const bz = p.z - position[2];
+      const d = Math.sqrt(bx * bx + bz * bz);
       if (d < nd) { nd = d; nearest = bot; }
     }
     nearRef.current = nearest;
     onNearBot(nearest);
   });
 
-  return <PlayerChar position={playerPos.current} />;
+  return null;
 }
 
 // ─── MAIN ───
@@ -434,7 +449,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               </group>
             ))}
 
-            <ThirdPersonController
+            <FirstPersonController
               chatOpen={!!chatBot}
               onNearBot={setNearBot}
               botAssignments={botRoomAssignments}
