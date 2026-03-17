@@ -143,11 +143,16 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (chatOpen || document.activeElement?.tagName === "INPUT") return;
-      const k = e.key.toLowerCase();
+      // Support both latin and cyrillic keyboard layouts
+      const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s", "ь": "s" };
+      const k = keyMap[e.key.toLowerCase()] || e.key.toLowerCase();
       if (["w", "a", "s", "d"].includes(k)) { e.preventDefault(); keys.current.add(k); }
       if (k === "e" && nearRef.current) onInteract(nearRef.current);
     };
-    const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+    const onUp = (e: KeyboardEvent) => {
+      const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d" };
+      keys.current.delete(keyMap[e.key.toLowerCase()] || e.key.toLowerCase());
+    };
 
     // Mouse drag to look around
     const canvas = gl.domElement;
@@ -160,15 +165,27 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
     };
     const onMouseUp = () => { isDrag.current = false; };
 
+    // Focus canvas on click so keyboard works
+    const onClick = () => { canvas.focus(); };
+    canvas.tabIndex = 0;
+    canvas.style.outline = "none";
+    canvas.focus();
+
+    canvas.addEventListener("keydown", onDown);
+    canvas.addEventListener("keyup", onUp);
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
     canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("click", onClick);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     return () => {
+      canvas.removeEventListener("keydown", onDown);
+      canvas.removeEventListener("keyup", onUp);
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
       canvas.removeEventListener("mousedown", onMouseDown);
+      canvas.removeEventListener("click", onClick);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
