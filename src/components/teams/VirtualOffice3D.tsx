@@ -35,57 +35,91 @@ const ROOMS = [
 ];
 
 function Office() {
+  // Room dimensions: 10 wide (x) × 8 deep (z), door at x+4..x+6
+  const W = 10, D = 8;
+  const wallH = 3;
+
+  const wallBlock = (x: number, y: number, z: number, key: string) => (
+    <Block key={key} position={[x, y, z]} color="#4a5568" args={[1, 1, 1]} />
+  );
+
   return (
     <group>
-      {/* Floor for each room */}
-      {ROOMS.map((room, ri) => (
-        <group key={ri}>
-          {/* Floor */}
-          {Array.from({ length: 10 }, (_, x) =>
-            Array.from({ length: 8 }, (_, z) => (
-              <Block key={`f${ri}${x}${z}`}
-                position={[room.x + x, 0, room.z + z]}
-                color={(x + z) % 2 === 0 ? "#3d3524" : "#352e1f"}
-              />
-            ))
-          )}
-          {/* Walls - back */}
-          {Array.from({ length: 10 }, (_, x) => (
-            <Block key={`wb${ri}${x}`} position={[room.x + x, 1.5, room.z - 0.5]} color="#4a5568" args={[1, 3, 1]} />
-          ))}
-          {/* Walls - left */}
-          {Array.from({ length: 8 }, (_, z) => (
-            <Block key={`wl${ri}${z}`} position={[room.x - 0.5, 1.5, room.z + z]} color="#4a5568" args={[1, 3, 1]} />
-          ))}
-          {/* Colored floor strip (room indicator) */}
-          <Block position={[room.x + 4.5, 0.02, room.z + 0.5]} color={room.color} args={[9, 0.04, 1]} />
-          {/* Room label on wall */}
-          <Block position={[room.x + 4.5, 2.5, room.z - 0.4]} color={room.color} args={[5, 0.6, 0.1]} />
-          {/* Window */}
-          <mesh position={[room.x + 4.5, 1.5, room.z - 0.3]}>
-            <planeGeometry args={[4, 1.5]} />
-            <meshBasicMaterial color="#1e3a5f" transparent opacity={0.5} />
-          </mesh>
-        </group>
-      ))}
+      {ROOMS.map((room, ri) => {
+        const rx = room.x, rz = room.z;
+        const walls: JSX.Element[] = [];
 
-      {/* Hallway floor */}
-      {Array.from({ length: 2 }, (_, x) =>
+        // Back wall (z = rz - 0.5) — full
+        for (let x = 0; x < W; x++)
+          for (let y = 1; y <= wallH; y++)
+            walls.push(wallBlock(rx + x, y, rz - 0.5, `wb${ri}${x}${y}`));
+
+        // Left wall (x = rx - 0.5) — door opening at z+3..z+5
+        for (let z = 0; z < D; z++)
+          for (let y = 1; y <= wallH; y++)
+            if (z < 3 || z > 4 || y > 2)
+              walls.push(wallBlock(rx - 0.5, y, rz + z, `wl${ri}${z}${y}`));
+
+        // Right wall (x = rx + W - 0.5) — door at z+3..z+5
+        for (let z = 0; z < D; z++)
+          for (let y = 1; y <= wallH; y++)
+            if (z < 3 || z > 4 || y > 2)
+              walls.push(wallBlock(rx + W - 0.5, y, rz + z, `wr${ri}${z}${y}`));
+
+        // Front wall (z = rz + D - 0.5) — door at x+4..x+6
+        for (let x = 0; x < W; x++)
+          for (let y = 1; y <= wallH; y++)
+            if (x < 4 || x > 5 || y > 2)
+              walls.push(wallBlock(rx + x, y, rz + D - 0.5, `wf${ri}${x}${y}`));
+
+        return (
+          <group key={ri}>
+            {/* Floor */}
+            {Array.from({ length: W }, (_, x) =>
+              Array.from({ length: D }, (_, z) => (
+                <Block key={`f${ri}${x}${z}`} position={[rx + x, 0, rz + z]}
+                  color={(x + z) % 2 === 0 ? "#3d3524" : "#352e1f"} />
+              ))
+            )}
+            {/* Walls */}
+            {walls}
+            {/* Colored floor strip */}
+            <Block position={[rx + 4.5, 0.02, rz + 0.5]} color={room.color} args={[9, 0.04, 1]} />
+            {/* Room label block on back wall */}
+            <Block position={[rx + 4.5, 2.8, rz - 0.3]} color={room.color} args={[4, 0.5, 0.1]} />
+            {/* Window */}
+            <mesh position={[rx + 4.5, 1.8, rz - 0.3]}>
+              <planeGeometry args={[3, 1.2]} />
+              <meshBasicMaterial color="#1e3a5f" transparent opacity={0.5} />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {/* Hallway floors connecting rooms */}
+      {Array.from({ length: 4 }, (_, x) =>
         Array.from({ length: 20 }, (_, z) => (
-          <Block key={`h${x}${z}`} position={[10 + x, 0, z - 1]} color="#2a2418" />
+          <Block key={`hv${x}${z}`} position={[9 + x, 0, z - 1]} color={(x + z) % 2 === 0 ? "#2a2418" : "#252015"} />
         ))
       )}
       {Array.from({ length: 24 }, (_, x) =>
-        Array.from({ length: 2 }, (_, z) => (
-          <Block key={`h2${x}${z}`} position={[x - 1, 0, 8 + z]} color="#2a2418" />
+        Array.from({ length: 4 }, (_, z) => (
+          <Block key={`hh${x}${z}`} position={[x - 1, 0, 7 + z]} color={(x + z) % 2 === 0 ? "#2a2418" : "#252015"} />
         ))
       )}
 
-      {/* Lights */}
-      <pointLight position={[5, 5, 4]} intensity={1.5} distance={20} />
-      <pointLight position={[17, 5, 4]} intensity={1.5} distance={20} />
-      <pointLight position={[5, 5, 14]} intensity={1.5} distance={20} />
-      <pointLight position={[17, 5, 14]} intensity={1.5} distance={20} />
+      {/* Ceiling (thin) */}
+      {ROOMS.map((room, ri) => (
+        <Block key={`ceil${ri}`} position={[room.x + 4.5, wallH + 0.5, room.z + 3.5]} color="#374151" args={[W, 0.1, D]} />
+      ))}
+
+      {/* Lights — brighter */}
+      <ambientLight intensity={0.3} />
+      <pointLight position={[5, 4, 4]} intensity={2} distance={15} color="#ffeedd" />
+      <pointLight position={[17, 4, 4]} intensity={2} distance={15} color="#ffeedd" />
+      <pointLight position={[5, 4, 14]} intensity={2} distance={15} color="#ffeedd" />
+      <pointLight position={[17, 4, 14]} intensity={2} distance={15} color="#ffeedd" />
+      <pointLight position={[11, 4, 9]} intensity={2} distance={15} color="#ffeedd" />
     </group>
   );
 }
