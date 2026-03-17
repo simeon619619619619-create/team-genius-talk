@@ -207,29 +207,46 @@ const BOT_SLOTS: Record<string, [number, number, number][]> = {
   "WEB DEV": [[13.5, 0, 12], [16, 0, 12], [18.5, 0, 12], [13.5, 0, 15], [16, 0, 15], [18.5, 0, 15]],
 };
 
-// ─── COLLISION: check if a point is inside a wall ───
-function isWall(x: number, z: number): boolean {
-  const pad = 0.3;
+// ─── COLLISION: build walkable map ───
+// Rooms: MARKETING(0,0) SALES(12,0) ACCOUNTING(0,10) WEBDEV(12,10)
+// Each room: 10x8 tiles. Corridors: 2 tiles wide
+function canWalk(x: number, z: number): boolean {
+  const margin = 0.35;
+
+  // Room interiors (with margin from walls)
   for (const room of ROOMS) {
     const rx = room.x, rz = room.z;
-    const W = 10, D = 8;
-    // Inside room = OK
-    if (x > rx + pad && x < rx + W - 1 + pad && z > rz + pad && z < rz + D - 1 + pad) return false;
-    // Door openings: side walls at z+3..z+5, front wall at x+4..x+6
-    // Left door
-    if (Math.abs(x - (rx - 0.5)) < 0.8 && z > rz + 2.5 && z < rz + 5.5) return false;
-    // Right door
-    if (Math.abs(x - (rx + W - 0.5)) < 0.8 && z > rz + 2.5 && z < rz + 5.5) return false;
-    // Front door
-    if (Math.abs(z - (rz + D - 0.5)) < 0.8 && x > rx + 3.5 && x < rx + 6.5) return false;
+    if (x > rx + margin && x < rx + 9 - margin && z > rz + margin && z < rz + 7 - margin) {
+      return true;
+    }
   }
-  // Hallways (between rooms)
-  // Vertical hallway x: 9..13
-  if (x > 8.5 && x < 13.5 && z > -1 && z < 20) return false;
-  // Horizontal hallway z: 7..11
-  if (z > 6.5 && z < 11.5 && x > -1 && x < 23) return false;
-  // If not in any valid area, it's a wall
-  return true;
+
+  // Vertical corridor (between left and right rooms): x = 9.5 to 12.5
+  if (x > 9.5 + margin && x < 12.5 - margin) {
+    // Full vertical length
+    if (z > -0.5 && z < 18.5) return true;
+  }
+
+  // Horizontal corridor (between top and bottom rooms): z = 7.5 to 10.5
+  if (z > 7.5 + margin && z < 10.5 - margin) {
+    // Full horizontal length
+    if (x > -0.5 && x < 22.5) return true;
+  }
+
+  // Door openings from rooms to corridors
+  for (const room of ROOMS) {
+    const rx = room.x, rz = room.z;
+    // Right door (connecting to vertical corridor)
+    if (x > rx + 8.5 && x < rx + 10.5 && z > rz + 2.8 && z < rz + 5.2) return true;
+    // Left door (if room is on right side)
+    if (rx > 5 && x > rx - 1.5 && x < rx + 0.5 && z > rz + 2.8 && z < rz + 5.2) return true;
+    // Front door (connecting to horizontal corridor)
+    if (z > rz + 6.5 && z < rz + 8.5 && x > rx + 3.8 && x < rx + 6.2) return true;
+    // Back door (if room is on bottom row)
+    if (rz > 5 && z > rz - 1.5 && z < rz + 0.5 && x > rx + 3.8 && x < rx + 6.2) return true;
+  }
+
+  return false;
 }
 
 // ─── FIRST PERSON CAMERA + WASD + COLLISION ───
@@ -305,8 +322,8 @@ function FirstPersonController({ chatOpen, onNearBot, botAssignments, onInteract
     if (k.has("d") || k.has("arrowright")) { dx += right.x * speed; dz += right.z * speed; }
 
     // Collision: try X and Z separately
-    if (!isWall(p.x + dx, p.z)) p.x += dx;
-    if (!isWall(p.x, p.z + dz)) p.z += dz;
+    if (canWalk(p.x + dx, p.z)) p.x += dx;
+    if (canWalk(p.x, p.z + dz)) p.z += dz;
 
     // First-person camera at eye height
     p.y = 1.6;
