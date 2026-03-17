@@ -34,6 +34,8 @@ import { MemberPermissionsEditor, MemberPermissions } from "@/components/teams/M
 import { useMemberPermissions } from "@/hooks/useMemberPermissions";
 import { VirtualOffice, type AiBot } from "@/components/teams/VirtualOffice";
 import { VirtualOfficeGame } from "@/components/teams/VirtualOfficeGame";
+import { lazy, Suspense } from "react";
+const VirtualOffice3D = lazy(() => import("@/components/teams/VirtualOffice3D").then(m => ({ default: m.VirtualOffice3D })));
 import { AiBotCard } from "@/components/teams/AiBotCard";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
@@ -312,6 +314,7 @@ export default function TeamsPage() {
     }
   });
   const [selectedAiBot, setSelectedAiBot] = useState<string | null>(null);
+  const [viewMode3D, setViewMode3D] = useState(false);
   const [aiBotModalOpen, setAiBotModalOpen] = useState(false);
   const [editingAiBot, setEditingAiBot] = useState<AiBot | null>(null);
 
@@ -1077,6 +1080,14 @@ export default function TeamsPage() {
                   <LayoutGrid className="h-4 w-4 md:mr-2" />
                   <span className="hidden md:inline">Добави от шаблон</span>
                 </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode3D ? "default" : "outline"}
+                  className="h-9 px-3"
+                  onClick={() => setViewMode3D(prev => !prev)}
+                >
+                  {viewMode3D ? "🎮 3D" : "🎮 3D"}
+                </Button>
               </div>
             )}
           </div>
@@ -1119,12 +1130,22 @@ export default function TeamsPage() {
             </div>
           ) : (
             <>
-              <VirtualOfficeGame
-                bots={aiBots}
-                selectedBotId={selectedAiBot}
-                onSelectBot={setSelectedAiBot}
-                onOpenChat={handleOpenBotChat}
-              />
+              {viewMode3D ? (
+                <Suspense fallback={<div className="flex items-center justify-center h-[500px] bg-[#1a1a2e] rounded-xl"><Loader2 className="h-8 w-8 animate-spin text-purple-500" /></div>}>
+                  <VirtualOffice3D
+                    bots={aiBots}
+                    selectedBotId={selectedAiBot}
+                    onSelectBot={setSelectedAiBot}
+                  />
+                </Suspense>
+              ) : (
+                <VirtualOfficeGame
+                  bots={aiBots}
+                  selectedBotId={selectedAiBot}
+                  onSelectBot={setSelectedAiBot}
+                  onOpenChat={handleOpenBotChat}
+                />
+              )}
 
               {/* Selected bot task panel — shown below game */}
               {selectedAiBot && (() => {
