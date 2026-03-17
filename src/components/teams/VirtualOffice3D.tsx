@@ -212,10 +212,11 @@ function LabelProjector({ bots, positions, onUpdate }: {
 }
 
 // ─── FIRST PERSON: WASD walk + mouse look ───
-function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract, keybinds }: {
+function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract, keybinds, playerPosRef }: {
   chatOpen: boolean; onNearBot: (b: AiBot | null) => void;
   botPositions: [number, number, number][]; bots: AiBot[]; onInteract: (b: AiBot) => void;
   keybinds: { forward: string; back: string; left: string; right: string; talk: string };
+  playerPosRef: React.MutableRefObject<THREE.Vector3>;
 }) {
   const pos = useRef(new THREE.Vector3(RW / 2, 1.6, RD - 3));
   const rotY = useRef(0); // face toward bots (negative Z)
@@ -312,6 +313,7 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract, key
 
     p.y = 1.6;
     camera.position.copy(p);
+    playerPosRef.current.set(p.x, 0, p.z);
     const euler = new THREE.Euler(rotX.current, rotY.current, 0, "YXZ");
     camera.quaternion.setFromEuler(euler);
 
@@ -373,26 +375,41 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     supabase.from("business_plans").select("id").limit(1).then(({ data }) => setHasBusinessPlan(!!(data && data.length > 0)));
   }, [user]);
 
-  // Desk positions (where bots work)
+  // Bot activity state: idle=couch, working=desk, done=follow player
+  const [botActivity, setBotActivity] = useState<Record<string, "idle" | "working" | "done">>({});
+
+  // Desk positions
   const deskPositions = useMemo<[number, number, number][]>(() => [
     [3, 0, 2], [6, 0, 2], [9, 0, 2],
     [3, 0, 5], [6, 0, 5], [9, 0, 5],
   ], []);
 
-  // Couch positions (where bots idle) - spread along the couch
+  // Couch positions
   const couchPositions = useMemo<[number, number, number][]>(() => [
     [5.5, 0.3, RD - 2.2], [7, 0.3, RD - 2.2], [8.5, 0.3, RD - 2.2],
     [10, 0.3, RD - 2.2], [11.5, 0.3, RD - 2.2], [13, 0.3, RD - 2.2],
   ], []);
 
-  // Bot positions: idle=couch, working=desk
+  // Player position ref for "follow" behavior
+  const playerPosRef = useRef<THREE.Vector3>(new THREE.Vector3(RW / 2, 0, RD - 3));
+
+  // Bot positions based on activity
   const botPositions = useMemo<[number, number, number][]>(() => {
     return bots.map((bot, i) => {
       if (i >= deskPositions.length) return couchPositions[i % couchPositions.length];
-      const isWorking = bot.state === "working";
-      return isWorking ? [deskPositions[i][0], 0, deskPositions[i][2] + 1] : couchPositions[i % couchPositions.length];
+      const activity = botActivity[bot.id] || "idle";
+      if (activity === "working") {
+        return [deskPositions[i][0], 0, deskPositions[i][2] + 1];
+      }
+      if (activity === "done") {
+        // Follow player - offset to side
+        const px = playerPosRef.current?.x || RW / 2;
+        const pz = playerPosRef.current?.z || RD - 3;
+        return [px + (i % 3 - 1) * 1.5, 0, pz + 1.5] as [number, number, number];
+      }
+      return couchPositions[i % couchPositions.length];
     });
-  }, [bots, deskPositions, couchPositions]);
+  }, [bots, deskPositions, couchPositions, botActivity]);
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
@@ -417,13 +434,20 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     setChatInput("");
     setChatMessages(p => [...p, { role: "user", content: msg }]);
     setChatLoading(true);
+    // Bot goes to desk while thinking
+    setBotActivity(prev => ({ ...prev, [chatBot.id]: "working" }));
     try {
       const { data } = await supabase.functions.invoke("assistant-chat", {
         body: { messages: [...chatMessages.slice(-8), { role: "user", content: msg }], projectId, organizationId: currentOrganization?.id, context: "business", userId: user?.id,
           moduleSystemPrompt: `Ти си ${chatBot.name}, ${chatBot.role}. Умения: ${(chatBot.skills || []).join(", ")}. Кратко на български.` },
       });
       setChatMessages(p => [...p, { role: "assistant", content: data?.content || "Грешка." }]);
-    } catch { setChatMessages(p => [...p, { role: "assistant", content: "⚠️ Грешка." }]); }
+      // Done → bot comes to you
+      setBotActivity(prev => ({ ...prev, [chatBot.id]: "done" }));
+    } catch {
+      setChatMessages(p => [...p, { role: "assistant", content: "⚠️ Грешка." }]);
+      setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" }));
+    }
     finally { setChatLoading(false); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }
   }, [chatInput, chatBot, chatLoading, chatMessages, projectId, currentOrganization, user]);
 
@@ -502,7 +526,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
               return <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} hasIssues={issues.length > 0} />;
             })}
-            <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} keybinds={keybinds} />
+            <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} keybinds={keybinds} playerPosRef={playerPosRef} />
             <LabelProjector bots={bots} positions={botPositions} onUpdate={(labels) => {
               // Inject needsAttention from issues
               setBotLabels(labels.map((l, i) => {
@@ -541,7 +565,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
                 <span className="w-3 h-3 rounded-full" style={{ background: chatBot.shirtColor }} />
                 <div><p className="text-sm font-semibold text-white">{chatBot.name}</p><p className="text-[10px] text-gray-500">{chatBot.role}</p></div>
               </div>
-              <button onClick={() => setChatBot(null)} className="text-gray-500 hover:text-white p-1"><X className="h-4 w-4" /></button>
+              <button onClick={() => { if (chatBot) setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" })); setChatBot(null); }} className="text-gray-500 hover:text-white p-1"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
               {chatMessages.map((m, i) => (
