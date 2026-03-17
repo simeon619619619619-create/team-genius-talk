@@ -133,8 +133,10 @@ export default function AssistantPage() {
     }
   }, [aiBots, selectedBot, moduleState]);
 
+  const otherBotsList = aiBots.filter(b => b.id !== selectedBot?.id).map(b => `${b.name} (${b.role})`).join(", ");
+
   const botSystemPrompt = selectedBot
-    ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, кажи кой друг бот може да помогне.`
+    ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, препоръчай конкретен бот от екипа: ${otherBotsList}. НЕ измисляй ботове които не съществуват.`
     : undefined;
 
   const botInitialMessage = selectedBot
@@ -395,6 +397,35 @@ export default function AssistantPage() {
               onSuggestionUsed={handleSuggestionUsed}
             />
           </div>
+
+          {/* Quick bot switch - always visible at bottom */}
+          {!moduleState && aiBots.length > 0 && (
+            <div className="shrink-0 px-3 pb-1">
+              <div className="mx-auto max-w-3xl flex items-center gap-1.5 overflow-x-auto py-1">
+                <span className="text-[10px] text-muted-foreground shrink-0">Ботове:</span>
+                <button
+                  onClick={() => setSelectedBot(null)}
+                  className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                    !selectedBot ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  Симора
+                </button>
+                {aiBots.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => setSelectedBot(b)}
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                      selectedBot?.id === b.id ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: b.shirtColor }} />
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
