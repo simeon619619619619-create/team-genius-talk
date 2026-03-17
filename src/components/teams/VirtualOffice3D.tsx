@@ -276,7 +276,7 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
   }, [gl]); // Only depends on gl, uses refs for everything else
 
   useFrame(() => {
-    if (chatOpen) return;
+    if (chatOpenRef.current) return;
     const speed = 0.08;
     const k = keys.current;
     const p = pos.current;
@@ -307,8 +307,10 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
       const d = Math.sqrt((p.x - botPositions[i][0]) ** 2 + (p.z - botPositions[i][2]) ** 2);
       if (d < nd) { nd = d; nearest = bots[i]; }
     }
-    nearRef.current = nearest;
-    onNearBot(nearest);
+    if (nearRef.current?.id !== nearest?.id) {
+      nearRef.current = nearest;
+      onNearBot(nearest);
+    }
   });
 
   return null;
