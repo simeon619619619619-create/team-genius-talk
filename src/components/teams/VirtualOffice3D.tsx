@@ -240,27 +240,28 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract, key
   keybindsRef.current = keybinds;
 
   useEffect(() => {
-    const cyrMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s" };
+    const codeToKey: Record<string, string> = { "KeyW": "w", "KeyA": "a", "KeyS": "s", "KeyD": "d", "KeyE": "e", "KeyQ": "q", "KeyR": "r", "KeyF": "f", "Space": "space", "ArrowUp": "arrowup", "ArrowDown": "arrowdown", "ArrowLeft": "arrowleft", "ArrowRight": "arrowright" };
 
-    const mapKey = (raw: string): string => {
-      const latin = cyrMap[raw] || raw;
+    const mapKey = (e: KeyboardEvent): string => {
+      // Use e.code for physical key position (works with any language)
+      const physicalKey = codeToKey[e.code] || e.key.toLowerCase();
       const kb = keybindsRef.current;
-      if (latin === kb.forward) return "w";
-      if (latin === kb.back) return "s";
-      if (latin === kb.left) return "a";
-      if (latin === kb.right) return "d";
-      if (latin === kb.talk) return "e";
-      return latin;
+      if (physicalKey === kb.forward || physicalKey === "arrowup") return "w";
+      if (physicalKey === kb.back || physicalKey === "arrowdown") return "s";
+      if (physicalKey === kb.left || physicalKey === "arrowleft") return "a";
+      if (physicalKey === kb.right || physicalKey === "arrowright") return "d";
+      if (physicalKey === kb.talk) return "e";
+      return physicalKey;
     };
 
     const onDown = (e: KeyboardEvent) => {
       if (chatOpenRef.current || document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
-      const k = mapKey(e.key.toLowerCase());
+      const k = mapKey(e);
       if (["w", "a", "s", "d"].includes(k)) { e.preventDefault(); keys.current.add(k); }
       if (k === "e" && nearRef.current) onInteractRef.current(nearRef.current);
     };
     const onUp = (e: KeyboardEvent) => {
-      const k = mapKey(e.key.toLowerCase());
+      const k = mapKey(e);
       keys.current.delete(k);
     };
 
@@ -463,8 +464,10 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
                   onKeyDown={(e) => {
                     if (editingKey === key) {
                       e.preventDefault();
-                      const newKey = e.key.toLowerCase();
-                      if (newKey !== "escape" && newKey.length === 1) {
+                      // Use e.code to get physical key regardless of language
+                      const codeMap: Record<string, string> = { "KeyW": "w", "KeyA": "a", "KeyS": "s", "KeyD": "d", "KeyE": "e", "KeyQ": "q", "KeyR": "r", "KeyF": "f", "Space": "space", "ArrowUp": "arrowup", "ArrowDown": "arrowdown", "ArrowLeft": "arrowleft", "ArrowRight": "arrowright" };
+                      const newKey = codeMap[e.code] || e.key.toLowerCase();
+                      if (newKey !== "escape" && newKey !== "shift" && newKey !== "control" && newKey !== "alt") {
                         const updated = { ...keybinds, [key]: newKey };
                         setKeybinds(updated);
                         localStorage.setItem("simora_keybinds", JSON.stringify(updated));
@@ -473,7 +476,11 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
                     }
                   }}
                 >
-                  {editingKey === key ? "..." : keybinds[key as keyof typeof keybinds].toUpperCase()}
+                  {editingKey === key ? "..." : (() => {
+                    const v = keybinds[key as keyof typeof keybinds];
+                    const cyrToLat: Record<string, string> = { "ц": "W", "ф": "A", "ы": "S", "в": "W", "і": "S", "д": "D", "у": "E", "с": "S" };
+                    return cyrToLat[v] || v.toUpperCase();
+                  })()}
                 </button>
               </div>
             ))}
