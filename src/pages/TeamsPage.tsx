@@ -301,14 +301,10 @@ export default function TeamsPage() {
             })),
           })),
         }));
-        // Ensure locked bots from defaults are always present
+        // Always replace locked bots with latest defaults
         const lockedDefaults = DEFAULT_AI_BOTS.filter(b => b.locked);
-        for (const locked of lockedDefaults) {
-          if (!normalized.find(b => b.id === locked.id)) {
-            normalized.unshift(locked);
-          }
-        }
-        return normalized;
+        const withoutOldLocked = normalized.filter(b => !lockedDefaults.some(d => d.id === b.id));
+        return [...lockedDefaults, ...withoutOldLocked];
       }
       return [];
     } catch {
