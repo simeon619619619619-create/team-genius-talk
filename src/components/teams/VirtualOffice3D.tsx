@@ -355,6 +355,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const { projectId } = useCurrentProject();
   const { currentOrganization } = useOrganizations();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Desk positions (where bots work)
   const deskPositions = useMemo<[number, number, number][]>(() => [
@@ -376,8 +377,6 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
       return isWorking ? [deskPositions[i][0], 0, deskPositions[i][2] + 1] : couchPositions[i % couchPositions.length];
     });
   }, [bots, deskPositions, couchPositions]);
-
-  const navigate = useNavigate();
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
