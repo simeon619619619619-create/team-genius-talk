@@ -231,56 +231,49 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
     camera.quaternion.setFromEuler(euler);
   }, [camera]);
 
+  // Store chatOpen in ref so listeners don't recreate
+  const chatOpenRef = useRef(chatOpen);
+  chatOpenRef.current = chatOpen;
+  const onInteractRef = useRef(onInteract);
+  onInteractRef.current = onInteract;
+
   useEffect(() => {
+    const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s" };
+
     const onDown = (e: KeyboardEvent) => {
-      if (chatOpen || document.activeElement?.tagName === "INPUT") return;
-      // Support both latin and cyrillic keyboard layouts
-      const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s", "ь": "s" };
+      if (chatOpenRef.current || document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
       const k = keyMap[e.key.toLowerCase()] || e.key.toLowerCase();
       if (["w", "a", "s", "d"].includes(k)) { e.preventDefault(); keys.current.add(k); }
-      if (k === "e" && nearRef.current) onInteract(nearRef.current);
+      if (k === "e" && nearRef.current) onInteractRef.current(nearRef.current);
     };
     const onUp = (e: KeyboardEvent) => {
-      const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d" };
-      keys.current.delete(keyMap[e.key.toLowerCase()] || e.key.toLowerCase());
+      const k = keyMap[e.key.toLowerCase()] || e.key.toLowerCase();
+      keys.current.delete(k);
     };
 
-    // Mouse drag to look around
     const canvas = gl.domElement;
     const onMouseDown = (e: MouseEvent) => { isDrag.current = true; lastMouse.current = { x: e.clientX, y: e.clientY }; };
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDrag.current || chatOpen) return;
+      if (!isDrag.current || chatOpenRef.current) return;
       rotY.current -= (e.clientX - lastMouse.current.x) * 0.004;
       rotX.current = Math.max(-0.8, Math.min(0.8, rotX.current - (e.clientY - lastMouse.current.y) * 0.004));
       lastMouse.current = { x: e.clientX, y: e.clientY };
     };
     const onMouseUp = () => { isDrag.current = false; };
 
-    // Focus canvas on click so keyboard works
-    const onClick = () => { canvas.focus(); };
-    canvas.tabIndex = 0;
-    canvas.style.outline = "none";
-    canvas.focus();
-
-    canvas.addEventListener("keydown", onDown);
-    canvas.addEventListener("keyup", onUp);
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
     canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("click", onClick);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     return () => {
-      canvas.removeEventListener("keydown", onDown);
-      canvas.removeEventListener("keyup", onUp);
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
       canvas.removeEventListener("mousedown", onMouseDown);
-      canvas.removeEventListener("click", onClick);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [chatOpen, onInteract, gl]);
+  }, [gl]); // Only depends on gl, uses refs for everything else
 
   useFrame(() => {
     if (chatOpen) return;
