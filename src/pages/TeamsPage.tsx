@@ -314,7 +314,7 @@ export default function TeamsPage() {
     }
   });
   const [selectedAiBot, setSelectedAiBot] = useState<string | null>(null);
-  const [viewMode3D, setViewMode3D] = useState(false);
+  const viewMode3D = true; // Always 3D
   const [aiBotModalOpen, setAiBotModalOpen] = useState(false);
   const [editingAiBot, setEditingAiBot] = useState<AiBot | null>(null);
 
@@ -1079,14 +1079,6 @@ export default function TeamsPage() {
                 >
                   <LayoutGrid className="h-4 w-4 md:mr-2" />
                   <span className="hidden md:inline">Добави от шаблон</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode3D ? "default" : "outline"}
-                  className="h-9 px-3"
-                  onClick={() => setViewMode3D(prev => !prev)}
-                >
-                  {viewMode3D ? "🎮 3D" : "🎮 3D"}
                 </Button>
               </div>
             )}
