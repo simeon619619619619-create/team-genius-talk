@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiBot } from "./VirtualOffice";
 import { useNavigate } from "react-router-dom";
-import { X, Send, Loader2 } from "lucide-react";
+import { X, Send, Loader2, Settings2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -217,7 +217,7 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
   botPositions: [number, number, number][]; bots: AiBot[]; onInteract: (b: AiBot) => void;
 }) {
   const pos = useRef(new THREE.Vector3(RW / 2, 1.6, RD - 3));
-  const rotY = useRef(Math.PI); // face forward (toward bots)
+  const rotY = useRef(0); // face toward bots (negative Z)
   const rotX = useRef(0);
   const keys = useRef<Set<string>>(new Set());
   const nearRef = useRef<AiBot | null>(null);
@@ -231,23 +231,35 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
     camera.quaternion.setFromEuler(euler);
   }, [camera]);
 
-  // Store chatOpen in ref so listeners don't recreate
   const chatOpenRef = useRef(chatOpen);
   chatOpenRef.current = chatOpen;
   const onInteractRef = useRef(onInteract);
   onInteractRef.current = onInteract;
+  const keybindsRef = useRef(keybinds);
+  keybindsRef.current = keybinds;
 
   useEffect(() => {
-    const keyMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s" };
+    const cyrMap: Record<string, string> = { "ц": "w", "ф": "a", "ы": "s", "в": "d", "у": "e", "і": "s" };
+
+    const mapKey = (raw: string): string => {
+      const latin = cyrMap[raw] || raw;
+      const kb = keybindsRef.current;
+      if (latin === kb.forward) return "w";
+      if (latin === kb.back) return "s";
+      if (latin === kb.left) return "a";
+      if (latin === kb.right) return "d";
+      if (latin === kb.talk) return "e";
+      return latin;
+    };
 
     const onDown = (e: KeyboardEvent) => {
       if (chatOpenRef.current || document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") return;
-      const k = keyMap[e.key.toLowerCase()] || e.key.toLowerCase();
+      const k = mapKey(e.key.toLowerCase());
       if (["w", "a", "s", "d"].includes(k)) { e.preventDefault(); keys.current.add(k); }
       if (k === "e" && nearRef.current) onInteractRef.current(nearRef.current);
     };
     const onUp = (e: KeyboardEvent) => {
-      const k = keyMap[e.key.toLowerCase()] || e.key.toLowerCase();
+      const k = mapKey(e.key.toLowerCase());
       keys.current.delete(k);
     };
 
@@ -320,6 +332,15 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
 export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
+  const [showKeybinds, setShowKeybinds] = useState(false);
+  const [keybinds, setKeybinds] = useState(() => {
+    try {
+      const saved = localStorage.getItem("simora_keybinds");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { forward: "w", back: "s", left: "a", right: "d", talk: "e" };
+  });
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]>([]);
 
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -408,10 +429,57 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     <div className="rounded-xl overflow-hidden border border-border bg-[#1a1a2e]">
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#0f0f1a] border-b border-[#2a2a4a]">
         <h3 className="text-xs font-semibold tracking-[0.15em] uppercase text-purple-400">Virtual Office 3D</h3>
-        <div className="flex gap-4 text-[11px] text-gray-500">
-          <span>{bots.length} bots</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-gray-500">{bots.length} bots</span>
+          <button onClick={() => setShowKeybinds(true)} className="text-gray-500 hover:text-white transition-colors p-1 rounded hover:bg-[#2a2a4a]" title="Настройки на бутоните">
+            <Settings2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
+
+      {/* Keybindings popup */}
+      {showKeybinds && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setShowKeybinds(false); setEditingKey(null); }}>
+          <div className="bg-[#0f0f1a] border border-[#2a2a4a] rounded-xl p-5 w-[300px] space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Бутони за ходене</h3>
+              <button onClick={() => setShowKeybinds(false)} className="text-gray-500 hover:text-white"><X className="h-4 w-4" /></button>
+            </div>
+            {[
+              { key: "forward", label: "Напред" },
+              { key: "back", label: "Назад" },
+              { key: "left", label: "Ляво" },
+              { key: "right", label: "Дясно" },
+              { key: "talk", label: "Говори" },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">{label}</span>
+                <button
+                  className={`px-3 py-1 rounded text-sm font-mono font-bold min-w-[50px] text-center transition-colors ${
+                    editingKey === key ? "bg-purple-600 text-white animate-pulse" : "bg-[#1a1a2e] text-white border border-[#2a2a4a] hover:border-purple-500"
+                  }`}
+                  onClick={() => setEditingKey(key)}
+                  onKeyDown={(e) => {
+                    if (editingKey === key) {
+                      e.preventDefault();
+                      const newKey = e.key.toLowerCase();
+                      if (newKey !== "escape" && newKey.length === 1) {
+                        const updated = { ...keybinds, [key]: newKey };
+                        setKeybinds(updated);
+                        localStorage.setItem("simora_keybinds", JSON.stringify(updated));
+                      }
+                      setEditingKey(null);
+                    }
+                  }}
+                >
+                  {editingKey === key ? "..." : keybinds[key as keyof typeof keybinds].toUpperCase()}
+                </button>
+              </div>
+            ))}
+            <p className="text-[10px] text-gray-600 mt-2">Кликни на бутон, после натисни новия клавиш</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex relative" style={{ height: "500px" }}>
         <div className={`${chatBot ? "flex-1" : "w-full"} relative`}>
