@@ -451,11 +451,11 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     setChatLoading(true);
     setBotActivity(prev => ({ ...prev, [chatBot.id]: "working" }));
     try {
-      const { data } = await supabase.functions.invoke("assistant-chat", {
+      const { data, error: fnError } = await supabase.functions.invoke("assistant-chat", {
         body: { messages: [...chatMessages.slice(-8), { role: "user", content: msg }], projectId, organizationId: currentOrganization?.id, context: "business", userId: user?.id,
           moduleSystemPrompt: `Ти си ${chatBot.name}, ${chatBot.role}. Умения: ${(chatBot.skills || []).join(", ")}. Кратко на български.` },
       });
-      const reply = { role: "assistant" as const, content: data?.content || "Грешка." };
+      const reply = { role: "assistant" as const, content: data?.content || data?.error || fnError?.message || "Грешка." };
       setChatMessages(p => { const n = [...p, reply]; botMessagesRef.current[chatBot.id] = n; return n; });
       setBotActivity(prev => ({ ...prev, [chatBot.id]: "done" }));
     } catch {

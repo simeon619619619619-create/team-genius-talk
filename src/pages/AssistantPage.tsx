@@ -136,7 +136,7 @@ export default function AssistantPage() {
   const otherBotsList = aiBots.filter(b => b.id !== selectedBot?.id).map(b => `${b.name} (${b.role})`).join(", ");
 
   const botSystemPrompt = selectedBot
-    ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, препоръчай конкретен бот от екипа: ${otherBotsList}. НЕ измисляй ботове които не съществуват.`
+    ? `Ти си ${selectedBot.name}, ${selectedBot.role}. Процес: ${selectedBot.process}. Умения: ${(selectedBot.skills || []).join(", ")}. Автоматизации: ${selectedBot.automations.join(", ")}. Отговаряй винаги на български. Когато те питат нещо от твоята област, давай конкретни отговори. Ако задачата е извън уменията ти, препоръчай конкретен бот от екипа: ${otherBotsList}. НЕ измисляй ботове които не съществуват. ВАЖНО: Ние използваме Resend за изпращане на имейли (не MailChimp, не ActiveCampaign). Уебсайтовете ни са: eufashioninstitute.com, simora.bg, socialempire.bg. Можеш да изпращаш имейли с инструмента send_email.`
     : undefined;
 
   const botInitialMessage = selectedBot

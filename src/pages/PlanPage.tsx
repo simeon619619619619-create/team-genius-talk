@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Check, ChevronRight, ChevronDown, Lock, Bot, Users, Plus, ListTodo, Calendar, Target, Sparkles, TrendingUp } from "lucide-react";
+import { Check, ChevronRight, ChevronDown, Lock, Bot, Users, Plus, ListTodo, Calendar, Target, Sparkles, TrendingUp, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AiBot } from "@/components/teams/VirtualOffice";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -145,6 +145,24 @@ export default function PlanPage() {
         "Напиши 4 блог статии",
         "SEO оптимизация на съдържанието",
         "Разпространи в соц. мрежи и newsletter",
+      ],
+    },
+    {
+      id: "fashion-event",
+      title: "Модно Събитие кампания",
+      description: "Организиране и промотиране на модно събитие с пълна маркетинг стратегия",
+      icon: Crown,
+      color: "text-pink-500",
+      bgColor: "bg-pink-50 dark:bg-pink-950/30",
+      tasks: [
+        "Определи дата, локация и тема на събитието",
+        "Създай визуална идентичност и покани",
+        "Промоция в соц. мрежи (countdown, тийзъри)",
+        "Покани инфлуенсъри и медии",
+        "Настрой онлайн регистрация / продажба на билети",
+        "Email кампания до базата с ранен достъп",
+        "Организирай фотограф и видеограф",
+        "Пост-събитие контент и follow-up",
       ],
     },
   ];

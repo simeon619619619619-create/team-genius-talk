@@ -139,6 +139,69 @@ const claudeTools = [
       },
       required: ["to", "subject", "html"]
     }
+  },
+  {
+    name: "resend_list_contacts",
+    description: "Покажи всички контакти от Resend. Виж имейл списъка, кой е абониран/отписан, филтрирай по сегмент.",
+    input_schema: {
+      type: "object",
+      properties: {
+        segment_id: { type: "string", description: "Филтрирай по сегмент ID (по избор)" },
+        limit: { type: "number", description: "Брой контакти (1-100, по подразбиране 20)" }
+      }
+    }
+  },
+  {
+    name: "resend_create_contact",
+    description: "Добави нов контакт в Resend имейл списъка.",
+    input_schema: {
+      type: "object",
+      properties: {
+        email: { type: "string", description: "Имейл адрес на контакта" },
+        first_name: { type: "string", description: "Собствено име" },
+        last_name: { type: "string", description: "Фамилно име" },
+        unsubscribed: { type: "boolean", description: "Дали е отписан (по подразбиране false)" }
+      },
+      required: ["email"]
+    }
+  },
+  {
+    name: "resend_list_audiences",
+    description: "Покажи всички аудитории (audiences) в Resend акаунта.",
+    input_schema: { type: "object", properties: {} }
+  },
+  {
+    name: "resend_list_broadcasts",
+    description: "Покажи всички broadcasts (масови кампании) в Resend.",
+    input_schema: { type: "object", properties: {} }
+  },
+  {
+    name: "resend_create_broadcast",
+    description: "Създай нова broadcast имейл кампания в Resend. Може да се изпрати веднага или да се насрочи.",
+    input_schema: {
+      type: "object",
+      properties: {
+        segment_id: { type: "string", description: "ID на сегмента, до който да се изпрати" },
+        from: { type: "string", description: "Подател (напр. 'Simora <noreply@simora.bg>')" },
+        subject: { type: "string", description: "Тема на имейла" },
+        html: { type: "string", description: "HTML съдържание на имейла" },
+        name: { type: "string", description: "Вътрешно име на кампанията" },
+        send: { type: "boolean", description: "true = изпрати веднага, false = запази като чернова (по подразбиране false)" },
+        scheduled_at: { type: "string", description: "Насрочи изпращане (напр. 'in 1 hour' или ISO 8601 дата). Изисква send: true" }
+      },
+      required: ["segment_id", "from", "subject", "html"]
+    }
+  },
+  {
+    name: "resend_send_broadcast",
+    description: "Изпрати вече създаден broadcast (чернова) до аудиторията.",
+    input_schema: {
+      type: "object",
+      properties: {
+        broadcast_id: { type: "string", description: "ID на broadcast-а за изпращане" }
+      },
+      required: ["broadcast_id"]
+    }
   }
 ];
 
@@ -608,17 +671,10 @@ CONCAT: ffmpeg -f concat -safe 0 -i list.txt -c copy merged.mp4
       });
     }
 
-    // Module context
-    if (moduleSystemPrompt) {
-      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
-      const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
-      return new Response(JSON.stringify({ content: result.text }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Business context
-    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
+    // Build system prompt — module/bot context or default business context
+    const systemPrompt = moduleSystemPrompt
+      ? `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`
+      : `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
 📆 Седмица: ${dateContext.weekNumber} от 52
@@ -951,7 +1007,8 @@ ${chatHistoryContext}
               });
             }
           }
-        } else if (functionName === "send_email") {
+        } else if (functionName === "send_email" || functionName.startsWith("resend_")) {
+          // All Resend tools share the same API key lookup
           const { data: resendInt } = await supabase
             .from("resend_integrations")
             .select("api_key")
@@ -963,16 +1020,72 @@ ${chatHistoryContext}
               result: JSON.stringify({ success: false, error: "Няма свързан Resend API ключ. Добавете го в Настройки → Интеграции." })
             });
           } else {
+            const resendHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${resendInt.api_key}` };
             try {
-              const res = await fetch("https://api.resend.com/emails", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendInt.api_key}` },
-                body: JSON.stringify({ from: "Simora <noreply@simora.bg>", to: args.to, subject: args.subject, html: args.html }),
-              });
-              const data = await res.json();
-              toolResults.push({ name: functionName, id: toolId,
-                result: JSON.stringify(res.ok ? { success: true, id: data.id, message: `Имейлът е изпратен до ${args.to}!` } : { success: false, error: data.message || "Resend грешка" })
-              });
+              let resendResult: any;
+
+              if (functionName === "send_email") {
+                const res = await fetch("https://api.resend.com/emails", {
+                  method: "POST", headers: resendHeaders,
+                  body: JSON.stringify({ from: "Simora <noreply@simora.bg>", to: args.to, subject: args.subject, html: args.html }),
+                });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, id: data.id, message: `Имейлът е изпратен до ${args.to}!` } : { success: false, error: data.message || "Resend грешка" };
+
+              } else if (functionName === "resend_list_contacts") {
+                const params = new URLSearchParams();
+                if (args.segment_id) params.set("segment_id", args.segment_id);
+                if (args.limit) params.set("limit", String(args.limit));
+                const qs = params.toString() ? `?${params}` : "";
+                const res = await fetch(`https://api.resend.com/contacts${qs}`, { headers: resendHeaders });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, contacts: data.data, has_more: data.has_more, total: data.data?.length } : { success: false, error: data.message || "Грешка" };
+
+              } else if (functionName === "resend_create_contact") {
+                const res = await fetch("https://api.resend.com/contacts", {
+                  method: "POST", headers: resendHeaders,
+                  body: JSON.stringify({ email: args.email, first_name: args.first_name, last_name: args.last_name, unsubscribed: args.unsubscribed || false }),
+                });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, id: data.id, message: `Контактът ${args.email} е добавен!` } : { success: false, error: data.message || "Грешка" };
+
+              } else if (functionName === "resend_list_audiences") {
+                const res = await fetch("https://api.resend.com/audiences", { headers: resendHeaders });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, audiences: data.data } : { success: false, error: data.message || "Грешка" };
+
+              } else if (functionName === "resend_list_broadcasts") {
+                const res = await fetch("https://api.resend.com/broadcasts", { headers: resendHeaders });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, broadcasts: data.data } : { success: false, error: data.message || "Грешка" };
+
+              } else if (functionName === "resend_create_broadcast") {
+                const res = await fetch("https://api.resend.com/broadcasts", {
+                  method: "POST", headers: resendHeaders,
+                  body: JSON.stringify({
+                    segment_id: args.segment_id,
+                    from: args.from || "Simora <noreply@simora.bg>",
+                    subject: args.subject,
+                    html: args.html,
+                    name: args.name,
+                    send: args.send || false,
+                    scheduled_at: args.scheduled_at,
+                  }),
+                });
+                const data = await res.json();
+                resendResult = res.ok
+                  ? { success: true, id: data.id, message: args.send ? "Broadcast-ът е изпратен!" : "Broadcast-ът е създаден като чернова." }
+                  : { success: false, error: data.message || "Грешка" };
+
+              } else if (functionName === "resend_send_broadcast") {
+                const res = await fetch(`https://api.resend.com/broadcasts/${args.broadcast_id}/send`, {
+                  method: "POST", headers: resendHeaders,
+                });
+                const data = await res.json();
+                resendResult = res.ok ? { success: true, message: "Broadcast-ът е изпратен!" } : { success: false, error: data.message || "Грешка" };
+              }
+
+              toolResults.push({ name: functionName, id: toolId, result: JSON.stringify(resendResult) });
             } catch (e: any) {
               toolResults.push({ name: functionName, id: toolId,
                 result: JSON.stringify({ success: false, error: e.message })
