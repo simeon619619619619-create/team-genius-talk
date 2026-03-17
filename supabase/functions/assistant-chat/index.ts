@@ -99,6 +99,46 @@ const claudeTools = [
       },
       required: ["action", "content"]
     }
+  },
+  {
+    name: "analyze_meta_ads",
+    description: "Анализирай Meta (Facebook/Instagram) рекламни кампании. Взема данни от Meta Marketing API — разходи, импресии, кликове, конверсии, CPM, CPC, CTR, ROAS. Ивана използва това за анализ и оптимизация на реклами.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date_preset: { type: "string", enum: ["today", "yesterday", "last_7d", "last_14d", "last_30d", "this_month", "last_month"], description: "Период за анализ" },
+        campaign_id: { type: "string", description: "ID на кампания (по избор — ако не е зададен, анализира всички)" },
+        action: { type: "string", enum: ["overview", "campaigns", "adsets", "ads", "recommendations"], description: "Тип анализ: overview=общ, campaigns=по кампании, recommendations=препоръки за оптимизация" }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "create_meta_post",
+    description: "Публикувай пост в Instagram или Facebook страница чрез Meta Graph API. Ивана може директно да публикува съдържание.",
+    input_schema: {
+      type: "object",
+      properties: {
+        platform: { type: "string", enum: ["instagram", "facebook"], description: "Платформа" },
+        message: { type: "string", description: "Текст на поста (caption)" },
+        image_url: { type: "string", description: "URL на изображение (трябва да е публично достъпен)" },
+        link: { type: "string", description: "Линк за споделяне (само за Facebook)" }
+      },
+      required: ["platform", "message"]
+    }
+  },
+  {
+    name: "send_email",
+    description: "Изпрати имейл чрез Resend API. Мария може да изпраща newsletter-и, follow-up имейли, welcome имейли директно.",
+    input_schema: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Имейл на получателя" },
+        subject: { type: "string", description: "Тема на имейла" },
+        html: { type: "string", description: "HTML съдържание на имейла" }
+      },
+      required: ["to", "subject", "html"]
+    }
   }
 ];
 
@@ -796,6 +836,146 @@ ${chatHistoryContext}
             } catch (e: any) {
               toolResults.push({ name: functionName, id: toolId,
                 result: JSON.stringify({ success: false, error: `Грешка: ${e.message}` })
+              });
+            }
+          }
+        } else if (functionName === "analyze_meta_ads") {
+          // Meta Marketing API
+          const { data: metaInt } = await supabase
+            .from("website_integrations")
+            .select("*")
+            .eq("user_id", userId)
+            .or("platform.eq.facebook,platform.eq.instagram,metadata->meta_token.neq.null")
+            .maybeSingle();
+
+          // Also check metadata on any integration for meta_token
+          const { data: allInts } = await supabase
+            .from("website_integrations")
+            .select("*")
+            .eq("user_id", userId);
+
+          const metaToken = (allInts || []).find((i: any) => i.metadata?.meta_token)?.metadata?.meta_token || metaInt?.api_key;
+          const adAccountId = (allInts || []).find((i: any) => i.metadata?.ad_account_id)?.metadata?.ad_account_id;
+
+          if (!metaToken || !adAccountId) {
+            toolResults.push({ name: functionName, id: toolId,
+              result: JSON.stringify({
+                success: false,
+                error: "Няма свързан Meta Ads акаунт. За да анализирам рекламите ви:\n1. Отидете в Настройки → Уебсайт интеграции\n2. Добавете сайт с платформа 'custom'\n3. В URL сложете вашия Facebook Page URL\n4. За API ключ — генерирайте от developers.facebook.com → Tools → Graph API Explorer\n\nАлтернативно, мога да анализирам данни ако ги copy-paste от Ads Manager."
+              })
+            });
+          } else {
+            try {
+              const datePreset = args.date_preset || "last_7d";
+              const level = args.action === "campaigns" ? "campaign" : args.action === "adsets" ? "adset" : args.action === "ads" ? "ad" : "account";
+              const fields = "campaign_name,impressions,clicks,spend,cpc,cpm,ctr,actions,cost_per_action_type,reach,frequency";
+
+              let url = `https://graph.facebook.com/v19.0/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}&level=${level}&limit=50&access_token=${metaToken}`;
+              if (args.campaign_id) url += `&filtering=[{"field":"campaign.id","operator":"EQUAL","value":"${args.campaign_id}"}]`;
+
+              const res = await fetch(url);
+              if (res.ok) {
+                const data = await res.json();
+                toolResults.push({ name: functionName, id: toolId,
+                  result: JSON.stringify({ success: true, data: data.data, period: datePreset, level })
+                });
+              } else {
+                const errText = await res.text();
+                toolResults.push({ name: functionName, id: toolId,
+                  result: JSON.stringify({ success: false, error: `Meta API грешка: ${res.status}. Моля, проверете токена.`, details: errText.substring(0, 200) })
+                });
+              }
+            } catch (e: any) {
+              toolResults.push({ name: functionName, id: toolId,
+                result: JSON.stringify({ success: false, error: e.message })
+              });
+            }
+          }
+        } else if (functionName === "create_meta_post") {
+          const { data: allInts } = await supabase
+            .from("website_integrations")
+            .select("*")
+            .eq("user_id", userId);
+
+          const metaToken = (allInts || []).find((i: any) => i.metadata?.meta_token)?.metadata?.meta_token;
+          const pageId = (allInts || []).find((i: any) => i.metadata?.page_id)?.metadata?.page_id;
+          const igAccountId = (allInts || []).find((i: any) => i.metadata?.ig_account_id)?.metadata?.ig_account_id;
+
+          if (!metaToken) {
+            toolResults.push({ name: functionName, id: toolId,
+              result: JSON.stringify({ success: false, error: "Няма свързан Meta акаунт. Добавете Meta токен в Настройки → Интеграции." })
+            });
+          } else {
+            try {
+              if (args.platform === "facebook" && pageId) {
+                const body: any = { message: args.message, access_token: metaToken };
+                if (args.link) body.link = args.link;
+                const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                toolResults.push({ name: functionName, id: toolId,
+                  result: JSON.stringify(res.ok ? { success: true, post_id: data.id, message: "Постът е публикуван във Facebook!" } : { success: false, error: data.error?.message })
+                });
+              } else if (args.platform === "instagram" && igAccountId && args.image_url) {
+                // Step 1: Create media container
+                const createRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ image_url: args.image_url, caption: args.message, access_token: metaToken }),
+                });
+                const createData = await createRes.json();
+                if (createData.id) {
+                  // Step 2: Publish
+                  const pubRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ creation_id: createData.id, access_token: metaToken }),
+                  });
+                  const pubData = await pubRes.json();
+                  toolResults.push({ name: functionName, id: toolId,
+                    result: JSON.stringify({ success: true, post_id: pubData.id, message: "Постът е публикуван в Instagram!" })
+                  });
+                } else {
+                  toolResults.push({ name: functionName, id: toolId,
+                    result: JSON.stringify({ success: false, error: createData.error?.message || "Грешка при създаване на пост" })
+                  });
+                }
+              } else {
+                toolResults.push({ name: functionName, id: toolId,
+                  result: JSON.stringify({ success: false, error: args.platform === "instagram" ? "За Instagram е нужен image_url и свързан IG акаунт." : "Няма свързана Facebook страница." })
+                });
+              }
+            } catch (e: any) {
+              toolResults.push({ name: functionName, id: toolId,
+                result: JSON.stringify({ success: false, error: e.message })
+              });
+            }
+          }
+        } else if (functionName === "send_email") {
+          const { data: resendInt } = await supabase
+            .from("resend_integrations")
+            .select("api_key")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (!resendInt) {
+            toolResults.push({ name: functionName, id: toolId,
+              result: JSON.stringify({ success: false, error: "Няма свързан Resend API ключ. Добавете го в Настройки → Интеграции." })
+            });
+          } else {
+            try {
+              const res = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resendInt.api_key}` },
+                body: JSON.stringify({ from: "Simora <noreply@simora.bg>", to: args.to, subject: args.subject, html: args.html }),
+              });
+              const data = await res.json();
+              toolResults.push({ name: functionName, id: toolId,
+                result: JSON.stringify(res.ok ? { success: true, id: data.id, message: `Имейлът е изпратен до ${args.to}!` } : { success: false, error: data.message || "Resend грешка" })
+              });
+            } catch (e: any) {
+              toolResults.push({ name: functionName, id: toolId,
+                result: JSON.stringify({ success: false, error: e.message })
               });
             }
           }

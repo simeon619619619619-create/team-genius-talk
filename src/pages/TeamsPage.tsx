@@ -83,7 +83,7 @@ export default function TeamsPage() {
   // ─── AI BOTS STATE ───
   const AI_BOTS_KEY = "simora_ai_bots";
   const DEFAULT_AI_BOTS: AiBot[] = [
-    { id: "bot-1", name: "Ивана", role: "Съдържание & Соц. Мрежи", process: "Content Pipeline", frequency: "3 пъти/ден", locked: true, automations: ["Posts", "Stories", "Reels Script"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове"], taskGroups: [
+    { id: "bot-1", name: "Ивана", role: "Съдържание & Реклами", process: "Content + Ads", frequency: "Ежедневно", locked: true, automations: ["Posts", "Stories", "Reels", "Meta Ads", "Анализи"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове", "реклами", "Meta Ads", "Facebook Ads", "анализ", "ROAS", "CPM", "CTR"], taskGroups: [
       { id: "tg-1a", title: "Създаване на съдържание", subtasks: [
         { id: "st-1a1", text: "Планиране на месечен контент календар", done: false },
         { id: "st-1a2", text: "Генериране на 5 идеи за постове тази седмица", done: false },
@@ -91,9 +91,16 @@ export default function TeamsPage() {
         { id: "st-1a4", text: "Подготви script за Reels/TikTok видео", done: false },
         { id: "st-1a5", text: "Генерирай 20 хаштагa за нишата ми", done: false },
       ]},
+      { id: "tg-1c", title: "Анализ на реклами", subtasks: [
+        { id: "st-1c1", text: "Анализирай рекламите за последните 7 дни", done: false },
+        { id: "st-1c2", text: "Покажи ROAS и CPM по кампании", done: false },
+        { id: "st-1c3", text: "Дай препоръки за оптимизация на рекламите", done: false },
+        { id: "st-1c4", text: "Сравни performance на рекламите този vs миналия месец", done: false },
+        { id: "st-1c5", text: "Публикувай пост в Instagram", done: false },
+      ]},
       { id: "tg-1b", title: "Инструменти", subtasks: [
         { id: "st-1b1", text: "Отвори Canva за дизайн", done: false, action: { type: "open_url", url: "https://www.canva.com" } },
-        { id: "st-1b2", text: "Отвори Instagram", done: false, action: { type: "open_url", url: "https://www.instagram.com" } },
+        { id: "st-1b2", text: "Отвори Meta Ads Manager", done: false, action: { type: "open_url", url: "https://adsmanager.facebook.com" } },
         { id: "st-1b3", text: "Отвори Meta Business Suite", done: false, action: { type: "open_url", url: "https://business.facebook.com" } },
       ]},
     ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
