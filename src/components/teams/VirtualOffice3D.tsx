@@ -347,6 +347,8 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]>([]);
 
+  // Per-bot message history (persists when closing chat)
+  const botMessagesRef = useRef<Record<string, { role: "user" | "assistant"; content: string }[]>>({});
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -413,17 +415,25 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
-    const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
 
-    let greeting: string;
-    if (issues.length > 0) {
-      const issueList = issues.map((iss, i) => `${i + 1}. ${iss.type === "api" ? "🔌" : "📋"} ${iss.message}`).join("\n");
-      greeting = `⚠️ Аз съм ${bot.name} — ${bot.role}.\n\n**Преди да мога да работя, трябва:**\n${issueList}\n\nНатисни бутон отдолу за да оправиш проблема.`;
+    // Restore previous messages or create greeting
+    const prev = botMessagesRef.current[bot.id];
+    if (prev && prev.length > 0) {
+      setChatMessages(prev);
     } else {
-      greeting = `✅ Аз съм ${bot.name} — ${bot.role}.\nВсичко е свързано! Мога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`;
+      const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
+      let greeting: string;
+      if (issues.length > 0) {
+        const issueList = issues.map((iss, i) => `${i + 1}. ${iss.type === "api" ? "🔌" : "📋"} ${iss.message}`).join("\n");
+        greeting = `⚠️ Аз съм ${bot.name} — ${bot.role}.\n\n**Преди да мога да работя, трябва:**\n${issueList}\n\nНатисни бутон отдолу за да оправиш проблема.`;
+      } else {
+        greeting = `✅ Аз съм ${bot.name} — ${bot.role}.\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`;
+      }
+      const msgs = [{ role: "assistant" as const, content: greeting }];
+      setChatMessages(msgs);
+      botMessagesRef.current[bot.id] = msgs;
     }
 
-    setChatMessages([{ role: "assistant", content: greeting }]);
     setChatInput("");
     setTimeout(() => chatInputRef.current?.focus(), 100);
   }, [hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan]);
@@ -432,20 +442,21 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     if (!chatInput.trim() || !chatBot || chatLoading) return;
     const msg = chatInput.trim();
     setChatInput("");
-    setChatMessages(p => [...p, { role: "user", content: msg }]);
+    const userMsg = { role: "user" as const, content: msg };
+    setChatMessages(p => { const n = [...p, userMsg]; botMessagesRef.current[chatBot.id] = n; return n; });
     setChatLoading(true);
-    // Bot goes to desk while thinking
     setBotActivity(prev => ({ ...prev, [chatBot.id]: "working" }));
     try {
       const { data } = await supabase.functions.invoke("assistant-chat", {
         body: { messages: [...chatMessages.slice(-8), { role: "user", content: msg }], projectId, organizationId: currentOrganization?.id, context: "business", userId: user?.id,
           moduleSystemPrompt: `Ти си ${chatBot.name}, ${chatBot.role}. Умения: ${(chatBot.skills || []).join(", ")}. Кратко на български.` },
       });
-      setChatMessages(p => [...p, { role: "assistant", content: data?.content || "Грешка." }]);
-      // Done → bot comes to you
+      const reply = { role: "assistant" as const, content: data?.content || "Грешка." };
+      setChatMessages(p => { const n = [...p, reply]; botMessagesRef.current[chatBot.id] = n; return n; });
       setBotActivity(prev => ({ ...prev, [chatBot.id]: "done" }));
     } catch {
-      setChatMessages(p => [...p, { role: "assistant", content: "⚠️ Грешка." }]);
+      const err = { role: "assistant" as const, content: "⚠️ Грешка." };
+      setChatMessages(p => { const n = [...p, err]; botMessagesRef.current[chatBot.id] = n; return n; });
       setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" }));
     }
     finally { setChatLoading(false); setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50); }
@@ -565,7 +576,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
                 <span className="w-3 h-3 rounded-full" style={{ background: chatBot.shirtColor }} />
                 <div><p className="text-sm font-semibold text-white">{chatBot.name}</p><p className="text-[10px] text-gray-500">{chatBot.role}</p></div>
               </div>
-              <button onClick={() => { if (chatBot) setBotActivity(prev => ({ ...prev, [chatBot.id]: "idle" })); setChatBot(null); }} className="text-gray-500 hover:text-white p-1"><X className="h-4 w-4" /></button>
+              <button onClick={() => setChatBot(null)} className="text-gray-500 hover:text-white p-1" title="Затвори (ботът продължава работа)"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
               {chatMessages.map((m, i) => (
