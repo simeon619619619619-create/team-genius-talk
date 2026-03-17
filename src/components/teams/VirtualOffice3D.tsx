@@ -120,20 +120,24 @@ function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position:
   );
 }
 
-// ─── FIRST PERSON: W=forward, S=back, A=left, D=right (fixed north) ───
+// ─── FIRST PERSON: WASD walk + mouse look ───
 function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
   chatOpen: boolean; onNearBot: (b: AiBot | null) => void;
   botPositions: [number, number, number][]; bots: AiBot[]; onInteract: (b: AiBot) => void;
 }) {
   const pos = useRef(new THREE.Vector3(RW / 2, 1.6, RD - 3));
+  const rotY = useRef(Math.PI); // face forward (toward bots)
+  const rotX = useRef(0);
   const keys = useRef<Set<string>>(new Set());
   const nearRef = useRef<AiBot | null>(null);
-  const { camera } = useThree();
+  const isDrag = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+  const { camera, gl } = useThree();
 
   useEffect(() => {
-    // Point camera forward (toward back wall)
     camera.position.copy(pos.current);
-    camera.lookAt(pos.current.x, 1.6, 0);
+    const euler = new THREE.Euler(0, rotY.current, 0, "YXZ");
+    camera.quaternion.setFromEuler(euler);
   }, [camera]);
 
   useEffect(() => {
@@ -144,10 +148,31 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
       if (k === "e" && nearRef.current) onInteract(nearRef.current);
     };
     const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+
+    // Mouse drag to look around
+    const canvas = gl.domElement;
+    const onMouseDown = (e: MouseEvent) => { isDrag.current = true; lastMouse.current = { x: e.clientX, y: e.clientY }; };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDrag.current || chatOpen) return;
+      rotY.current -= (e.clientX - lastMouse.current.x) * 0.004;
+      rotX.current = Math.max(-0.8, Math.min(0.8, rotX.current - (e.clientY - lastMouse.current.y) * 0.004));
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+    };
+    const onMouseUp = () => { isDrag.current = false; };
+
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
-    return () => { window.removeEventListener("keydown", onDown); window.removeEventListener("keyup", onUp); };
-  }, [chatOpen, onInteract]);
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [chatOpen, onInteract, gl]);
 
   useFrame(() => {
     if (chatOpen) return;
@@ -155,12 +180,15 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
     const k = keys.current;
     const p = pos.current;
 
-    // Fixed directions: W=forward(-Z), S=back(+Z), A=left(-X), D=right(+X)
+    // Movement relative to camera direction
+    const forward = new THREE.Vector3(-Math.sin(rotY.current), 0, -Math.cos(rotY.current));
+    const right = new THREE.Vector3(forward.z, 0, -forward.x);
+
     let dx = 0, dz = 0;
-    if (k.has("w")) dz = -speed;
-    if (k.has("s")) dz = speed;
-    if (k.has("a")) dx = -speed;
-    if (k.has("d")) dx = speed;
+    if (k.has("w")) { dx += forward.x * speed; dz += forward.z * speed; }
+    if (k.has("s")) { dx -= forward.x * speed; dz -= forward.z * speed; }
+    if (k.has("a")) { dx -= right.x * speed; dz -= right.z * speed; }
+    if (k.has("d")) { dx += right.x * speed; dz += right.z * speed; }
 
     // Wall collision
     const nx = p.x + dx, nz = p.z + dz;
@@ -169,7 +197,8 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
 
     p.y = 1.6;
     camera.position.copy(p);
-    camera.lookAt(p.x, 1.6, p.z - 5); // Always look forward
+    const euler = new THREE.Euler(rotX.current, rotY.current, 0, "YXZ");
+    camera.quaternion.setFromEuler(euler);
 
     // Near bots
     let nearest: AiBot | null = null, nd = 2.5;
@@ -259,7 +288,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
             </div>
           )}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-gray-500 pointer-events-none">
-            W=Forward | S=Back | A=Left | D=Right | E=Talk | Click=Chat
+            WASD=Walk | Drag=Look around | E=Talk | Click=Chat
           </div>
         </div>
 
