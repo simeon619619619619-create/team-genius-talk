@@ -212,9 +212,10 @@ function LabelProjector({ bots, positions, onUpdate }: {
 }
 
 // ─── FIRST PERSON: WASD walk + mouse look ───
-function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
+function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract, keybinds }: {
   chatOpen: boolean; onNearBot: (b: AiBot | null) => void;
   botPositions: [number, number, number][]; bots: AiBot[]; onInteract: (b: AiBot) => void;
+  keybinds: { forward: string; back: string; left: string; right: string; talk: string };
 }) {
   const pos = useRef(new THREE.Vector3(RW / 2, 1.6, RD - 3));
   const rotY = useRef(0); // face toward bots (negative Z)
@@ -494,7 +495,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
               return <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} hasIssues={issues.length > 0} />;
             })}
-            <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} />
+            <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} keybinds={keybinds} />
             <LabelProjector bots={bots} positions={botPositions} onUpdate={(labels) => {
               // Inject needsAttention from issues
               setBotLabels(labels.map((l, i) => {
