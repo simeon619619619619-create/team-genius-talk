@@ -81,9 +81,12 @@ function Room() {
       <Block position={[0.5, 0.8, 0.5]} color="#2d8b4e" args={[0.5, 0.5, 0.5]} />
       <Block position={[RW - 1.5, 0.4, 0.5]} color="#8b4513" args={[0.3, 0.5, 0.3]} />
       <Block position={[RW - 1.5, 0.8, 0.5]} color="#4ec870" args={[0.5, 0.5, 0.5]} />
-      {/* Couch */}
-      <Block position={[RW / 2 - 0.5, 0.3, RD - 2]} color="#6b3090" args={[3, 0.5, 0.8]} />
-      <Block position={[RW / 2 - 0.5, 0.6, RD - 1.7]} color="#5a2878" args={[3, 0.5, 0.2]} />
+      {/* Long couch */}
+      <Block position={[9, 0.3, RD - 2]} color="#6b3090" args={[10, 0.5, 0.8]} />
+      <Block position={[9, 0.6, RD - 1.7]} color="#5a2878" args={[10, 0.5, 0.2]} />
+      {/* Couch arms */}
+      <Block position={[4.1, 0.5, RD - 2]} color="#5a2878" args={[0.3, 0.7, 0.8]} />
+      <Block position={[13.9, 0.5, RD - 2]} color="#5a2878" args={[0.3, 0.7, 0.8]} />
     </group>
   );
 }
@@ -103,7 +106,16 @@ function Desk({ position }: { position: [number, number, number] }) {
 
 function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame((s) => { if (ref.current) ref.current.position.y = position[1] + Math.sin(s.clock.elapsedTime * 1.5 + position[0]) * 0.02; });
+  const currentPos = useRef(new THREE.Vector3(...position));
+
+  useFrame((s) => {
+    if (!ref.current) return;
+    // Smooth lerp to target position
+    currentPos.current.lerp(new THREE.Vector3(...position), 0.02);
+    ref.current.position.copy(currentPos.current);
+    ref.current.position.y += Math.sin(s.clock.elapsedTime * 1.5 + position[0]) * 0.02;
+  });
+
   return (
     <group ref={ref} position={position} onClick={(e) => { e.stopPropagation(); onClick(); }}>
       <Block position={[-0.08, 0.15, 0]} color="#2d2d4a" args={[0.12, 0.3, 0.12]} />
@@ -288,16 +300,26 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const { currentOrganization } = useOrganizations();
   const { user } = useAuth();
 
-  // Bot positions: 2 rows of 3
-  const botPositions = useMemo<[number, number, number][]>(() => [
-    [3, 0, 3], [7, 0, 3], [11, 0, 3],
-    [3, 0, 7], [7, 0, 7], [11, 0, 7],
+  // Desk positions (where bots work)
+  const deskPositions = useMemo<[number, number, number][]>(() => [
+    [3, 0, 2], [6, 0, 2], [9, 0, 2],
+    [3, 0, 5], [6, 0, 5], [9, 0, 5],
   ], []);
 
-  const deskPositions = useMemo<[number, number, number][]>(() => [
-    [3, 0, 2], [7, 0, 2], [11, 0, 2],
-    [3, 0, 6], [7, 0, 6], [11, 0, 6],
+  // Couch positions (where bots idle) - spread along the couch
+  const couchPositions = useMemo<[number, number, number][]>(() => [
+    [5.5, 0.3, RD - 2.2], [7, 0.3, RD - 2.2], [8.5, 0.3, RD - 2.2],
+    [10, 0.3, RD - 2.2], [11.5, 0.3, RD - 2.2], [13, 0.3, RD - 2.2],
   ], []);
+
+  // Bot positions: idle=couch, working=desk
+  const botPositions = useMemo<[number, number, number][]>(() => {
+    return bots.map((bot, i) => {
+      if (i >= deskPositions.length) return couchPositions[i % couchPositions.length];
+      const isWorking = bot.state === "working";
+      return isWorking ? [deskPositions[i][0], 0, deskPositions[i][2] + 1] : couchPositions[i % couchPositions.length];
+    });
+  }, [bots, deskPositions, couchPositions]);
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
@@ -337,7 +359,8 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
             <ambientLight intensity={0.5} />
             <color attach="background" args={["#1a1a2e"]} />
             <Room />
-            {deskPositions.slice(0, bots.length).map((p, i) => <Desk key={i} position={p} />)}
+            {/* Always show all desks */}
+            {deskPositions.map((p, i) => <Desk key={`desk${i}`} position={p} />)}
             {bots.map((bot, i) => i < botPositions.length ? (
               <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} />
             ) : null)}
