@@ -104,13 +104,24 @@ function Desk({ position }: { position: [number, number, number] }) {
   );
 }
 
+function getBotStatus(bot: AiBot): "ok" | "needs_attention" {
+  // Check if bot has incomplete tasks
+  const hasIncompleteTasks = bot.taskGroups?.some(tg =>
+    tg.subtasks.some(st => !st.done)
+  );
+  // Bots always need attention if they have undone tasks (plan not fulfilled)
+  if (hasIncompleteTasks) return "needs_attention";
+  return "ok";
+}
+
 function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void }) {
   const ref = useRef<THREE.Group>(null);
   const currentPos = useRef(new THREE.Vector3(...position));
+  const status = getBotStatus(bot);
+  const bodyColor = status === "needs_attention" ? "#ef4444" : bot.shirtColor;
 
   useFrame((s) => {
     if (!ref.current) return;
-    // Smooth lerp to target position
     currentPos.current.lerp(new THREE.Vector3(...position), 0.02);
     ref.current.position.copy(currentPos.current);
     ref.current.position.y += Math.sin(s.clock.elapsedTime * 1.5 + position[0]) * 0.02;
@@ -120,7 +131,7 @@ function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position:
     <group ref={ref} position={position} onClick={(e) => { e.stopPropagation(); onClick(); }}>
       <Block position={[-0.08, 0.15, 0]} color="#2d2d4a" args={[0.12, 0.3, 0.12]} />
       <Block position={[0.08, 0.15, 0]} color="#2d2d4a" args={[0.12, 0.3, 0.12]} />
-      <Block position={[0, 0.5, 0]} color={bot.shirtColor} args={[0.35, 0.4, 0.2]} />
+      <Block position={[0, 0.5, 0]} color={bodyColor} args={[0.35, 0.4, 0.2]} />
       <Block position={[-0.25, 0.5, 0]} color={bot.skinColor} args={[0.12, 0.35, 0.12]} />
       <Block position={[0.25, 0.5, 0]} color={bot.skinColor} args={[0.12, 0.35, 0.12]} />
       <Block position={[0, 0.85, 0]} color={bot.skinColor} args={[0.3, 0.3, 0.3]} />
@@ -155,20 +166,21 @@ function BotLabels({ bots, positions, canvasRef }: { bots: AiBot[]; positions: [
 // Component inside Canvas that projects bot positions to screen coords
 function LabelProjector({ bots, positions, onUpdate }: {
   bots: AiBot[]; positions: [number, number, number][];
-  onUpdate: (labels: { name: string; role: string; x: number; y: number; visible: boolean; color: string }[]) => void;
+  onUpdate: (labels: { name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]) => void;
 }) {
-  const { camera, size } = useThree();
+  const { camera } = useThree();
   const vec = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
     const result = bots.map((bot, i) => {
-      if (i >= positions.length) return { name: bot.name, role: bot.role, x: -100, y: -100, visible: false, color: bot.shirtColor };
+      if (i >= positions.length) return { name: bot.name, role: bot.role, x: -100, y: -100, visible: false, color: bot.shirtColor, needsAttention: false };
       vec.set(positions[i][0], 1.5, positions[i][2]);
       vec.project(camera);
       const x = (vec.x * 0.5 + 0.5) * 100;
       const y = (-vec.y * 0.5 + 0.5) * 100;
       const behind = vec.z > 1;
-      return { name: bot.name, role: bot.role, x, y, visible: !behind && x > -10 && x < 110 && y > -10 && y < 110, color: bot.shirtColor };
+      const status = getBotStatus(bot);
+      return { name: bot.name, role: bot.role, x, y, visible: !behind && x > -10 && x < 110 && y > -10 && y < 110, color: status === "needs_attention" ? "#ef4444" : bot.shirtColor, needsAttention: status === "needs_attention" };
     });
     onUpdate(result);
   });
@@ -290,7 +302,7 @@ function FPController({ chatOpen, onNearBot, botPositions, bots, onInteract }: {
 export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
-  const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string }[]>([]);
+  const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]>([]);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -323,7 +335,20 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
-    setChatMessages([{ role: "assistant", content: `Здравейте! Аз съм ${bot.name} — ${bot.role}.\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?` }]);
+    // List incomplete tasks
+    const incompleteTasks: string[] = [];
+    bot.taskGroups?.forEach(tg => {
+      tg.subtasks.forEach(st => {
+        if (!st.done) incompleteTasks.push(st.text);
+      });
+    });
+
+    const status = getBotStatus(bot);
+    const greeting = status === "needs_attention"
+      ? `⚠️ Аз съм ${bot.name} — ${bot.role}.\n\n**Имам ${incompleteTasks.length} незавършени задачи:**\n${incompleteTasks.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\nИзбери задача отдолу или ми кажи какво да направя.`
+      : `Здравейте! Аз съм ${bot.name} — ${bot.role}.\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`;
+
+    setChatMessages([{ role: "assistant", content: greeting }]);
     setChatInput("");
     setTimeout(() => chatInputRef.current?.focus(), 100);
   }, []);
@@ -372,7 +397,8 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
           {botLabels.map((l, i) => l.visible && (
             <div key={i} className="absolute pointer-events-none" style={{ left: `${l.x}%`, top: `${l.y}%`, transform: "translate(-50%, -100%)" }}>
               <div className="text-center whitespace-nowrap">
-                <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded" style={{ background: "#0f0f1aDD", borderBottom: `2px solid ${l.color}` }}>{l.name}</span>
+                {l.needsAttention && <span className="text-[9px] text-red-400 block mb-0.5">⚠ Needs action</span>}
+                <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded" style={{ background: l.needsAttention ? "#991b1bDD" : "#0f0f1aDD", borderBottom: `2px solid ${l.color}` }}>{l.name}</span>
                 <br />
                 <span className="text-[9px] text-gray-400 px-1.5 rounded" style={{ background: "#0f0f1a99" }}>{l.role}</span>
               </div>
@@ -407,6 +433,17 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               {chatLoading && <div className="flex justify-start"><div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl px-3 py-2 flex gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" /><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "150ms" }} /><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "300ms" }} /></div></div>}
               <div ref={chatEndRef} />
             </div>
+            {/* Action buttons for incomplete tasks */}
+            {chatBot && getBotStatus(chatBot) === "needs_attention" && (
+              <div className="px-2 py-1.5 border-t border-[#2a2a4a] flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+                {chatBot.taskGroups?.flatMap(tg => tg.subtasks.filter(st => !st.done).map(st => (
+                  <button key={st.id} onClick={() => { setChatInput(st.text); }}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors truncate max-w-[150px]">
+                    ▶ {st.text}
+                  </button>
+                )))}
+              </div>
+            )}
             <div className="p-2 border-t border-[#2a2a4a]">
               <div className="flex items-center gap-2 bg-[#1a1a2e] rounded-full px-3 py-1.5 border border-[#2a2a4a] focus-within:border-purple-500/50">
                 <input ref={chatInputRef} type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
