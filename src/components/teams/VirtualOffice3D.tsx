@@ -139,14 +139,18 @@ function getBotIssues(bot: AiBot, hasResendApi: boolean, hasWebsiteApi: boolean,
   return issues;
 }
 
-function BotChar({ bot, position, isSelected, onClick, hasIssues }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void; hasIssues: boolean }) {
+function BotChar({ bot, position, isSelected, onClick, hasIssues, followTarget }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void; hasIssues: boolean; followTarget?: THREE.Vector3 }) {
   const ref = useRef<THREE.Group>(null);
   const currentPos = useRef(new THREE.Vector3(...position));
   const bodyColor = hasIssues ? "#ef4444" : bot.shirtColor;
 
   useFrame((s) => {
     if (!ref.current) return;
-    currentPos.current.lerp(new THREE.Vector3(...position), 0.02);
+    // If following player, update target every frame
+    const target = followTarget
+      ? new THREE.Vector3(followTarget.x + ((bot.id.charCodeAt(4) || 0) % 3 - 1) * 1.2, position[1], followTarget.z + 1.5)
+      : new THREE.Vector3(...position);
+    currentPos.current.lerp(target, 0.03);
     ref.current.position.copy(currentPos.current);
     ref.current.position.y += Math.sin(s.clock.elapsedTime * 1.5 + position[0]) * 0.02;
   });
@@ -535,7 +539,8 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
             {bots.map((bot, i) => {
               if (i >= botPositions.length) return null;
               const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
-              return <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} hasIssues={issues.length > 0} />;
+              const activity = botActivity[bot.id] || "idle";
+              return <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} hasIssues={issues.length > 0} followTarget={activity === "done" ? playerPosRef.current : undefined} />;
             })}
             <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} keybinds={keybinds} playerPosRef={playerPosRef} />
             <LabelProjector bots={bots} positions={botPositions} onUpdate={(labels) => {
