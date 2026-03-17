@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiBot } from "./VirtualOffice";
+import { useNavigate } from "react-router-dom";
 import { X, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
@@ -104,21 +105,44 @@ function Desk({ position }: { position: [number, number, number] }) {
   );
 }
 
-function getBotStatus(bot: AiBot): "ok" | "needs_attention" {
-  // Check if bot has incomplete tasks
-  const hasIncompleteTasks = bot.taskGroups?.some(tg =>
-    tg.subtasks.some(st => !st.done)
-  );
-  // Bots always need attention if they have undone tasks (plan not fulfilled)
-  if (hasIncompleteTasks) return "needs_attention";
-  return "ok";
+interface BotIssue {
+  type: "api" | "plan" | "task";
+  message: string;
+  action: string; // button label
+  link?: string; // navigate to
 }
 
-function BotChar({ bot, position, isSelected, onClick }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void }) {
+function getBotIssues(bot: AiBot, hasResendApi: boolean, hasWebsiteApi: boolean, hasMetaApi: boolean, hasPlanSteps: boolean, hasBusinessPlan: boolean): BotIssue[] {
+  const issues: BotIssue[] = [];
+  const role = bot.role.toLowerCase();
+  const skills = (bot.skills || []).join(" ").toLowerCase();
+
+  // API checks per bot role
+  if ((role.includes("email") || skills.includes("имейл") || skills.includes("newsletter")) && !hasResendApi) {
+    issues.push({ type: "api", message: "Няма свързано API за имейли (Resend)", action: "Свържи Resend API", link: "/settings" });
+  }
+  if ((role.includes("уеб") || skills.includes("seo") || skills.includes("web")) && !hasWebsiteApi) {
+    issues.push({ type: "api", message: "Няма свързан уебсайт за редакция", action: "Свържи сайт", link: "/settings" });
+  }
+  if ((skills.includes("meta ads") || skills.includes("реклам") || skills.includes("instagram")) && !hasMetaApi) {
+    issues.push({ type: "api", message: "Няма свързан Meta Ads акаунт", action: "Свържи Meta Ads", link: "/settings" });
+  }
+
+  // Plan checks
+  if (!hasPlanSteps) {
+    issues.push({ type: "plan", message: "Маркетинг планът не е започнат", action: "Направи маркетинг план", link: "/plan" });
+  }
+  if (!hasBusinessPlan) {
+    issues.push({ type: "plan", message: "Бизнес планът не е готов", action: "Направи бизнес план", link: "/business-plan" });
+  }
+
+  return issues;
+}
+
+function BotChar({ bot, position, isSelected, onClick, hasIssues }: { bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void; hasIssues: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const currentPos = useRef(new THREE.Vector3(...position));
-  const status = getBotStatus(bot);
-  const bodyColor = status === "needs_attention" ? "#ef4444" : bot.shirtColor;
+  const bodyColor = hasIssues ? "#ef4444" : bot.shirtColor;
 
   useFrame((s) => {
     if (!ref.current) return;
@@ -179,8 +203,7 @@ function LabelProjector({ bots, positions, onUpdate }: {
       const x = (vec.x * 0.5 + 0.5) * 100;
       const y = (-vec.y * 0.5 + 0.5) * 100;
       const behind = vec.z > 1;
-      const status = getBotStatus(bot);
-      return { name: bot.name, role: bot.role, x, y, visible: !behind && x > -10 && x < 110 && y > -10 && y < 110, color: status === "needs_attention" ? "#ef4444" : bot.shirtColor, needsAttention: status === "needs_attention" };
+      return { name: bot.name, role: bot.role, x, y, visible: !behind && x > -10 && x < 110 && y > -10 && y < 110, color: bot.shirtColor, needsAttention: false };
     });
     onUpdate(result);
   });
@@ -303,6 +326,27 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
   const [botLabels, setBotLabels] = useState<{ name: string; role: string; x: number; y: number; visible: boolean; color: string; needsAttention: boolean }[]>([]);
+
+  // Check integrations & plans status
+  const [hasResendApi, setHasResendApi] = useState(false);
+  const [hasWebsiteApi, setHasWebsiteApi] = useState(false);
+  const [hasMetaApi, setHasMetaApi] = useState(false);
+  const [hasPlanSteps, setHasPlanSteps] = useState(false);
+  const [hasBusinessPlan, setHasBusinessPlan] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    // Check APIs
+    supabase.from("resend_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasResendApi(!!data));
+    supabase.from("website_integrations").select("id").eq("user_id", user.id).maybeSingle().then(({ data }) => setHasWebsiteApi(!!data));
+    // Meta API check - stored in website_integrations metadata
+    supabase.from("website_integrations").select("metadata").eq("user_id", user.id).then(({ data }) => {
+      setHasMetaApi(!!(data || []).find((d: any) => d.metadata?.meta_token));
+    });
+    // Check plans
+    supabase.from("plan_steps").select("id").limit(1).then(({ data }) => setHasPlanSteps(!!(data && data.length > 0)));
+    supabase.from("business_plans").select("id").limit(1).then(({ data }) => setHasBusinessPlan(!!(data && data.length > 0)));
+  }, [user]);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -333,25 +377,24 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
     });
   }, [bots, deskPositions, couchPositions]);
 
+  const navigate = useNavigate();
+
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
-    // List incomplete tasks
-    const incompleteTasks: string[] = [];
-    bot.taskGroups?.forEach(tg => {
-      tg.subtasks.forEach(st => {
-        if (!st.done) incompleteTasks.push(st.text);
-      });
-    });
+    const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
 
-    const status = getBotStatus(bot);
-    const greeting = status === "needs_attention"
-      ? `⚠️ Аз съм ${bot.name} — ${bot.role}.\n\n**Имам ${incompleteTasks.length} незавършени задачи:**\n${incompleteTasks.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\nИзбери задача отдолу или ми кажи какво да направя.`
-      : `Здравейте! Аз съм ${bot.name} — ${bot.role}.\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`;
+    let greeting: string;
+    if (issues.length > 0) {
+      const issueList = issues.map((iss, i) => `${i + 1}. ${iss.type === "api" ? "🔌" : "📋"} ${iss.message}`).join("\n");
+      greeting = `⚠️ Аз съм ${bot.name} — ${bot.role}.\n\n**Преди да мога да работя, трябва:**\n${issueList}\n\nНатисни бутон отдолу за да оправиш проблема.`;
+    } else {
+      greeting = `✅ Аз съм ${bot.name} — ${bot.role}.\nВсичко е свързано! Мога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`;
+    }
 
     setChatMessages([{ role: "assistant", content: greeting }]);
     setChatInput("");
     setTimeout(() => chatInputRef.current?.focus(), 100);
-  }, []);
+  }, [hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan]);
 
   const sendMsg = useCallback(async () => {
     if (!chatInput.trim() || !chatBot || chatLoading) return;
@@ -386,11 +429,19 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
             <Room />
             {/* Always show all desks */}
             {deskPositions.map((p, i) => <Desk key={`desk${i}`} position={p} />)}
-            {bots.map((bot, i) => i < botPositions.length ? (
-              <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} />
-            ) : null)}
+            {bots.map((bot, i) => {
+              if (i >= botPositions.length) return null;
+              const issues = getBotIssues(bot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
+              return <BotChar key={bot.id} bot={bot} position={botPositions[i]} isSelected={chatBot?.id === bot.id} onClick={() => openChat(bot)} hasIssues={issues.length > 0} />;
+            })}
             <FPController chatOpen={!!chatBot} onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} />
-            <LabelProjector bots={bots} positions={botPositions} onUpdate={setBotLabels} />
+            <LabelProjector bots={bots} positions={botPositions} onUpdate={(labels) => {
+              // Inject needsAttention from issues
+              setBotLabels(labels.map((l, i) => {
+                const issues = i < bots.length ? getBotIssues(bots[i], hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan) : [];
+                return { ...l, needsAttention: issues.length > 0, color: issues.length > 0 ? "#ef4444" : bots[i]?.shirtColor || l.color };
+              }));
+            }} />
           </Canvas>
 
           {/* Bot name labels */}
@@ -433,17 +484,25 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               {chatLoading && <div className="flex justify-start"><div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-2xl px-3 py-2 flex gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" /><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "150ms" }} /><span className="h-1.5 w-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "300ms" }} /></div></div>}
               <div ref={chatEndRef} />
             </div>
-            {/* Action buttons for incomplete tasks */}
-            {chatBot && getBotStatus(chatBot) === "needs_attention" && (
-              <div className="px-2 py-1.5 border-t border-[#2a2a4a] flex flex-wrap gap-1 max-h-20 overflow-y-auto">
-                {chatBot.taskGroups?.flatMap(tg => tg.subtasks.filter(st => !st.done).map(st => (
-                  <button key={st.id} onClick={() => { setChatInput(st.text); }}
-                    className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors truncate max-w-[150px]">
-                    ▶ {st.text}
-                  </button>
-                )))}
-              </div>
-            )}
+            {/* Action buttons for issues */}
+            {chatBot && (() => {
+              const issues = getBotIssues(chatBot, hasResendApi, hasWebsiteApi, hasMetaApi, hasPlanSteps, hasBusinessPlan);
+              if (issues.length === 0) return null;
+              return (
+                <div className="px-2 py-1.5 border-t border-[#2a2a4a] flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                  {issues.map((iss, i) => (
+                    <button key={i} onClick={() => { if (iss.link) navigate(iss.link); }}
+                      className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                        iss.type === "api"
+                          ? "bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20"
+                          : "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
+                      }`}>
+                      {iss.type === "api" ? "🔌" : "📋"} {iss.action}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="p-2 border-t border-[#2a2a4a]">
               <div className="flex items-center gap-2 bg-[#1a1a2e] rounded-full px-3 py-1.5 border border-[#2a2a4a] focus-within:border-purple-500/50">
                 <input ref={chatInputRef} type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
