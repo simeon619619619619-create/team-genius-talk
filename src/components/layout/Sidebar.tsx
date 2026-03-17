@@ -57,11 +57,9 @@ const baseNavItems: NavItem[] = [
   { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
-  { icon: Globe, label: "Уебсайтове", path: "/websites" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
-  { icon: Video, label: "Видео обработка", path: "/video" },
   { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
@@ -73,7 +71,6 @@ const automationNavItems: NavItem[] = [
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: Users, label: "Екипи", path: "/teams" },
-  { icon: Globe, label: "Уебсайтове", path: "/websites" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
@@ -87,7 +84,6 @@ const startupNavItems: NavItem[] = [
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
-  { icon: Globe, label: "Уебсайтове", path: "/websites" },
   { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
