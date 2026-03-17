@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useRef, useState, useCallback, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiBot } from "./VirtualOffice";
 import { X, Send, Loader2 } from "lucide-react";
@@ -15,14 +15,78 @@ interface Props {
 }
 
 // ─── BLOCK ───
-function Block({ position, color, args = [1, 1, 1] as [number, number, number] }: {
+function Block({ position, color, args }: {
   position: [number, number, number]; color: string; args?: [number, number, number];
 }) {
   return (
-    <mesh position={position} castShadow receiveShadow>
-      <boxGeometry args={args} />
+    <mesh position={position}>
+      <boxGeometry args={args || [1, 1, 1]} />
       <meshLambertMaterial color={color} />
     </mesh>
+  );
+}
+
+// ─── ROOM (4 rooms with labels) ───
+const ROOMS = [
+  { name: "MARKETING", color: "#34d399", x: 0, z: 0 },
+  { name: "SALES", color: "#fb923c", x: 12, z: 0 },
+  { name: "ACCOUNTING", color: "#60a5fa", x: 0, z: 10 },
+  { name: "WEB DEV", color: "#a78bfa", x: 12, z: 10 },
+];
+
+function Office() {
+  return (
+    <group>
+      {/* Floor for each room */}
+      {ROOMS.map((room, ri) => (
+        <group key={ri}>
+          {/* Floor */}
+          {Array.from({ length: 10 }, (_, x) =>
+            Array.from({ length: 8 }, (_, z) => (
+              <Block key={`f${ri}${x}${z}`}
+                position={[room.x + x, 0, room.z + z]}
+                color={(x + z) % 2 === 0 ? "#3d3524" : "#352e1f"}
+              />
+            ))
+          )}
+          {/* Walls - back */}
+          {Array.from({ length: 10 }, (_, x) => (
+            <Block key={`wb${ri}${x}`} position={[room.x + x, 1.5, room.z - 0.5]} color="#4a5568" args={[1, 3, 1]} />
+          ))}
+          {/* Walls - left */}
+          {Array.from({ length: 8 }, (_, z) => (
+            <Block key={`wl${ri}${z}`} position={[room.x - 0.5, 1.5, room.z + z]} color="#4a5568" args={[1, 3, 1]} />
+          ))}
+          {/* Colored floor strip (room indicator) */}
+          <Block position={[room.x + 4.5, 0.02, room.z + 0.5]} color={room.color} args={[9, 0.04, 1]} />
+          {/* Room label on wall */}
+          <Block position={[room.x + 4.5, 2.5, room.z - 0.4]} color={room.color} args={[5, 0.6, 0.1]} />
+          {/* Window */}
+          <mesh position={[room.x + 4.5, 1.5, room.z - 0.3]}>
+            <planeGeometry args={[4, 1.5]} />
+            <meshBasicMaterial color="#1e3a5f" transparent opacity={0.5} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Hallway floor */}
+      {Array.from({ length: 2 }, (_, x) =>
+        Array.from({ length: 20 }, (_, z) => (
+          <Block key={`h${x}${z}`} position={[10 + x, 0, z - 1]} color="#2a2418" />
+        ))
+      )}
+      {Array.from({ length: 24 }, (_, x) =>
+        Array.from({ length: 2 }, (_, z) => (
+          <Block key={`h2${x}${z}`} position={[x - 1, 0, 8 + z]} color="#2a2418" />
+        ))
+      )}
+
+      {/* Lights */}
+      <pointLight position={[5, 5, 4]} intensity={1.5} distance={20} />
+      <pointLight position={[17, 5, 4]} intensity={1.5} distance={20} />
+      <pointLight position={[5, 5, 14]} intensity={1.5} distance={20} />
+      <pointLight position={[17, 5, 14]} intensity={1.5} distance={20} />
+    </group>
   );
 }
 
@@ -31,187 +95,111 @@ function Desk({ position }: { position: [number, number, number] }) {
   const [x, y, z] = position;
   return (
     <group>
-      <Block position={[x, y + 0.75, z]} color="#8b7050" args={[1.5, 0.1, 0.8]} />
-      <Block position={[x - 0.6, y + 0.35, z - 0.3]} color="#6b5030" args={[0.08, 0.7, 0.08]} />
-      <Block position={[x + 0.6, y + 0.35, z - 0.3]} color="#6b5030" args={[0.08, 0.7, 0.08]} />
-      <Block position={[x - 0.6, y + 0.35, z + 0.3]} color="#6b5030" args={[0.08, 0.7, 0.08]} />
-      <Block position={[x + 0.6, y + 0.35, z + 0.3]} color="#6b5030" args={[0.08, 0.7, 0.08]} />
-      <Block position={[x, y + 1.15, z - 0.2]} color="#1f2937" args={[0.6, 0.4, 0.05]} />
-      <Block position={[x, y + 0.9, z - 0.2]} color="#374151" args={[0.1, 0.1, 0.05]} />
-      <Block position={[x, y + 0.82, z + 0.1]} color="#4b5563" args={[0.4, 0.02, 0.15]} />
+      <Block position={[x, y + 0.75, z]} color="#8b7050" args={[1.2, 0.08, 0.6]} />
+      <Block position={[x - 0.5, y + 0.37, z]} color="#6b5030" args={[0.06, 0.74, 0.06]} />
+      <Block position={[x + 0.5, y + 0.37, z]} color="#6b5030" args={[0.06, 0.74, 0.06]} />
+      <Block position={[x, y + 1.05, z - 0.15]} color="#1f2937" args={[0.5, 0.35, 0.04]} />
+      <Block position={[x, y + 0.82, z + 0.1]} color="#4b5563" args={[0.3, 0.02, 0.12]} />
     </group>
   );
 }
 
-// ─── BOT ───
-function BotChar({ bot, position, isNear, onClick }: {
-  bot: AiBot; position: [number, number, number]; isNear: boolean; onClick: () => void;
+// ─── BOT CHARACTER ───
+function BotChar({ bot, position, isSelected, onClick }: {
+  bot: AiBot; position: [number, number, number]; isSelected: boolean; onClick: () => void;
 }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((s) => {
     if (!ref.current) return;
-    ref.current.position.y = position[1] + Math.sin(s.clock.elapsedTime * 2 + position[0]) * 0.03;
+    ref.current.position.y = position[1] + Math.sin(s.clock.elapsedTime * 1.5 + position[0]) * 0.02;
   });
 
   return (
     <group ref={ref} position={position} onClick={(e) => { e.stopPropagation(); onClick(); }}>
-      <Block position={[-0.1, 0.2, 0]} color="#2d2d4a" args={[0.15, 0.4, 0.15]} />
-      <Block position={[0.1, 0.2, 0]} color="#2d2d4a" args={[0.15, 0.4, 0.15]} />
-      <Block position={[0, 0.6, 0]} color={bot.shirtColor} args={[0.35, 0.4, 0.2]} />
-      <Block position={[-0.25, 0.6, 0]} color={bot.skinColor} args={[0.12, 0.35, 0.12]} />
-      <Block position={[0.25, 0.6, 0]} color={bot.skinColor} args={[0.12, 0.35, 0.12]} />
-      <Block position={[0, 1.0, 0]} color={bot.skinColor} args={[0.3, 0.3, 0.3]} />
-      <Block position={[0, 1.15, 0]} color={bot.hairColor} args={[0.32, 0.12, 0.32]} />
-      <Block position={[0, 1.05, -0.14]} color={bot.hairColor} args={[0.32, 0.25, 0.05]} />
-      <Block position={[-0.08, 1.0, 0.16]} color="#1a1a2e" args={[0.05, 0.05, 0.01]} />
-      <Block position={[0.08, 1.0, 0.16]} color="#1a1a2e" args={[0.05, 0.05, 0.01]} />
-      {/* Name plate */}
-      <Block position={[0, 1.45, 0]} color="#0f0f1a" args={[0.6, 0.18, 0.02]} />
-      {(isNear) && (
-        <mesh position={[0, 0.6, 0]}>
-          <boxGeometry args={[0.6, 1.4, 0.5]} />
-          <meshBasicMaterial color="#c084fc" transparent opacity={0.12} />
+      {/* Legs */}
+      <Block position={[-0.08, 0.15, 0]} color="#2d2d4a" args={[0.12, 0.3, 0.12]} />
+      <Block position={[0.08, 0.15, 0]} color="#2d2d4a" args={[0.12, 0.3, 0.12]} />
+      {/* Body */}
+      <Block position={[0, 0.5, 0]} color={bot.shirtColor} args={[0.3, 0.35, 0.18]} />
+      {/* Arms */}
+      <Block position={[-0.22, 0.5, 0]} color={bot.skinColor} args={[0.1, 0.3, 0.1]} />
+      <Block position={[0.22, 0.5, 0]} color={bot.skinColor} args={[0.1, 0.3, 0.1]} />
+      {/* Head */}
+      <Block position={[0, 0.85, 0]} color={bot.skinColor} args={[0.25, 0.25, 0.25]} />
+      {/* Hair */}
+      <Block position={[0, 0.97, 0]} color={bot.hairColor} args={[0.27, 0.08, 0.27]} />
+      {/* Eyes */}
+      <Block position={[-0.06, 0.85, 0.13]} color="#1a1a2e" args={[0.04, 0.04, 0.01]} />
+      <Block position={[0.06, 0.85, 0.13]} color="#1a1a2e" args={[0.04, 0.04, 0.01]} />
+      {/* Selection glow */}
+      {isSelected && (
+        <mesh position={[0, 0.5, 0]}>
+          <boxGeometry args={[0.5, 1.2, 0.4]} />
+          <meshBasicMaterial color="#c084fc" transparent opacity={0.2} />
         </mesh>
       )}
+      {/* Name plate */}
+      <Block position={[0, 1.25, 0]} color="#0f0f1aCC" args={[0.6, 0.15, 0.02]} />
+      <Block position={[0, 1.25, 0.02]} color={bot.shirtColor} args={[0.58, 0.02, 0.01]} />
     </group>
   );
 }
 
-// ─── PLAYER (first person WASD) ───
-function Player({ onNearBot, botPositions, bots, onInteract, chatOpen }: {
-  onNearBot: (bot: AiBot | null) => void;
-  botPositions: [number, number, number][];
-  bots: AiBot[];
-  onInteract: (bot: AiBot) => void;
-  chatOpen: boolean;
-}) {
-  const { camera, gl } = useThree();
-  const keys = useRef<Set<string>>(new Set());
-  const euler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
-  const nearRef = useRef<AiBot | null>(null);
-  const isLocked = useRef(false);
+// ─── BOT LAYOUT per room ───
+const BOT_SLOTS: Record<string, [number, number, number][]> = {
+  MARKETING: [[1.5, 0, 2], [4, 0, 2], [6.5, 0, 2], [1.5, 0, 5], [4, 0, 5], [6.5, 0, 5]],
+  SALES: [[13.5, 0, 2], [16, 0, 2], [18.5, 0, 2], [13.5, 0, 5], [16, 0, 5], [18.5, 0, 5]],
+  ACCOUNTING: [[1.5, 0, 12], [4, 0, 12], [6.5, 0, 12], [1.5, 0, 15], [4, 0, 15], [6.5, 0, 15]],
+  "WEB DEV": [[13.5, 0, 12], [16, 0, 12], [18.5, 0, 12], [13.5, 0, 15], [16, 0, 15], [18.5, 0, 15]],
+};
 
-  useEffect(() => {
-    camera.position.set(6, 1.7, 10);
-    camera.rotation.set(0, Math.PI, 0);
+// ─── CAMERA CONTROLLER ───
+function CameraController() {
+  const cameraRef = useRef({ rotY: -0.5, rotX: 0.8, dist: 22, targetX: 11, targetZ: 9 });
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
 
-    const onDown = (e: KeyboardEvent) => {
-      if (chatOpen) return;
-      keys.current.add(e.key.toLowerCase());
-      if (e.key.toLowerCase() === "e" && nearRef.current) onInteract(nearRef.current);
-    };
-    const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
+  useFrame(({ camera, gl }) => {
+    const c = cameraRef.current;
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isLocked.current) return;
-      euler.current.setFromQuaternion(camera.quaternion);
-      euler.current.y -= e.movementX * 0.002;
-      euler.current.x -= e.movementY * 0.002;
-      euler.current.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, euler.current.x));
-      camera.quaternion.setFromEuler(euler.current);
-    };
+    // Set up mouse handlers once
+    if (!gl.domElement.dataset.hasHandlers) {
+      gl.domElement.dataset.hasHandlers = "true";
 
-    const onLockChange = () => { isLocked.current = !!document.pointerLockElement; };
-
-    const canvas = gl.domElement;
-    const onClick = () => { if (!chatOpen) canvas.requestPointerLock(); };
-
-    canvas.addEventListener("click", onClick);
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("pointerlockchange", onLockChange);
-    window.addEventListener("keydown", onDown);
-    window.addEventListener("keyup", onUp);
-
-    return () => {
-      canvas.removeEventListener("click", onClick);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("pointerlockchange", onLockChange);
-      window.removeEventListener("keydown", onDown);
-      window.removeEventListener("keyup", onUp);
-    };
-  }, [camera, gl, onInteract, chatOpen]);
-
-  useFrame(() => {
-    if (chatOpen) return;
-    const speed = 0.07;
-    const k = keys.current;
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y = 0; forward.normalize();
-    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
-
-    if (k.has("w") || k.has("arrowup")) camera.position.add(forward.clone().multiplyScalar(speed));
-    if (k.has("s") || k.has("arrowdown")) camera.position.add(forward.clone().multiplyScalar(-speed));
-    if (k.has("a") || k.has("arrowleft")) camera.position.add(right.clone().multiplyScalar(-speed));
-    if (k.has("d") || k.has("arrowright")) camera.position.add(right.clone().multiplyScalar(speed));
-
-    camera.position.x = Math.max(0.5, Math.min(11.5, camera.position.x));
-    camera.position.z = Math.max(0.5, Math.min(11.5, camera.position.z));
-    camera.position.y = 1.7;
-
-    let nearest: AiBot | null = null;
-    let nd = 2.5;
-    for (let i = 0; i < botPositions.length && i < bots.length; i++) {
-      const dx = camera.position.x - botPositions[i][0];
-      const dz = camera.position.z - botPositions[i][2];
-      const d = Math.sqrt(dx * dx + dz * dz);
-      if (d < nd) { nd = d; nearest = bots[i]; }
+      gl.domElement.addEventListener("mousedown", (e) => {
+        if (e.button === 0 || e.button === 2) {
+          isDragging.current = true;
+          lastMouse.current = { x: e.clientX, y: e.clientY };
+        }
+      });
+      gl.domElement.addEventListener("mousemove", (e) => {
+        if (!isDragging.current) return;
+        const dx = e.clientX - lastMouse.current.x;
+        const dy = e.clientY - lastMouse.current.y;
+        c.rotY += dx * 0.005;
+        c.rotX = Math.max(0.3, Math.min(1.4, c.rotX + dy * 0.005));
+        lastMouse.current = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener("mouseup", () => { isDragging.current = false; });
+      gl.domElement.addEventListener("wheel", (e) => {
+        c.dist = Math.max(8, Math.min(40, c.dist + e.deltaY * 0.02));
+      });
+      gl.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
     }
-    nearRef.current = nearest;
-    onNearBot(nearest);
+
+    camera.position.set(
+      c.targetX + Math.sin(c.rotY) * Math.cos(c.rotX) * c.dist,
+      Math.sin(c.rotX) * c.dist,
+      c.targetZ + Math.cos(c.rotY) * Math.cos(c.rotX) * c.dist,
+    );
+    camera.lookAt(c.targetX, 0, c.targetZ);
   });
 
   return null;
 }
 
-// ─── ROOM ───
-function Room() {
-  return (
-    <group>
-      {Array.from({ length: 12 }, (_, x) =>
-        Array.from({ length: 12 }, (_, z) => (
-          <Block key={`f${x}${z}`} position={[x, 0, z]} color={(x + z) % 2 === 0 ? "#3d3524" : "#352e1f"} />
-        ))
-      )}
-      {Array.from({ length: 12 }, (_, x) =>
-        Array.from({ length: 3 }, (_, y) => (
-          <Block key={`wb${x}${y}`} position={[x, y + 1, -0.5]} color={y === 2 ? "#374151" : "#4a5568"} />
-        ))
-      )}
-      {Array.from({ length: 12 }, (_, z) =>
-        Array.from({ length: 3 }, (_, y) => (
-          <Block key={`wl${z}${y}`} position={[-0.5, y + 1, z]} color="#4a5568" />
-        ))
-      )}
-      {Array.from({ length: 12 }, (_, z) =>
-        Array.from({ length: 3 }, (_, y) => (
-          <Block key={`wr${z}${y}`} position={[11.5, y + 1, z]} color="#4a5568" />
-        ))
-      )}
-      {[2, 5, 8].map(x => (
-        <mesh key={`win${x}`} position={[x, 2, -0.45]}>
-          <planeGeometry args={[1.5, 1]} />
-          <meshBasicMaterial color="#2a5a8f" transparent opacity={0.6} />
-        </mesh>
-      ))}
-      <Block position={[6, 0.01, 6]} color="#7b3060" args={[3, 0.02, 2.5]} />
-      <Block position={[6, 0.35, 8]} color="#6b3090" args={[2.5, 0.5, 0.7]} />
-      <Block position={[6, 0.7, 8.3]} color="#5a2878" args={[2.5, 0.5, 0.15]} />
-      <group>
-        <Block position={[1, 0.6, 1]} color="#8b4513" args={[0.3, 0.4, 0.3]} />
-        <Block position={[1, 1.0, 1]} color="#2d8b4e" args={[0.5, 0.5, 0.5]} />
-        <Block position={[10, 0.6, 1]} color="#8b4513" args={[0.3, 0.4, 0.3]} />
-        <Block position={[10, 1.0, 1]} color="#4ec870" args={[0.5, 0.5, 0.5]} />
-      </group>
-      <Block position={[10, 0.5, 10]} color="#5c3a1e" args={[0.4, 0.8, 0.4]} />
-      <pointLight position={[6, 3.5, 6]} intensity={2} color="#ffeedd" distance={15} />
-    </group>
-  );
-}
-
 // ─── MAIN ───
 export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
-  const [nearBot, setNearBot] = useState<AiBot | null>(null);
   const [chatBot, setChatBot] = useState<AiBot | null>(null);
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -222,21 +210,51 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   const { currentOrganization } = useOrganizations();
   const { user } = useAuth();
 
-  const botPositions = useMemo<[number, number, number][]>(() => [
-    [2, 0, 2], [5, 0, 2], [8, 0, 2], [2, 0, 5], [5, 0, 5], [8, 0, 5],
-  ], []);
+  // Assign bots to rooms
+  const botRoomAssignments = useMemo(() => {
+    const assignments: { bot: AiBot; room: string; position: [number, number, number]; deskPos: [number, number, number] }[] = [];
+    const roomBots: Record<string, AiBot[]> = { MARKETING: [], SALES: [], ACCOUNTING: [], "WEB DEV": [] };
 
-  const deskPositions = useMemo<[number, number, number][]>(() => [
-    [2, 0, 1.3], [5, 0, 1.3], [8, 0, 1.3], [2, 0, 4.3], [5, 0, 4.3], [8, 0, 4.3],
-  ], []);
+    for (const bot of bots) {
+      const skills = (bot.skills || []).join(" ").toLowerCase() + " " + bot.role.toLowerCase();
+      if (skills.includes("контент") || skills.includes("реклам") || skills.includes("соц") || skills.includes("market") || skills.includes("copywriting")) {
+        roomBots.MARKETING.push(bot);
+      } else if (skills.includes("продажб") || skills.includes("клиент") || skills.includes("crm") || skills.includes("sales") || skills.includes("lead")) {
+        roomBots.SALES.push(bot);
+      } else if (skills.includes("финанс") || skills.includes("kpi") || skills.includes("стратег") || skills.includes("анализ") || skills.includes("account")) {
+        roomBots.ACCOUNTING.push(bot);
+      } else if (skills.includes("уеб") || skills.includes("seo") || skills.includes("web") || skills.includes("dev") || skills.includes("проджект")) {
+        roomBots["WEB DEV"].push(bot);
+      } else {
+        // Default to marketing
+        roomBots.MARKETING.push(bot);
+      }
+    }
+
+    for (const [room, roomBotList] of Object.entries(roomBots)) {
+      const slots = BOT_SLOTS[room] || [];
+      roomBotList.forEach((bot, i) => {
+        if (i < slots.length) {
+          const [sx, sy, sz] = slots[i];
+          assignments.push({
+            bot,
+            room,
+            position: [sx, 0, sz + 1],
+            deskPos: [sx, 0, sz],
+          });
+        }
+      });
+    }
+    return assignments;
+  }, [bots]);
 
   const openChat = useCallback((bot: AiBot) => {
     setChatBot(bot);
     setChatMessages([{
       role: "assistant",
-      content: `Здравейте! Аз съм ${bot.name} — ${bot.role}.\nМога да помогна с: ${(bot.skills || []).join(", ")}.\n\nКакво да направя?`
+      content: `Hi! I'm ${bot.name} — ${bot.role}.\nI can help with: ${(bot.skills || []).join(", ")}.\n\nWhat should I do?`
     }]);
-    document.exitPointerLock?.();
+    setChatInput("");
     setTimeout(() => chatInputRef.current?.focus(), 100);
   }, []);
 
@@ -251,12 +269,12 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
         body: {
           messages: [...chatMessages.slice(-8), { role: "user", content: msg }],
           projectId, organizationId: currentOrganization?.id, context: "business", userId: user?.id,
-          moduleSystemPrompt: `Ти си ${chatBot.name}, ${chatBot.role}. Умения: ${(chatBot.skills || []).join(", ")}. Кратко на български.`,
+          moduleSystemPrompt: `You are ${chatBot.name}, ${chatBot.role}. Skills: ${(chatBot.skills || []).join(", ")}. Answer in Bulgarian, be concise.`,
         },
       });
-      setChatMessages(p => [...p, { role: "assistant", content: data?.content || "Грешка." }]);
+      setChatMessages(p => [...p, { role: "assistant", content: data?.content || "Error." }]);
     } catch {
-      setChatMessages(p => [...p, { role: "assistant", content: "⚠️ Грешка." }]);
+      setChatMessages(p => [...p, { role: "assistant", content: "⚠️ Connection error." }]);
     } finally {
       setChatLoading(false);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -268,46 +286,55 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
   return (
     <div className="rounded-xl overflow-hidden border border-border bg-[#1a1a2e]">
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#0f0f1a] border-b border-[#2a2a4a]">
-        <h3 className="text-xs font-semibold tracking-[0.15em] uppercase text-purple-400">Виртуален Офис 3D</h3>
+        <h3 className="text-xs font-semibold tracking-[0.15em] uppercase text-purple-400">Virtual Office 3D</h3>
         <div className="flex gap-4 text-[11px] text-gray-500">
-          <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />{working} работят</span>
-          <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1" />{bots.length - working} чакат</span>
+          <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />{working} working</span>
+          <span><span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1" />{bots.length - working} idle</span>
+          <span>{bots.length} total</span>
         </div>
       </div>
 
       <div className="flex relative" style={{ height: "520px" }}>
-        <div className={`${chatBot ? "flex-1" : "w-full"} relative cursor-crosshair`}>
-          <Canvas shadows camera={{ fov: 70, near: 0.1, far: 100 }}>
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[8, 10, 5]} intensity={0.6} />
-            <color attach="background" args={["#87CEEB"]} />
-            <fog attach="fog" args={["#87CEEB", 15, 30]} />
-            <Room />
-            {deskPositions.slice(0, bots.length).map((p, i) => <Desk key={i} position={p} />)}
-            {bots.map((bot, i) => i < botPositions.length ? (
-              <BotChar key={bot.id} bot={bot} position={botPositions[i]} isNear={nearBot?.id === bot.id} onClick={() => openChat(bot)} />
-            ) : null)}
-            <Player onNearBot={setNearBot} botPositions={botPositions} bots={bots} onInteract={openChat} chatOpen={!!chatBot} />
+        <div className={`${chatBot ? "flex-1" : "w-full"} relative`}>
+          <Canvas camera={{ position: [11, 18, 25], fov: 50 }}>
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[15, 20, 10]} intensity={0.8} />
+            <color attach="background" args={["#1a1a2e"]} />
+            <fog attach="fog" args={["#1a1a2e", 30, 60]} />
+
+            <Office />
+
+            {botRoomAssignments.map(({ bot, deskPos, position }) => (
+              <group key={bot.id}>
+                <Desk position={deskPos} />
+                <BotChar
+                  bot={bot}
+                  position={position}
+                  isSelected={selectedBotId === bot.id || chatBot?.id === bot.id}
+                  onClick={() => openChat(bot)}
+                />
+              </group>
+            ))}
+
+            <CameraController />
           </Canvas>
 
-          {/* Crosshair */}
-          {!chatBot && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full opacity-50 pointer-events-none" />}
+          {/* Room labels overlay */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-2 pointer-events-none">
+            {ROOMS.map(r => (
+              <span key={r.name} className="px-2 py-1 rounded text-[10px] font-bold tracking-wider" style={{ background: r.color + "33", color: r.color, border: `1px solid ${r.color}44` }}>
+                {r.name}
+              </span>
+            ))}
+          </div>
 
-          {/* Near bot hint */}
-          {nearBot && !chatBot && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#0f0f1aEE] border border-purple-500/30 px-4 py-2 rounded-xl pointer-events-none">
-              <p className="text-sm text-white">[E] Говори с <span className="text-purple-400 font-semibold">{nearBot.name}</span> — {nearBot.role}</p>
-            </div>
-          )}
-
-          {!chatBot && !nearBot && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-gray-500 pointer-events-none">
-              Кликни за камера | WASD = Ходи | E = Говори | ESC = Мишка
-            </div>
-          )}
+          {/* Instructions */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-gray-500 pointer-events-none">
+            Drag = Rotate | Scroll = Zoom | Click bot = Chat
+          </div>
         </div>
 
-        {/* Chat */}
+        {/* Chat panel */}
         {chatBot && (
           <div className="w-[340px] shrink-0 flex flex-col bg-[#0f0f1a] border-l border-[#2a2a4a]">
             <div className="flex items-center justify-between px-3 py-2 border-b border-[#2a2a4a]">
@@ -343,7 +370,7 @@ export function VirtualOffice3D({ bots, selectedBotId, onSelectBot }: Props) {
               <div className="flex items-center gap-2 bg-[#1a1a2e] rounded-full px-3 py-1.5 border border-[#2a2a4a] focus-within:border-purple-500/50">
                 <input ref={chatInputRef} type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") sendMsg(); }}
-                  placeholder={`Говори с ${chatBot.name}...`}
+                  placeholder={`Talk to ${chatBot.name}...`}
                   className="flex-1 bg-transparent text-xs text-white placeholder:text-gray-600 focus:outline-none" />
                 <button onClick={sendMsg} disabled={!chatInput.trim() || chatLoading}
                   className={`shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${chatInput.trim() ? "bg-purple-600 text-white" : "text-gray-600"}`}>
