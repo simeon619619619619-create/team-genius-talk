@@ -63,11 +63,20 @@ export default function AssistantPage() {
     } catch { /* ignore */ }
   }, []);
 
-  // Auto-select bot when navigating from game
+  // Auto-select bot when navigating from game or business process
+  const [autoSendProcessMsg, setAutoSendProcessMsg] = useState<string | null>(null);
+
   useEffect(() => {
     const navBot = location.state?.selectedBot as AiBot | undefined;
+    const processCtx = location.state?.processContext as { stepTitle: string; actionText: string; initialMessage: string } | undefined;
+
     if (navBot) {
       setSelectedBot(navBot);
+    }
+    if (processCtx?.initialMessage) {
+      setAutoSendProcessMsg(processCtx.initialMessage);
+    }
+    if (navBot || processCtx) {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -382,7 +391,7 @@ export default function AssistantPage() {
               sessionId={activeSessionId}
               onFirstMessage={handleFirstMessage}
               onMessage={routeToBestBot}
-              autoSendPrompt={autoSendPrompt}
+              autoSendPrompt={autoSendPrompt || autoSendProcessMsg}
               onSuggestionUsed={handleSuggestionUsed}
             />
           </div>

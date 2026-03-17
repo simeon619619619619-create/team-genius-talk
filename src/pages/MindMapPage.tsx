@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { cn } from "@/lib/utils";
 import {
@@ -576,6 +577,7 @@ function StepDetail({
   teamMembers,
   botSkills,
   onAddToTasks,
+  onStartBotChat,
 }: {
   step: ProcessStep;
   stepIndex: number;
@@ -584,6 +586,7 @@ function StepDetail({
   teamMembers: string[];
   botSkills: BotSkillInfo[];
   onAddToTasks: (title: string, assignee?: string) => void;
+  onStartBotChat: (stepTitle: string, actionText: string, botName: string) => void;
 }) {
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingActionAssignee, setEditingActionAssignee] = useState<number | null>(null);
@@ -595,60 +598,60 @@ function StepDetail({
     const action = step.actions[actionIndex];
     if (action.running) return;
 
-    // Find bot info for assignee
-    const botInfo = action.assignee
-      ? botSkills.find(b => `🤖 ${b.name}` === action.assignee)
-      : null;
+    const botName = action.assignee?.replace("🤖 ", "") || "";
+    const botInfo = botSkills.find(b => b.name === botName);
 
-    // Mark as running
+    if (botInfo || action.assignee?.startsWith("🤖")) {
+      // Open chat with bot - interactive conversation
+      onStartBotChat(step.title, action.text, botName);
+
+      // Add as task too
+      onAddToTasks(action.text, botName);
+
+      toast.success(`Отворен чат с ${botName} за "${action.text.substring(0, 30)}..."`);
+      return;
+    }
+
+    // Non-bot: one-shot AI execution
     const runningUpdate = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, running: true } : a) };
     onUpdate(runningUpdate);
 
     try {
-      const persona = botInfo
-        ? `Ти си ${botInfo.name}, специалист в: ${botInfo.skills.join(", ")}.`
-        : action.assignee
-          ? `Ти работиш като ${action.assignee}.`
-          : `Ти си бизнес асистент.`;
+      const persona = action.assignee
+        ? `Ти работиш като ${action.assignee}.`
+        : `Ти си бизнес асистент.`;
 
       const { data, error } = await supabase.functions.invoke("assistant-chat", {
         body: {
-          messages: [
-            {
-              role: "user",
-              content: `${persona} Стъпка от процеса "${step.title}": Изпълни това действие и дай кратък отчет (макс 3 изречения). Ако не можеш, обясни какво ти трябва:\n\n"${action.text}"`,
-            },
-          ],
+          messages: [{
+            role: "user",
+            content: `${persona} Стъпка от процеса "${step.title}": Изпълни това действие и дай кратък отчет (макс 3 изречения).\n\n"${action.text}"`,
+          }],
           context: "business",
         },
       });
 
-      const result = error
-        ? "Грешка при изпълнение"
-        : data?.content || "Задачата е изпълнена.";
+      const result = error ? "Грешка при изпълнение" : data?.content || "Задачата е изпълнена.";
+      const isSuccess = !error && !result.toLowerCase().includes("не мога");
 
-      const isSuccess = !error && !result.toLowerCase().includes("не мога") && !result.toLowerCase().includes("нямам достъп");
-
-      const doneUpdate = {
+      onUpdate({
         ...step,
         actions: step.actions.map((a, i) =>
           i === actionIndex ? { ...a, done: isSuccess, running: false, result } : a
         ),
-      };
-      onUpdate(doneUpdate);
+      });
       setExpandedResults(prev => ({ ...prev, [actionIndex]: true }));
 
       if (isSuccess) {
         toast.success(`${action.assignee || "AI"} завърши: "${action.text.substring(0, 40)}..."`);
       }
     } catch {
-      const errUpdate = {
+      onUpdate({
         ...step,
         actions: step.actions.map((a, i) =>
           i === actionIndex ? { ...a, running: false, result: "Грешка при връзката с AI" } : a
         ),
-      };
-      onUpdate(errUpdate);
+      });
     }
   };
 
@@ -898,6 +901,44 @@ export default function MindMapPage() {
   const { user } = useAuth();
   const { tasks, addTask } = useTasks();
   const { currentOrganization } = useOrganizations();
+  const navigate = useNavigate();
+
+  // Open AI Assistant with bot context from a business process step
+  const handleStartBotChat = useCallback((stepTitle: string, actionText: string, botName: string) => {
+    // Find the bot from localStorage
+    try {
+      const saved = localStorage.getItem("simora_ai_bots");
+      if (saved) {
+        const bots = JSON.parse(saved);
+        const bot = bots.find((b: any) => b.name === botName);
+        if (bot) {
+          // Navigate to assistant with bot + process context
+          navigate("/assistant", {
+            state: {
+              selectedBot: bot,
+              processContext: {
+                stepTitle,
+                actionText,
+                initialMessage: `Работя по бизнес процес "${stepTitle}". Задачата ми е: "${actionText}". Помогни ми да я изпълня стъпка по стъпка. Задавай ми въпроси за да разбереш какво точно искам и когато сме готови, ще определим дата и часове за изпълнение.`,
+              },
+            },
+          });
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Fallback: navigate without bot
+    navigate("/assistant", {
+      state: {
+        processContext: {
+          stepTitle,
+          actionText,
+          initialMessage: `Работя по бизнес процес "${stepTitle}". Задачата ми е: "${actionText}". Помогни ми стъпка по стъпка.`,
+        },
+      },
+    });
+  }, [navigate]);
   const [connectedApis, setConnectedApis] = useState<Set<string>>(new Set());
   const [processes, setProcesses] = useState<ProcessData[]>(DEFAULT_PROCESSES);
   const [selectedProcess, setSelectedProcess] = useState<ProcessData | null>(null);
@@ -1387,6 +1428,7 @@ export default function MindMapPage() {
                       teamMembers={teamMembers}
                       botSkills={botSkillsData}
                       onUpdate={(updated) => updateStep(selectedProcess.id, i, updated)}
+                      onStartBotChat={handleStartBotChat}
                       onAddToTasks={(title, assignee) => {
                         const alreadyExists = tasks.some(t => t.title === title && t.status !== "done");
                         if (alreadyExists) {
