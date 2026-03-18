@@ -64,7 +64,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!profileLoading && profile?.onboarding_completed) {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [profile, profileLoading, navigate]);
 
@@ -93,7 +93,7 @@ export default function OnboardingPage() {
     try {
       await completeOnboarding();
       toast.success("Добре дошли в Симора!");
-      setTimeout(() => { window.location.href = "/"; }, 500);
+      setTimeout(() => { window.location.href = "/dashboard"; }, 500);
     } catch {
       toast.error("Грешка. Опитайте отново.");
     } finally {

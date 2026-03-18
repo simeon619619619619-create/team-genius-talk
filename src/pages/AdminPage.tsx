@@ -87,7 +87,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!loading && !hasAccess) {
-      navigate("/");
+      navigate("/dashboard");
     }
   }, [loading, hasAccess, navigate]);
 

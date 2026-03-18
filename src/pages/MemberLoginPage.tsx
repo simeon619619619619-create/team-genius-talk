@@ -119,7 +119,7 @@ export default function MemberLoginPage() {
       }
 
       toast.success("Паролата е зададена успешно!");
-      navigate("/");
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Error setting password:", error);
       toast.error(error.message || "Грешка при задаване на парола");
@@ -143,7 +143,7 @@ export default function MemberLoginPage() {
       }
 
       toast.success("Успешен вход!");
-      navigate("/");
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error(error.message || "Грешка при вход");

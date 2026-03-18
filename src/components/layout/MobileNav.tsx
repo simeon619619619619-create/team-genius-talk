@@ -17,14 +17,14 @@ export function MobileNav() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Табло", path: "/" },
+    { icon: LayoutDashboard, label: "Табло", path: "/dashboard" },
     { icon: BookOpen, label: "Методология", path: "/modules" },
     { icon: MessageSquare, label: "Асистент", path: "/assistant" },
     ...(methodologyCompleted ? [{ icon: TrendingUp, label: "План", path: "/plan" }] : []),
   ];
 
   const allNavItems = [
-    { label: "Табло", path: "/" },
+    { label: "Табло", path: "/dashboard" },
     { label: "Методология", path: "/modules" },
     { label: "AI Асистент", path: "/assistant" },
     ...(methodologyCompleted ? [{ label: "Маркетинг план", path: "/plan" }] : []),

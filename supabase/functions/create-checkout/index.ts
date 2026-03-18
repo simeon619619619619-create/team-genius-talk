@@ -62,7 +62,7 @@ serve(async (req) => {
         },
       ],
       mode: mode || "subscription",
-      success_url: `${origin}/?payment=success`,
+      success_url: `${origin}/dashboard?payment=success`,
       cancel_url: `${origin}/settings?payment=canceled`,
       metadata: {
         user_id: user.id,

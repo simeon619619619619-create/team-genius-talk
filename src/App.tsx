@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
 import TeamsPage from "./pages/TeamsPage";
 import TasksPage from "./pages/TasksPage";
 import AssistantPage from "./pages/AssistantPage";
@@ -46,7 +47,8 @@ const App = () => (
                 <BrowserRouter>
                   <ScrollToTop />
                   <Routes>
-                    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                     <Route path="/install" element={<InstallPage />} />

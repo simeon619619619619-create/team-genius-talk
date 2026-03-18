@@ -28,7 +28,7 @@ export default function AuthPage() {
   const [signupName, setSignupName] = useState("");
   const [signupUserType, setSignupUserType] = useState<"owner" | "worker" | null>(null);
 
-  const redirect = searchParams.get("redirect") || "/";
+  const redirect = searchParams.get("redirect") || "/dashboard";
 
   useEffect(() => {
     setMounted(true);
@@ -99,7 +99,7 @@ export default function AuthPage() {
     setLoading(false);
     toast.success("Регистрацията е успешна!");
     if (signupUserType === "worker") {
-      navigate("/");
+      navigate("/dashboard");
     } else {
       navigate("/onboarding");
     }

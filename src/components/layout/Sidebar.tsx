@@ -54,7 +54,7 @@ interface NavItem {
 }
 
 const baseNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: LayoutDashboard, label: "Табло", path: "/dashboard" },
   { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
@@ -66,7 +66,7 @@ const baseNavItems: NavItem[] = [
 ];
 
 const automationNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: LayoutDashboard, label: "Табло", path: "/dashboard" },
   { icon: Zap, label: "Автоматизации", path: "/automations" },
   { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
@@ -78,7 +78,7 @@ const automationNavItems: NavItem[] = [
 ];
 
 const startupNavItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Табло", path: "/" },
+  { icon: LayoutDashboard, label: "Табло", path: "/dashboard" },
   { icon: Rocket, label: "Стартиране", path: "/startup" },
   { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
@@ -153,10 +153,10 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   };
 
   // Progressive unlock: Методология → Маркетинг план → Бизнес процеси → Бизнес план + всичко
-  const tier1 = new Set(["/", "/modules", "/assistant", "/settings"]);
-  const tier2 = new Set(["/", "/modules", "/assistant", "/settings", "/plan"]);
-  const tier3 = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/automations", "/startup"]);
-  const tier4 = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
+  const tier1 = new Set(["/dashboard", "/modules", "/assistant", "/settings"]);
+  const tier2 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan"]);
+  const tier3 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/automations", "/startup"]);
+  const tier4 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
 
   // Filter navigation based on user type and permissions
   const filteredNavItems = journeyNavItems.filter(item => {
@@ -171,7 +171,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     // Workers with member permissions can see specific sections
     if (isWorkerType) {
       // Dashboard is always visible
-      if (item.path === "/") return true;
+      if (item.path === "/dashboard") return true;
       
       // Check member permissions for each section
       if (memberPermissions.canViewAll) {
