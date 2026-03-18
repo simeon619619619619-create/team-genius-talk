@@ -10,26 +10,29 @@ const plans = [
   {
     key: "monthly" as const,
     name: "Месечен",
-    price: "€10.99",
+    price: "€29",
     interval: "/месец",
-    description: "Перфектен за тестване",
+    description: "Перфектен за стартиране",
     features: [
-      "Неограничени проекти",
-      "AI асистент",
-      "Бизнес планове",
-      "Екипна колаборация",
+      "6 AI бота (Ивана, Лина, Мария...)",
+      "Неограничени чат съобщения",
+      "Имейл маркетинг (Resend)",
+      "CRM интеграция",
+      "Седмичен AI график",
     ],
     icon: Zap,
     popular: false,
   },
   {
-    key: "yearly" as const,
-    name: "Годишен",
-    price: "€79.99",
-    interval: "/година",
-    description: "Спестете 25%",
+    key: "biannual" as const,
+    name: "6 месеца",
+    price: "€149",
+    interval: "/6 мес.",
+    savings: "Спестяваш €25",
+    description: "Най-популярен избор",
     features: [
       "Всичко от Месечен",
+      "€24.80/мес вместо €29",
       "Приоритетна поддръжка",
       "Разширени отчети",
       "API достъп",
@@ -39,15 +42,16 @@ const plans = [
   },
   {
     key: "lifetime" as const,
-    name: "Lifetime",
-    price: "€239.99",
+    name: "Завинаги",
+    price: "€499",
     interval: "еднократно",
     description: "Плати веднъж, ползвай завинаги",
     features: [
-      "Всичко от Годишен",
+      "Всичко от 6 месеца",
       "Бъдещи функции безплатно",
       "VIP поддръжка",
-      "Ексклузивен достъп",
+      "Без месечни плащания",
+      "Early adopter предимства",
     ],
     icon: Crown,
     popular: false,
@@ -128,6 +132,11 @@ export function PricingPlans({ onUpgrade }: PricingPlansProps) {
                 <span className="text-muted-foreground">{plan.interval}</span>
               </div>
               <CardDescription>{plan.description}</CardDescription>
+              {"savings" in plan && plan.savings && (
+                <Badge variant="secondary" className="mt-2 bg-green-500/10 text-green-600 border-green-500/20">
+                  {plan.savings}
+                </Badge>
+              )}
             </CardHeader>
             <CardContent>
               <ul className="space-y-3">
@@ -162,7 +171,7 @@ export function PricingPlans({ onUpgrade }: PricingPlansProps) {
                       Зареждане...
                     </>
                   ) : subscribed && planType === "lifetime" ? (
-                    "Имате Lifetime"
+                    "Имате Завинаги"
                   ) : (
                     "Избери план"
                   )}

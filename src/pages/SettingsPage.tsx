@@ -234,7 +234,7 @@ export default function SettingsPage() {
                 <h2 className="text-xl font-display font-semibold text-foreground">Абонамент</h2>
                 <p className="text-sm text-muted-foreground">
                   {subscribed 
-                    ? `Текущ план: ${planType === "lifetime" ? "Lifetime" : planType === "yearly" ? "Годишен" : planType === "monthly" ? "Месечен" : "Безплатен"}`
+                    ? `Текущ план: ${planType === "lifetime" ? "Завинаги" : planType === "biannual" ? "6 месеца" : planType === "monthly" ? "Месечен" : "Безплатен"}`
                     : "Изберете план за достъп до всички функции"
                   }
                 </p>

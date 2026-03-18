@@ -5,29 +5,29 @@ import { useAuth } from "./useAuth";
 // Stripe price and product IDs
 export const STRIPE_PLANS = {
   lifetime: {
-    priceId: "price_1StEC6HH4asvT4B6kH5XAWT3",
-    productId: "prod_Tqw4PM0Wt675oi",
-    price: 239.99,
+    priceId: "price_1TCIpZHH4asvT4B6J5BdANEW",
+    productId: "prod_UAe7hdgSEXhH89",
+    price: 499,
     name: "Lifetime",
     interval: null,
   },
-  yearly: {
-    priceId: "price_1StECBHH4asvT4B6aO3ytc9R",
-    productId: "prod_Tqw4G9UrLP9tOQ",
-    price: 79.99,
-    name: "Yearly",
-    interval: "year",
+  biannual: {
+    priceId: "price_1TCIpFHH4asvT4B6Fwl1WzJ7",
+    productId: "prod_UAe7YaBvkjXz42",
+    price: 149,
+    name: "6 Months",
+    interval: "6months",
   },
   monthly: {
-    priceId: "price_1StECCHH4asvT4B6eLBE30ev",
-    productId: "prod_Tqw4zubGPqPvc8",
-    price: 10.99,
+    priceId: "price_1TCIooHH4asvT4B6j0yYcCvA",
+    productId: "prod_UAe7XE0Vz6rW0j",
+    price: 29,
     name: "Monthly",
     interval: "month",
   },
 } as const;
 
-export type PlanType = "free" | "monthly" | "yearly" | "lifetime";
+export type PlanType = "free" | "monthly" | "biannual" | "lifetime";
 
 interface SubscriptionContextType {
   subscribed: boolean;

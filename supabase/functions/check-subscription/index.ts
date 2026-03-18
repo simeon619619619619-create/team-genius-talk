@@ -131,10 +131,10 @@ serve(async (req) => {
       limit: 100,
     });
 
-    // Lifetime product ID
-    const lifetimeProductId = "prod_Tqw4PM0Wt675oi";
-    const yearlyProductId = "prod_Tqw4G9UrLP9tOQ";
-    const monthlyProductId = "prod_Tqw4zubGPqPvc8";
+    // Simora Pro product IDs
+    const lifetimeProductId = "prod_UAe7hdgSEXhH89";
+    const biannualProductId = "prod_UAe7YaBvkjXz42";
+    const monthlyProductId = "prod_UAe7XE0Vz6rW0j";
 
     // Check for lifetime purchase via checkout sessions
     const sessions = await stripe.checkout.sessions.list({
@@ -146,8 +146,8 @@ serve(async (req) => {
       if (session.payment_status !== "paid") return false;
       if (session.mode !== "payment") return false;
       // Check metadata for lifetime product
-      return session.metadata?.product_id === lifetimeProductId || 
-             (session.amount_total && session.amount_total >= 23000);
+      return session.metadata?.product_id === lifetimeProductId ||
+             (session.amount_total && session.amount_total >= 49000);
     });
 
     if (hasLifetimeSession) {
@@ -169,8 +169,8 @@ serve(async (req) => {
       const productId = subscription.items.data[0]?.price?.product as string;
       
       let planType = "monthly";
-      if (productId === yearlyProductId) {
-        planType = "yearly";
+      if (productId === biannualProductId) {
+        planType = "biannual";
       }
 
       logStep("Active subscription found", { 
