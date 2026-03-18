@@ -46,11 +46,15 @@ import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import logo from "@/assets/logo.png";
 import logoIcon from "@/assets/logo-icon.png";
 
+import { Lock } from "lucide-react";
+
 interface NavItem {
   icon: typeof LayoutDashboard;
   label: string;
   path: string;
   badge?: number;
+  locked?: boolean;
+  lockMessage?: string;
 }
 
 const baseNavItems: NavItem[] = [
@@ -152,50 +156,52 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
-  // Progressive unlock: Методология → Маркетинг план → Бизнес процеси → Бизнес план + всичко
-  const tier1 = new Set(["/dashboard", "/modules", "/assistant", "/settings"]);
-  const tier2 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan"]);
-  const tier3 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/automations", "/startup"]);
-  const tier4 = new Set(["/dashboard", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
+  // Always-unlocked paths
+  const alwaysUnlocked = new Set(["/dashboard", "/modules", "/assistant", "/settings"]);
 
-  // Filter navigation based on user type and permissions
-  const filteredNavItems = journeyNavItems.filter(item => {
-    // Admins see everything
-    if (isAdmin) return true;
+  // Determine lock state for each item
+  const getItemLockState = (path: string): { locked: boolean; lockMessage: string } => {
+    if (isAdmin || alwaysUnlocked.has(path)) return { locked: false, lockMessage: "" };
 
-    // Owners: progressive unlock
     if (isOwnerType) {
-      if (!methodologyCompleted) return tier1.has(item.path);
-      if (!planCompleted) return tier2.has(item.path);
-      return tier4.has(item.path);
-    }
-    
-    // Workers with member permissions can see specific sections
-    if (isWorkerType) {
-      // Dashboard is always visible
-      if (item.path === "/dashboard") return true;
-      
-      // Check member permissions for each section
-      if (memberPermissions.canViewAll) {
-        return true;
+      // Tier 2: unlocks after methodology
+      if (["/plan"].includes(path)) {
+        return methodologyCompleted
+          ? { locked: false, lockMessage: "" }
+          : { locked: true, lockMessage: "Завърши Методологията за да отключиш" };
       }
-      
-      // Specific section permissions
-      if (item.path === "/tasks" && memberPermissions.canViewTasks) return true;
-      if (item.path === "/business-plan" && memberPermissions.canViewBusinessPlan) return true;
-      if (item.path === "/plan" && memberPermissions.canViewAnnualPlan) return true;
-      if (item.path === "/assistant" && (memberPermissions.canViewTasks || memberPermissions.canViewBusinessPlan)) return true;
-      if (item.path === "/video") return true; // Video is visible to all workers
-      if (item.path === "/settings") return true;
-      
-      return false;
+      // Tier 3: unlocks after marketing plan
+      if (["/mindmap", "/teams", "/tasks", "/automations", "/startup"].includes(path)) {
+        return planCompleted
+          ? { locked: false, lockMessage: "" }
+          : !methodologyCompleted
+            ? { locked: true, lockMessage: "Завърши Методологията за да отключиш" }
+            : { locked: true, lockMessage: "Завърши Маркетинг плана за да отключиш" };
+      }
+      // Tier 4: unlocks after plan completed
+      if (["/business-plan"].includes(path)) {
+        return planCompleted
+          ? { locked: false, lockMessage: "" }
+          : !methodologyCompleted
+            ? { locked: true, lockMessage: "Завърши Методологията за да отключиш" }
+            : { locked: true, lockMessage: "Завърши Маркетинг плана за да отключиш" };
+      }
     }
-    
-    // Non-owner, non-worker (shouldn't happen, but fallback)
-    if (item.path === "/teams") {
-      return false;
+
+    if (isWorkerType) {
+      if (memberPermissions.canViewAll) return { locked: false, lockMessage: "" };
+      if (path === "/tasks" && !memberPermissions.canViewTasks) return { locked: true, lockMessage: "Нямате достъп" };
+      if (path === "/business-plan" && !memberPermissions.canViewBusinessPlan) return { locked: true, lockMessage: "Нямате достъп" };
+      if (path === "/plan" && !memberPermissions.canViewAnnualPlan) return { locked: true, lockMessage: "Нямате достъп" };
     }
-    return true;
+
+    return { locked: false, lockMessage: "" };
+  };
+
+  // Show all items, mark locked ones
+  const filteredNavItems = journeyNavItems.map(item => {
+    const { locked, lockMessage } = getItemLockState(item.path);
+    return { ...item, locked, lockMessage };
   });
 
   const navItemsWithBadge = filteredNavItems.map(item => {
@@ -278,25 +284,37 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         <nav className={cn("flex-1 space-y-1", collapsed ? "p-2" : "p-4")}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const isLocked = item.locked;
+
+            const handleClick = (e: React.MouseEvent) => {
+              if (isLocked) {
+                e.preventDefault();
+                toast(item.lockMessage || "Тази функция е заключена");
+              }
+            };
+
             const linkContent = (
               <Link
                 key={item.path}
-                to={item.path}
+                to={isLocked ? "#" : item.path}
+                onClick={handleClick}
                 className={cn(
                   "flex items-center font-medium transition-all duration-300 ease-out relative",
                   collapsed ? "justify-center rounded-2xl p-3" : "gap-3 rounded-full px-4 py-3.5",
-                  isActive
-                    ? "bg-secondary text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+                  isLocked
+                    ? "text-muted-foreground/40 cursor-not-allowed"
+                    : isActive
+                      ? "bg-secondary text-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
                 )}
               >
                 <div className="relative">
                   <item.icon className={cn(
                     "flex-shrink-0 transition-transform duration-200",
-                    isActive && "scale-110"
+                    isActive && !isLocked && "scale-110",
+                    isLocked && "opacity-40"
                   )} style={{ width: 22, height: 22 }} />
-                  {/* Badge for collapsed state */}
-                  {collapsed && item.badge && item.badge > 0 && (
+                  {collapsed && item.badge && item.badge > 0 && !isLocked && (
                     <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
                       {item.badge > 9 ? '9+' : item.badge}
                     </span>
@@ -304,15 +322,17 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 </div>
                 {!collapsed && (
                   <>
-                    <span className="text-[15px] transition-opacity duration-200 flex-1">{item.label}</span>
-                    {item.badge && item.badge > 0 && (
-                      <Badge 
-                        variant="default" 
+                    <span className={cn("text-[15px] transition-opacity duration-200 flex-1", isLocked && "opacity-40")}>{item.label}</span>
+                    {isLocked ? (
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground/40" />
+                    ) : item.badge && item.badge > 0 ? (
+                      <Badge
+                        variant="default"
                         className="h-5 min-w-5 px-1.5 text-[10px] font-bold animate-pulse bg-primary text-primary-foreground"
                       >
                         {item.badge > 9 ? '9+' : item.badge}
                       </Badge>
-                    )}
+                    ) : null}
                   </>
                 )}
               </Link>
@@ -326,7 +346,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                   </TooltipTrigger>
                   <TooltipContent side="right" className="ml-2 flex items-center gap-2">
                     {item.label}
-                    {item.badge && item.badge > 0 && (
+                    {isLocked && <Lock className="h-3 w-3" />}
+                    {!isLocked && item.badge && item.badge > 0 && (
                       <Badge variant="default" className="h-4 px-1 text-[10px]">
                         {item.badge}
                       </Badge>
