@@ -39,6 +39,7 @@ const VirtualOffice3D = lazy(() => import("@/components/teams/VirtualOffice3D").
 import { AiBotCard } from "@/components/teams/AiBotCard";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { useOrganizationBots } from "@/hooks/useOrganizationBots";
 
 export default function TeamsPage() {
   const { user } = useAuth();
@@ -48,18 +49,8 @@ export default function TeamsPage() {
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   const navigate = useNavigate();
 
-  // Navigate to assistant with selected bot
+  // Navigate to assistant with selected bot (bots are synced to localStorage by the hook)
   const handleOpenBotChat = useCallback((bot: AiBot) => {
-    // Save bots to localStorage so AssistantPage picks them up
-    try {
-      const saved = localStorage.getItem("simora_ai_bots");
-      const existingBots: AiBot[] = saved ? JSON.parse(saved) : [];
-      const botExists = existingBots.find(b => b.id === bot.id);
-      if (!botExists) {
-        localStorage.setItem("simora_ai_bots", JSON.stringify([...existingBots, bot]));
-      }
-    } catch { /* ignore */ }
-    // Navigate to assistant and auto-select this bot
     navigate("/assistant", { state: { selectedBotId: bot.id, selectedBot: bot } });
   }, [navigate]);
 
@@ -82,8 +73,11 @@ export default function TeamsPage() {
   const [editingPermissions, setEditingPermissions] = useState<MemberPermissions | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
 
-  // ─── AI BOTS STATE ───
-  const AI_BOTS_KEY = "simora_ai_bots";
+  // ─── AI BOTS (from database) ───
+  const { bots: dbBots, loading: botsLoading, saveBots: saveAiBots, addBot: addAiBot, updateBot: updateAiBot, removeBot: removeAiBot } = useOrganizationBots();
+
+  // Default bots are now seeded in the database via migration trigger.
+  // Keep them here only as reference for the template picker description display.
   const DEFAULT_AI_BOTS: AiBot[] = [
     { id: "bot-1", name: "Ивана", role: "Съдържание & Реклами", process: "Content + Ads", frequency: "Ежедневно", locked: true, automations: ["Posts", "Stories", "Reels", "Meta Ads", "Анализи"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове", "реклами", "Meta Ads", "Facebook Ads", "анализ", "ROAS", "CPM", "CTR"], taskGroups: [
       { id: "tg-1a", title: "Създаване на съдържание", subtasks: [
@@ -281,38 +275,12 @@ export default function TeamsPage() {
         })),
       })),
     };
-    saveAiBots([...aiBots, newBot]);
+    addAiBot(newBot);
     toast.success(`${newBot.name} е добавен в екипа!`);
     setTemplatePickerOpen(false);
   };
 
-  const [aiBots, setAiBots] = useState<AiBot[]>(() => {
-    try {
-      const saved = localStorage.getItem(AI_BOTS_KEY);
-      if (saved) {
-        const parsed: AiBot[] = JSON.parse(saved);
-        // Normalize: reset stale working/running states and subtask statuses on load
-        const normalized = parsed.map(bot => ({
-          ...bot,
-          state: (bot.state === "working" || bot.state === "running") ? "idle" : (bot.state || "idle"),
-          taskGroups: bot.taskGroups?.map(tg => ({
-            ...tg,
-            subtasks: tg.subtasks.map(st => ({
-              ...st,
-              status: (st.status === "running" || st.status === "queued") ? "idle" : (st.status || "idle"),
-            })),
-          })),
-        }));
-        // Always replace locked bots with latest defaults
-        const lockedDefaults = DEFAULT_AI_BOTS.filter(b => b.locked);
-        const withoutOldLocked = normalized.filter(b => !lockedDefaults.some(d => d.id === b.id));
-        return [...lockedDefaults, ...withoutOldLocked];
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  const aiBots = dbBots;
   const [selectedAiBot, setSelectedAiBot] = useState<string | null>(null);
   const viewMode3D = true; // Always 3D
   const [aiBotModalOpen, setAiBotModalOpen] = useState(false);
@@ -330,10 +298,7 @@ export default function TeamsPage() {
   const [abSkin, setAbSkin] = useState("#f5c6a0");
   const [abSkills, setAbSkills] = useState("");
 
-  const saveAiBots = useCallback((bots: AiBot[]) => {
-    setAiBots(bots);
-    localStorage.setItem(AI_BOTS_KEY, JSON.stringify(bots));
-  }, []);
+  // saveAiBots is now provided by useOrganizationBots hook
 
   const openAiBotModal = (bot?: AiBot) => {
     if (bot) {
@@ -374,22 +339,22 @@ export default function TeamsPage() {
       state: editingAiBot?.state || "idle",
     };
     if (editingAiBot) {
-      saveAiBots(aiBots.map(b => b.id === editingAiBot.id ? data : b));
+      updateAiBot(data);
     } else {
-      saveAiBots([...aiBots, data]);
+      addAiBot(data);
     }
     setAiBotModalOpen(false);
     toast.success(editingAiBot ? "Ботът е обновен!" : "Ботът е добавен!");
   };
 
   const handleUpdateAiBot = (updated: AiBot) => {
-    saveAiBots(aiBots.map(b => b.id === updated.id ? updated : b));
+    updateAiBot(updated);
   };
 
   const handleDeleteAiBot = (id: string) => {
     const bot = aiBots.find(b => b.id === id);
     if (bot?.locked) return;
-    saveAiBots(aiBots.filter(b => b.id !== id));
+    removeAiBot(id);
     toast.success("Ботът е изтрит");
   };
 

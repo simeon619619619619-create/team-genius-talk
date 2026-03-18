@@ -692,6 +692,66 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_bots: {
+        Row: {
+          id: string
+          organization_id: string
+          bot_id: string
+          name: string
+          role: string
+          process: string
+          frequency: string
+          automations: string[]
+          tasks: string[]
+          task_groups: any[]
+          skills: string[]
+          shirt_color: string
+          hair_color: string
+          skin_color: string
+          locked: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          bot_id: string
+          name: string
+          role: string
+          process?: string
+          frequency?: string
+          automations?: string[]
+          tasks?: string[]
+          task_groups?: any[]
+          skills?: string[]
+          shirt_color?: string
+          hair_color?: string
+          skin_color?: string
+          locked?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          bot_id?: string
+          name?: string
+          role?: string
+          process?: string
+          frequency?: string
+          automations?: string[]
+          tasks?: string[]
+          task_groups?: any[]
+          skills?: string[]
+          shirt_color?: string
+          hair_color?: string
+          skin_color?: string
+          locked?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       resend_integrations: {
         Row: {
           id: string
