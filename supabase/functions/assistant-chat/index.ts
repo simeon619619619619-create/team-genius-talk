@@ -1102,12 +1102,24 @@ ${chatHistoryContext}
       }
 
       // Second call with tool results
-      const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
-      const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, true);
+      try {
+        const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
+        const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, false);
 
-      return new Response(JSON.stringify({ content: followUpResult.text }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({ content: followUpResult.text }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (followUpError: any) {
+        console.error("Follow-up call error:", followUpError);
+        // Fallback: return tool results directly as text
+        const fallbackText = toolResults.map(tr => {
+          const parsed = JSON.parse(tr.result);
+          return parsed.message || parsed.error || JSON.stringify(parsed);
+        }).join("\n");
+        return new Response(JSON.stringify({ content: fallbackText || aiResult.text || "Действието е изпълнено." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // No tool calls, return direct response
