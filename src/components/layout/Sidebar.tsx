@@ -152,22 +152,20 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
-  // Progressive unlock: Методология → Маркетинг план → Бизнес процеси → всичко
-  const preMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings"]);
-  const postMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan"]);
-  const postPlanPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
+  // Progressive unlock: Методология → Маркетинг план → Бизнес процеси → Бизнес план + всичко
+  const tier1 = new Set(["/", "/modules", "/assistant", "/settings"]);
+  const tier2 = new Set(["/", "/modules", "/assistant", "/settings", "/plan"]);
+  const tier3 = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/automations", "/startup"]);
+  const tier4 = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
 
   // Filter navigation based on user type and permissions
   const filteredNavItems = journeyNavItems.filter(item => {
     // Owners: progressive unlock
     if (isOwnerType) {
-      if (!methodologyCompleted) {
-        return preMethodologyPaths.has(item.path);
-      }
-      if (!planCompleted) {
-        return postMethodologyPaths.has(item.path);
-      }
-      return postPlanPaths.has(item.path);
+      if (!methodologyCompleted) return tier1.has(item.path);
+      if (!planCompleted) return tier2.has(item.path);
+      // After plan: show processes but not business plan yet (need processes work first)
+      return tier4.has(item.path);
     }
     
     // Workers with member permissions can see specific sections
