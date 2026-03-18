@@ -160,11 +160,13 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   // Filter navigation based on user type and permissions
   const filteredNavItems = journeyNavItems.filter(item => {
+    // Admins see everything
+    if (isAdmin) return true;
+
     // Owners: progressive unlock
     if (isOwnerType) {
       if (!methodologyCompleted) return tier1.has(item.path);
       if (!planCompleted) return tier2.has(item.path);
-      // After plan: show processes but not business plan yet (need processes work first)
       return tier4.has(item.path);
     }
     
