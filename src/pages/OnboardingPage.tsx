@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Zap, Rocket, ChevronRight, ChevronLeft, Check, Loader2,
+  ChevronRight, ChevronLeft, Check, Loader2,
   Link2, CheckCircle2, ExternalLink, Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ export default function OnboardingPage() {
   const { createCheckout } = useSubscription();
 
   const [step, setStep] = useState(1);
-  const [journeyType, setJourneyType] = useState<JourneyType | null>(null);
+  const [journeyType] = useState<JourneyType>("automation");
   const [organizationName, setOrganizationName] = useState("");
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
     industry: "",
@@ -110,8 +110,8 @@ export default function OnboardingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
 
-  // Total steps per journey
-  const totalSteps = journeyType === "automation" ? 4 : 3;
+  // Total steps: org name → business profile → payment
+  const totalSteps = 3;
 
   useEffect(() => {
     if (!profileLoading && profile?.onboarding_completed) {
@@ -127,17 +127,12 @@ export default function OnboardingPage() {
     );
   }
 
-  const handleJourneySelect = (type: JourneyType) => {
-    setJourneyType(type);
-    setStep(2);
-  };
-
   const handleOrgNameSubmit = () => {
     if (!organizationName.trim()) {
       toast.error("Моля, въведете име на организацията");
       return;
     }
-    setStep(3);
+    setStep(2);
   };
 
   const handleBusinessProfileSubmit = () => {
@@ -145,7 +140,7 @@ export default function OnboardingPage() {
       toast.error("Моля, изберете индустрия");
       return;
     }
-    setStep(4);
+    setStep(3);
   };
 
   const handleSaveGhl = async () => {
@@ -268,8 +263,7 @@ export default function OnboardingPage() {
     },
   ];
 
-  // Plan step number: 3 for startup, 4 for automation
-  const planStep = journeyType === "automation" ? 4 : 3;
+  const planStep = 3;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
@@ -296,96 +290,33 @@ export default function OnboardingPage() {
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <AnimatePresence mode="wait">
 
-          {/* STEP 1: Choose journey */}
+          {/* STEP 1: Business name */}
           {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-2xl">
+            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-md">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold mb-2">Добре дошли в Симора!</h1>
-                <p className="text-muted-foreground text-lg">Кое описва твоята ситуация?</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Startup card */}
-                <Card
-                  className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary group"
-                  onClick={() => handleJourneySelect("startup")}
-                >
-                  <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
-                      <Rocket className="h-8 w-8 text-green-500" />
-                    </div>
-                    <CardTitle className="mb-3 text-xl">Започвам бизнес</CardTitle>
-                    <CardDescription className="text-base leading-relaxed">
-                      Имам идея и искам стъпка по стъпка пътеводител от идея до работещ бизнес
-                    </CardDescription>
-                    <div className="mt-5 flex flex-wrap gap-1.5 justify-center">
-                      {["Идея", "Валидация", "Оферта", "Маркетинг"].map(t => (
-                        <span key={t} className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 border border-green-500/20">{t}</span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Existing business card */}
-                <Card
-                  className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:border-primary group"
-                  onClick={() => handleJourneySelect("automation")}
-                >
-                  <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
-                      <Zap className="h-8 w-8 text-blue-500" />
-                    </div>
-                    <CardTitle className="mb-3 text-xl">Вече имам бизнес</CardTitle>
-                    <CardDescription className="text-base leading-relaxed">
-                      Искам да автоматизирам процеси, да свържа инструментите си и да скалирам по-бързо
-                    </CardDescription>
-                    <div className="mt-5 flex flex-wrap gap-1.5 justify-center">
-                      {["CRM", "Имейли", "Автоматизации", "API"].map(t => (
-                        <span key={t} className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">{t}</span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 2: Business/Idea name */}
-          {step === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-md">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2">
-                  {journeyType === "startup" ? "Как ще се казва бизнесът ти?" : "Как се казва бизнесът ти?"}
-                </h1>
-                <p className="text-muted-foreground">
-                  {journeyType === "startup" ? "Може да е работно заглавие — винаги можеш да промениш" : "Това ще бъде името на твоята организация"}
-                </p>
+                <p className="text-muted-foreground">Как се казва бизнесът ти?</p>
               </div>
               <Card>
                 <CardContent className="p-6 space-y-6">
                   <Input
-                    placeholder={journeyType === "startup" ? "Примерна идея ООД" : "Моята Компания ЕООД"}
+                    placeholder="Моята Компания ЕООД"
                     value={organizationName}
                     onChange={(e) => setOrganizationName(e.target.value)}
                     className="text-center text-lg h-12"
                     autoFocus
                     onKeyDown={(e) => { if (e.key === "Enter") handleOrgNameSubmit(); }}
                   />
-                  <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
-                      <ChevronLeft className="h-4 w-4 mr-2" /> Назад
-                    </Button>
-                    <Button className="flex-1" onClick={handleOrgNameSubmit} disabled={!organizationName.trim()}>
-                      Продължи <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </div>
+                  <Button className="w-full" onClick={handleOrgNameSubmit} disabled={!organizationName.trim()}>
+                    Продължи <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
                 </CardContent>
               </Card>
             </motion.div>
           )}
 
-          {/* STEP 3 for AUTOMATION: Business profile + API connections */}
-          {step === 3 && journeyType === "automation" && (
+          {/* STEP 2: Business profile + API connections */}
+          {step === 2 && (
             <motion.div key="step3-auto" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-2xl">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold mb-2">Разкажи ни за бизнеса си</h1>
@@ -523,7 +454,7 @@ export default function OnboardingPage() {
                 </Card>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                  <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
                     <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                   </Button>
                   <Button className="flex-1" onClick={handleBusinessProfileSubmit} disabled={!businessProfile.industry}>
@@ -579,7 +510,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex justify-center mt-6">
-                <Button variant="ghost" onClick={() => setStep(journeyType === "automation" ? 3 : 2)}>
+                <Button variant="ghost" onClick={() => setStep(2)}>
                   <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                 </Button>
               </div>
