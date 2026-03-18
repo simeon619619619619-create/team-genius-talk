@@ -161,7 +161,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   // Determine lock state for each item
   const getItemLockState = (path: string): { locked: boolean; lockMessage: string } => {
-    if (isAdmin || alwaysUnlocked.has(path)) return { locked: false, lockMessage: "" };
+    if (alwaysUnlocked.has(path)) return { locked: false, lockMessage: "" };
 
     if (isOwnerType) {
       // Tier 2: unlocks after methodology
@@ -287,7 +287,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             const isLocked = item.locked;
 
             const handleClick = (e: React.MouseEvent) => {
-              if (isLocked) {
+              if (isLocked && !isAdmin) {
                 e.preventDefault();
                 toast(item.lockMessage || "Тази функция е заключена");
               }
@@ -296,7 +296,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             const linkContent = (
               <Link
                 key={item.path}
-                to={isLocked ? "#" : item.path}
+                to={(isLocked && !isAdmin) ? "#" : item.path}
                 onClick={handleClick}
                 className={cn(
                   "flex items-center font-medium transition-all duration-300 ease-out relative",
