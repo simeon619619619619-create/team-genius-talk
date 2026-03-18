@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { MODULES } from "./ModulesPage";
 import type { AiBot } from "@/components/teams/VirtualOffice";
+import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
 
 const defaultSuggestions = [
   {
@@ -48,6 +49,7 @@ export default function AssistantPage() {
   const [aiBots, setAiBots] = useState<AiBot[]>([]);
   const [selectedBot, setSelectedBot] = useState<AiBot | null>(null);
   const { markAsViewed } = useDailyTasks();
+  const { completeModule } = useMethodologyProgress();
 
   const { overdueTasks } = useOverdueTasks();
   const [showOverdue, setShowOverdue] = useState(true);
@@ -202,12 +204,16 @@ export default function AssistantPage() {
     }
   }, [moduleState]);
 
-  // Check if all prompts answered → show completion banner
+  // Check if all prompts answered → show completion banner + persist
   useEffect(() => {
     if (moduleState && usedPrompts.size >= moduleState.prompts.length) {
       setShowCompleted(true);
+      // Persist module completion to database
+      if (moduleState.key) {
+        completeModule(moduleState.key);
+      }
     }
-  }, [usedPrompts.size, moduleState]);
+  }, [usedPrompts.size, moduleState, completeModule]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;

@@ -29,6 +29,7 @@ import { useDailyTasks } from "@/hooks/useDailyTasks";
 import { useProfile } from "@/hooks/useProfile";
 import { usePendingInvitations } from "@/hooks/usePendingInvitations";
 import { useCurrentUserPermissions } from "@/hooks/useCurrentUserPermissions";
+import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { profile } = useProfile();
   const { invitations: pendingInvitations } = usePendingInvitations();
   const { permissions: memberPermissions } = useCurrentUserPermissions();
+  const { methodologyCompleted } = useMethodologyProgress();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -150,11 +152,19 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
+  // Pages available before methodology is completed
+  const preMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings"]);
+  // Pages unlocked after methodology (marketing plan first, then rest)
+  const postMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/teams", "/tasks", "/business-plan", "/mindmap", "/automations", "/startup"]);
+
   // Filter navigation based on user type and permissions
   const filteredNavItems = journeyNavItems.filter(item => {
-    // Owners see everything
+    // Owners: gate by methodology progress
     if (isOwnerType) {
-      return true;
+      if (!methodologyCompleted) {
+        return preMethodologyPaths.has(item.path);
+      }
+      return postMethodologyPaths.has(item.path);
     }
     
     // Workers with member permissions can see specific sections

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, Search, Gift, FileText, Zap, ChevronRight, Lock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
 
 export interface ModuleConfig {
   id: number;
@@ -237,6 +238,7 @@ export const MODULES: ModuleConfig[] = [
 export default function ModulesPage() {
   const navigate = useNavigate();
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
+  const { isModuleCompleted, completedCount, totalModules, methodologyCompleted } = useMethodologyProgress();
 
   const toggleExpanded = (moduleId: number) => {
     setExpandedModules(prev => {
@@ -268,8 +270,15 @@ export default function ModulesPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold">Бизнес методология</h1>
-          <p className="text-muted-foreground mt-1">5 модула от идея до скалиращ бизнес</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-display font-bold">Бизнес методология</h1>
+              <p className="text-muted-foreground mt-1">5 модула от идея до скалиращ бизнес</p>
+            </div>
+            <Badge variant={methodologyCompleted ? "default" : "secondary"} className="text-sm px-3 py-1">
+              {completedCount}/{totalModules} завършени
+            </Badge>
+          </div>
         </div>
 
         {/* Journey overview */}
@@ -292,6 +301,7 @@ export default function ModulesPage() {
             const isExpanded = expandedModules.has(module.id);
             const visiblePrompts = isExpanded ? module.prompts : module.prompts.slice(0, 3);
             const hasMore = module.prompts.length > 3;
+            const completed = isModuleCompleted(module.key);
 
             return (
               <motion.div
@@ -300,7 +310,7 @@ export default function ModulesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
               >
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className={cn("hover:shadow-md transition-shadow", completed && "border-green-500/30 bg-green-500/5")}>
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
                       <div className={cn("p-3 rounded-2xl border shrink-0", module.bg)}>
@@ -314,6 +324,7 @@ export default function ModulesPage() {
                               <Badge variant="secondary" className="text-xs">
                                 {module.subtitle}
                               </Badge>
+                              {completed && <Badge variant="default" className="text-xs bg-green-600">Завършен</Badge>}
                             </div>
                             <p className="text-sm text-muted-foreground mt-1">{module.description}</p>
                           </div>

@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, MessageSquare, ListTodo, TrendingUp, Menu, Video } from "lucide-react";
+import { LayoutDashboard, MessageSquare, ListTodo, TrendingUp, Menu, Video, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDailyTasks } from "@/hooks/useDailyTasks";
+import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
 import {
   Sheet,
   SheetContent,
@@ -9,28 +10,33 @@ import {
 } from "@/components/ui/sheet";
 import { useState } from "react";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Табло", path: "/" },
-  { icon: MessageSquare, label: "Асистент", path: "/assistant" },
-  { icon: ListTodo, label: "Задачи", path: "/tasks" },
-  { icon: Video, label: "Видео", path: "/video" },
-];
-
-const allNavItems = [
-  { label: "Табло", path: "/" },
-  { label: "AI Асистент", path: "/assistant" },
-  { label: "Задачи", path: "/tasks" },
-  { label: "Маркетинг план", path: "/plan" },
-  { label: "Бизнес план", path: "/business-plan" },
-  { label: "Видео обработка", path: "/video" },
-  { label: "Екипи", path: "/teams" },
-  { label: "Настройки", path: "/settings" },
-];
-
 export function MobileNav() {
   const location = useLocation();
   const { showBadge, pendingCount, markAsViewed } = useDailyTasks();
+  const { methodologyCompleted } = useMethodologyProgress();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const preMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings"]);
+
+  const navItems = [
+    { icon: LayoutDashboard, label: "Табло", path: "/" },
+    { icon: BookOpen, label: "Методология", path: "/modules" },
+    { icon: MessageSquare, label: "Асистент", path: "/assistant" },
+    ...(methodologyCompleted ? [{ icon: TrendingUp, label: "План", path: "/plan" }] : []),
+  ];
+
+  const allNavItems = [
+    { label: "Табло", path: "/" },
+    { label: "Методология", path: "/modules" },
+    { label: "AI Асистент", path: "/assistant" },
+    ...(methodologyCompleted ? [
+      { label: "Маркетинг план", path: "/plan" },
+      { label: "Задачи", path: "/tasks" },
+      { label: "Бизнес план", path: "/business-plan" },
+      { label: "Екипи", path: "/teams" },
+    ] : []),
+    { label: "Настройки", path: "/settings" },
+  ];
 
   const handleNavClick = (path: string) => {
     if (path === "/assistant") {
