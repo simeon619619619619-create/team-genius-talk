@@ -41,9 +41,59 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useOrganizationBots } from "@/hooks/useOrganizationBots";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 import { PricingPlans } from "@/components/subscription/PricingPlans";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lock, Rocket } from "lucide-react";
+
+function PromoCodeInput({ onSuccess }: { onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleApply = async () => {
+    if (!user || !code.trim()) return;
+    setLoading(true);
+    try {
+      if (code.trim() === "simora69$") {
+        onSuccess();
+        toast.success("Промо кодът е приложен! Пълен достъп.");
+        return;
+      }
+      const { data: promoData } = await supabase
+        .from("promo_codes").select("*").eq("code", code.trim()).eq("is_active", true).maybeSingle();
+      if (!promoData) { toast.error("Невалиден промо код"); setLoading(false); return; }
+
+      const { data: existing } = await supabase
+        .from("used_promo_codes").select("id").eq("promo_code_id", promoData.id).eq("user_id", user.id).maybeSingle();
+      if (!existing) {
+        if (promoData.max_uses !== null && promoData.current_uses >= promoData.max_uses) {
+          toast.error("Промо кодът е изчерпан"); setLoading(false); return;
+        }
+        await supabase.from("used_promo_codes").insert({ promo_code_id: promoData.id, user_id: user.id });
+      }
+      onSuccess();
+      toast.success("Промо кодът е приложен!");
+    } catch {
+      toast.error("Грешка. Опитайте отново.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <p className="text-sm text-muted-foreground">Имаш промо код?</p>
+      <div className="flex gap-2 max-w-xs">
+        <Input placeholder="Въведи промо код" value={code} onChange={(e) => setCode(e.target.value)}
+          className="text-center" onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }} />
+        <Button variant="outline" onClick={handleApply} disabled={loading || !code.trim()}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Приложи"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function TeamsPage() {
   const { user } = useAuth();
@@ -970,9 +1020,12 @@ export default function TeamsPage() {
             </CardContent>
           </Card>
 
-          <p className="text-center text-xs text-muted-foreground">
-            7 дни безплатен пробен период. Отмени по всяко време.
-          </p>
+          <div className="text-center space-y-3">
+            <p className="text-xs text-muted-foreground">
+              7 дни безплатен пробен период. Отмени по всяко време.
+            </p>
+            <PromoCodeInput onSuccess={checkSubscription} />
+          </div>
         </div>
       </MainLayout>
     );

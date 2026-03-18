@@ -84,7 +84,7 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     // Dev bypass: always return subscribed for these emails
-    const bypassEmails = ["simeon619619619619@gmail.com", "martinkisyov05@gmail.com"];
+    const bypassEmails = ["simeon619619619619@gmail.com", "martinkisyov05@gmail.com", "info@eufashioninstitute.com"];
     if (bypassEmails.includes(userEmail)) {
       logStep("Dev bypass activated", { email: userEmail });
       return new Response(JSON.stringify({
