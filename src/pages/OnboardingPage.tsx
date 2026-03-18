@@ -19,7 +19,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useOrganizations } from "@/hooks/useOrganizations";
-import { useSubscription, STRIPE_PLANS } from "@/hooks/useSubscription";
+// Subscription moved to Teams page paywall
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,63 +37,12 @@ interface BusinessProfile {
   ghl_location_id: string;
 }
 
-interface PlanCardProps {
-  name: string;
-  price: string;
-  interval: string;
-  features: string[];
-  popular?: boolean;
-  onSelect: () => void;
-  isLoading?: boolean;
-}
-
-function PlanCard({ name, price, interval, features, popular, onSelect, isLoading }: PlanCardProps) {
-  return (
-    <div className="flex flex-col items-center">
-      <div className="mb-3 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full border border-primary/20">
-        🎁 7 дена безплатен период
-      </div>
-      <Card className={cn(
-        "relative transition-all duration-300 cursor-pointer hover:scale-[1.02] w-full",
-        popular ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border hover:border-primary/50"
-      )} onClick={onSelect}>
-        {popular && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
-            Популярен
-          </div>
-        )}
-        <CardHeader className="text-center pt-8">
-          <CardTitle className="text-xl">{name}</CardTitle>
-          <div className="mt-4">
-            <span className="text-3xl font-bold">{price}</span>
-            <span className="text-muted-foreground ml-1">{interval}</span>
-          </div>
-        </CardHeader>
-        <CardContent className="pb-6">
-          <ul className="space-y-2 mb-6">
-            {features.map((feature, i) => (
-              <li key={i} className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary shrink-0" />
-                <span>{feature}</span>
-              </li>
-            ))}
-          </ul>
-          <Button className="w-full" variant={popular ? "default" : "outline"} disabled={isLoading}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Избери план"}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile, updateProfile, loading: profileLoading } = useProfile();
   const { createOrganization } = useOrganizations();
-  const { createCheckout } = useSubscription();
-
   const [step, setStep] = useState(1);
   const [journeyType] = useState<JourneyType>("automation");
   const [organizationName, setOrganizationName] = useState("");
@@ -109,11 +58,9 @@ export default function OnboardingPage() {
   const [ghlSaved, setGhlSaved] = useState(false);
   const [savingGhl, setSavingGhl] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [promoCode, setPromoCode] = useState("");
 
-  // Total steps: org name → business profile → payment
-  const totalSteps = 3;
+  // Total steps: org name → business profile
+  const totalSteps = 2;
 
   useEffect(() => {
     if (!profileLoading && profile?.onboarding_completed) {
@@ -137,12 +84,21 @@ export default function OnboardingPage() {
     setStep(2);
   };
 
-  const handleBusinessProfileSubmit = () => {
+  const handleBusinessProfileSubmit = async () => {
     if (!businessProfile.industry) {
       toast.error("Моля, изберете индустрия");
       return;
     }
-    setStep(3);
+    setIsSubmitting(true);
+    try {
+      await completeOnboarding();
+      toast.success("Добре дошли в Симора!");
+      setTimeout(() => { window.location.href = "/"; }, 500);
+    } catch {
+      toast.error("Грешка. Опитайте отново.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSaveGhl = async () => {
@@ -164,43 +120,6 @@ export default function OnboardingPage() {
       setGhlSaved(true);
     }
     setSavingGhl(false);
-  };
-
-  const handlePromoCode = async () => {
-    if (!user) return;
-    const code = promoCode.trim();
-    if (!code) { toast.error("Въведете промо код"); return; }
-
-    setIsSubmitting(true);
-    try {
-      if (code === "simora69$") {
-        await completeOnboarding();
-        toast.success("Промо кодът е приложен! 100% отстъпка.");
-        setTimeout(() => { window.location.href = "/"; }, 500);
-        return;
-      }
-
-      const { data: promoData, error: promoErr } = await supabase
-        .from("promo_codes").select("*").eq("code", code).eq("is_active", true).maybeSingle();
-      if (promoErr || !promoData) { toast.error("Невалиден промо код"); setIsSubmitting(false); return; }
-
-      const { data: existing } = await supabase
-        .from("used_promo_codes").select("id").eq("promo_code_id", promoData.id).eq("user_id", user.id).maybeSingle();
-
-      if (!existing) {
-        if (promoData.max_uses !== null && promoData.current_uses >= promoData.max_uses) {
-          toast.error("Промо кодът е изчерпан"); setIsSubmitting(false); return;
-        }
-        await supabase.from("used_promo_codes").insert({ promo_code_id: promoData.id, user_id: user.id });
-      }
-
-      await completeOnboarding();
-      toast.success("Промо кодът е приложен! Безплатен достъп.");
-      setTimeout(() => { window.location.href = "/"; }, 500);
-    } catch {
-      toast.error("Грешка. Опитайте отново.");
-      setIsSubmitting(false);
-    }
   };
 
   const completeOnboarding = async () => {
@@ -226,47 +145,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const handlePlanSelect = async (planKey: keyof typeof STRIPE_PLANS) => {
-    setLoadingPlan(planKey);
-    setIsSubmitting(true);
-    try {
-      await completeOnboarding();
-      await createCheckout(planKey);
-      toast.success("Пренасочване към плащане...");
-    } catch {
-      toast.error("Грешка. Опитайте отново.");
-    } finally {
-      setIsSubmitting(false);
-      setLoadingPlan(null);
-    }
-  };
-
-  const plans = [
-    {
-      key: "monthly" as const,
-      name: "Месечен",
-      price: "€10.99",
-      interval: "/месец",
-      features: ["Неограничени проекти", "AI асистент", "Бизнес планове", "Екипна колаборация"],
-    },
-    {
-      key: "yearly" as const,
-      name: "Годишен",
-      price: "€79.99",
-      interval: "/година",
-      features: ["Всичко от Месечен", "Приоритетна поддръжка", "Разширени отчети", "API достъп"],
-      popular: true,
-    },
-    {
-      key: "lifetime" as const,
-      name: "Lifetime",
-      price: "€239.99",
-      interval: "еднократно",
-      features: ["Всичко от Годишен", "Бъдещи функции безплатно", "VIP поддръжка", "Ексклузивен достъп"],
-    },
-  ];
-
-  const planStep = 3;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
@@ -470,65 +348,14 @@ export default function OnboardingPage() {
                   <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
                     <ChevronLeft className="h-4 w-4 mr-2" /> Назад
                   </Button>
-                  <Button className="flex-1" onClick={handleBusinessProfileSubmit} disabled={!businessProfile.industry}>
-                    Продължи <ChevronRight className="h-4 w-4 ml-2" />
+                  <Button className="flex-1" onClick={handleBusinessProfileSubmit} disabled={!businessProfile.industry || isSubmitting}>
+                    {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Запазване...</> : <>Започни безплатно <ChevronRight className="h-4 w-4 ml-2" /></>}
                   </Button>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 3 for STARTUP or STEP 4 for AUTOMATION: Plan selection */}
-          {step === planStep && (
-            <motion.div key="plan-step" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-4xl">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2">Изберете абонамент</h1>
-                <p className="text-muted-foreground">Започнете с 7 дена безплатен период</p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6 mb-8">
-                {plans.map((plan) => (
-                  <PlanCard
-                    key={plan.key}
-                    name={plan.name}
-                    price={plan.price}
-                    interval={plan.interval}
-                    features={plan.features}
-                    popular={plan.popular}
-                    onSelect={() => handlePlanSelect(plan.key)}
-                    isLoading={loadingPlan === plan.key}
-                  />
-                ))}
-              </div>
-
-              <div className="text-center space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  Изисква се регистрация на карта. Отмени по всяко време преди края на периода.
-                </p>
-                <div className="flex flex-col items-center gap-2">
-                  <p className="text-sm text-muted-foreground">Имаш промо код?</p>
-                  <div className="flex gap-2 max-w-xs">
-                    <Input
-                      placeholder="Въведи промо код"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="text-center"
-                      onKeyDown={(e) => { if (e.key === "Enter") handlePromoCode(); }}
-                    />
-                    <Button variant="outline" onClick={handlePromoCode} disabled={isSubmitting || !promoCode.trim()}>
-                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Приложи"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-center mt-6">
-                <Button variant="ghost" onClick={() => setStep(2)}>
-                  <ChevronLeft className="h-4 w-4 mr-2" /> Назад
-                </Button>
-              </div>
-            </motion.div>
-          )}
 
         </AnimatePresence>
       </div>

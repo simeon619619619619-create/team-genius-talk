@@ -40,9 +40,14 @@ import { AiBotCard } from "@/components/teams/AiBotCard";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useOrganizationBots } from "@/hooks/useOrganizationBots";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PricingPlans } from "@/components/subscription/PricingPlans";
+import { Card, CardContent } from "@/components/ui/card";
+import { Lock, Rocket } from "lucide-react";
 
 export default function TeamsPage() {
   const { user } = useAuth();
+  const { subscribed, checkSubscription } = useSubscription();
   const { projectId: currentProjectId, loading: projectLoading } = useCurrentProject();
   const { teams, loading, createTeam, updateTeam, createMemberDirectly, removeMember, refreshTeams } = useTeams(currentProjectId);
   const { projects: orgProjects, loading: projectsLoading } = useOrganizationProjects();
@@ -938,6 +943,37 @@ export default function TeamsPage() {
             </div>
           </DialogContent>
         </Dialog>
+      </MainLayout>
+    );
+  }
+
+  // Paywall: require subscription to use AI bots
+  if (!subscribed) {
+    return (
+      <MainLayout>
+        <div className="max-w-3xl mx-auto py-12 px-4 space-y-8">
+          <div className="text-center space-y-4">
+            <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto">
+              <Rocket className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-3xl font-display font-bold">Активирай AI екипа си</h1>
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+              Завършихте бизнес плана — сега е време AI ботовете да работят за вас.
+              Ивана, Лина, Мария и останалите са готови да създават съдържание,
+              изпращат имейли и управляват маркетинга ви.
+            </p>
+          </div>
+
+          <Card className="border-primary/20">
+            <CardContent className="p-8">
+              <PricingPlans onUpgrade={checkSubscription} />
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-xs text-muted-foreground">
+            7 дни безплатен пробен период. Отмени по всяко време.
+          </p>
+        </div>
       </MainLayout>
     );
   }
