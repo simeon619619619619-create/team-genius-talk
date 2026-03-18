@@ -221,20 +221,6 @@ export default function AuthPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setSignupUserType("owner")}
-                        className={cn(
-                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
-                          signupUserType === "owner"
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border/60 bg-muted/30 text-muted-foreground hover:border-border"
-                        )}
-                      >
-                        <Briefcase className="h-6 w-6" />
-                        <span className="text-sm font-medium">Собственик</span>
-                        <span className="text-[11px] opacity-70">Имам бизнес</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setSignupUserType("worker")}
                         className={cn(
                           "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
@@ -244,8 +230,22 @@ export default function AuthPage() {
                         )}
                       >
                         <Users className="h-6 w-6" />
-                        <span className="text-sm font-medium">Работник</span>
+                        <span className="text-sm font-medium">Служител</span>
                         <span className="text-[11px] opacity-70">Член на екип</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSignupUserType("owner")}
+                        className={cn(
+                          "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-300",
+                          signupUserType === "owner"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border/60 bg-muted/30 text-muted-foreground hover:border-border"
+                        )}
+                      >
+                        <Briefcase className="h-6 w-6" />
+                        <span className="text-sm font-medium">Фирма</span>
+                        <span className="text-[11px] opacity-70">Имам бизнес</span>
                       </button>
                     </div>
                     <div className="group relative">
