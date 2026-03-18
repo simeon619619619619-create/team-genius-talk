@@ -461,12 +461,11 @@ serve(async (req) => {
       if (proj?.organization_id) orgId = proj.organization_id;
     }
 
-    // Look up org-specific active AI integration
-    let aiConfig: AIConfig = {
-      provider: "claude",
-      apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
-      model: "claude-sonnet-4-20250514",
-    };
+    // Default to Gemini (cheaper) — fallback to Claude if no Google key
+    const googleKey = Deno.env.get("GOOGLE_AI_KEY");
+    let aiConfig: AIConfig = googleKey
+      ? { provider: "gemini", apiKey: googleKey, model: "gemini-2.5-flash" }
+      : { provider: "claude", apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "", model: "claude-sonnet-4-20250514" };
 
     if (orgId) {
       const { data: integration } = await supabase
