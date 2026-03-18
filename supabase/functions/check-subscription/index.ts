@@ -26,17 +26,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // STRIPE DISABLED - everyone gets lifetime access
-    return new Response(JSON.stringify({
-      subscribed: true,
-      plan_type: "lifetime",
-      product_id: null,
-      subscription_end: null,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new Error("No authorization header provided");
@@ -129,12 +118,12 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
+    // Check for active or trialing subscriptions
+    const [activeSubs, trialingSubs] = await Promise.all([
+      stripe.subscriptions.list({ customer: customerId, status: "active", limit: 1 }),
+      stripe.subscriptions.list({ customer: customerId, status: "trialing", limit: 1 }),
+    ]);
+    const subscriptions = { data: [...activeSubs.data, ...trialingSubs.data] };
 
     // Check for lifetime purchases (one-time payments)
     const payments = await stripe.paymentIntents.list({
