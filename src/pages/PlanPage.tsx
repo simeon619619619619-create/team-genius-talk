@@ -13,6 +13,9 @@ import { useGlobalBots } from "@/hooks/useGlobalBots";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { useSyncBusinessPlan } from "@/hooks/useSyncBusinessPlan";
 import { useTasks } from "@/hooks/useTasks";
+import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,6 +49,76 @@ export default function PlanPage() {
     loading: botsLoading
   } = useGlobalBots();
   const { syncToBusinessPlan } = useSyncBusinessPlan(projectId);
+  const { methodologyCompleted } = useMethodologyProgress();
+  const { user } = useAuth();
+  const [prefillDone, setPrefillDone] = useState(false);
+
+  // Pre-fill step answers from methodology when completed
+  useEffect(() => {
+    if (!methodologyCompleted || !user || !projectId || prefillDone || loading || steps.length === 0) return;
+    setPrefillDone(true);
+
+    (async () => {
+      // Check if any step_answers already exist (don't overwrite)
+      const { data: existing } = await supabase
+        .from("step_answers")
+        .select("id")
+        .eq("project_id", projectId)
+        .limit(1);
+
+      if (existing && existing.length > 0) return; // Already has answers
+
+      try {
+        const { data } = await supabase.functions.invoke("prefill-plan-from-modules", {
+          body: { userId: user.id },
+        });
+
+        const answers = data?.answers;
+        if (!answers || Object.keys(answers).length === 0) return;
+
+        // Map question keys to step titles for insertion
+        const keyToStep: Record<string, { stepTitle: string; questionText: string }> = {
+          business_type: { stepTitle: "Резюме на бизнеса", questionText: "Какъв е вашият бизнес?" },
+          target_audience: { stepTitle: "Резюме на бизнеса", questionText: "За кого е предназначен?" },
+          problem_solved: { stepTitle: "Резюме на бизнеса", questionText: "Какъв проблем решава?" },
+          revenue_model: { stepTitle: "Резюме на бизнеса", questionText: "Как печели пари бизнесът?" },
+          main_goal: { stepTitle: "Резюме на бизнеса", questionText: "Каква е основната цел?" },
+          competitors: { stepTitle: "Пазарен анализ", questionText: "Кои са основните конкуренти?" },
+          buying_behavior: { stepTitle: "Пазарен анализ", questionText: "Как клиентите купуват подобни решения?" },
+          alternatives: { stepTitle: "Пазарен анализ", questionText: "Какви са алтернативите?" },
+          market_prices: { stepTitle: "Пазарен анализ", questionText: "Какви са цените на пазара?" },
+          entry_barriers: { stepTitle: "Пазарен анализ", questionText: "Какви са бариерите за влизане?" },
+          positioning: { stepTitle: "Маркетинг стратегия", questionText: "Какво е основното позициониране?" },
+          marketing_channels: { stepTitle: "Маркетинг стратегия", questionText: "Кои маркетинг канали ще се използват?" },
+          main_message: { stepTitle: "Маркетинг стратегия", questionText: "Какво е основното послание?" },
+          lead_mechanism: { stepTitle: "Маркетинг стратегия", questionText: "Какъв е lead магнитът?" },
+          cta: { stepTitle: "Маркетинг стратегия", questionText: "Каква е следващата стъпка за клиента?" },
+        };
+
+        const inserts: any[] = [];
+        for (const [key, value] of Object.entries(answers)) {
+          const mapping = keyToStep[key];
+          if (!mapping || !value) continue;
+          const step = steps.find(s => s.title === mapping.stepTitle);
+          if (!step) continue;
+          inserts.push({
+            step_id: step.id,
+            project_id: projectId,
+            question_key: key,
+            question_text: mapping.questionText,
+            answer: value,
+          });
+        }
+
+        if (inserts.length > 0) {
+          await supabase.from("step_answers").upsert(inserts, { onConflict: "step_id,question_key" });
+          console.log(`Pre-filled ${inserts.length} answers from methodology`);
+        }
+      } catch (e) {
+        console.error("Prefill error:", e);
+      }
+    })();
+  }, [methodologyCompleted, user, projectId, prefillDone, loading, steps]);
 
   // Task templates per role
   const taskTemplates: Record<string, { title: string; priority: "low" | "medium" | "high" }[]> = {

@@ -20,6 +20,8 @@ import { useChatSessions } from "@/hooks/useChatSessions";
 import { MODULES } from "./ModulesPage";
 import type { AiBot } from "@/components/teams/VirtualOffice";
 import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const defaultSuggestions = [
   {
@@ -48,6 +50,7 @@ export default function AssistantPage() {
   const [selectedModel, setSelectedModel] = useState(models[0]);
   const [aiBots, setAiBots] = useState<AiBot[]>([]);
   const [selectedBot, setSelectedBot] = useState<AiBot | null>(null);
+  const { user } = useAuth();
   const { markAsViewed } = useDailyTasks();
   const { completeModule } = useMethodologyProgress();
 
@@ -204,16 +207,31 @@ export default function AssistantPage() {
     }
   }, [moduleState]);
 
-  // Check if all prompts answered → show completion banner + persist
+  // Check if all prompts answered → show completion banner + persist with chat summary
   useEffect(() => {
     if (moduleState && usedPrompts.size >= moduleState.prompts.length) {
       setShowCompleted(true);
-      // Persist module completion to database
-      if (moduleState.key) {
-        completeModule(moduleState.key);
+      if (moduleState.key && user) {
+        // Fetch chat messages for this module to build summary
+        (async () => {
+          const ck = "module:" + moduleState.systemPrompt.substring(0, 80);
+          const { data: msgs } = await supabase
+            .from("chat_messages")
+            .select("role, content")
+            .eq("user_id", user.id)
+            .eq("chat_key", ck)
+            .order("created_at", { ascending: true })
+            .limit(100);
+
+          const summary = (msgs || [])
+            .map(m => `${m.role === "user" ? "Потребител" : "Асистент"}: ${m.content}`)
+            .join("\n\n");
+
+          completeModule(moduleState.key, summary || undefined);
+        })();
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule]);
+  }, [usedPrompts.size, moduleState, completeModule, user]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
