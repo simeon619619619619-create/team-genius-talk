@@ -330,12 +330,16 @@ export default function PlanPage() {
     }
   }, [steps, activeStepId]);
 
-  // Auto-collapse plan when all steps are completed
+  // Auto-collapse plan and persist completion when all steps are completed
   useEffect(() => {
     if (allStepsCompleted) {
       setPlanOpen(false);
+      // Persist plan completion to profile
+      if (user) {
+        supabase.from("profiles").update({ plan_completed: true }).eq("user_id", user.id).then(() => {});
+      }
     }
-  }, [allStepsCompleted]);
+  }, [allStepsCompleted, user]);
   if (loading || botsLoading || projectLoading) {
     return <MainLayout>
         <div className="space-y-6">

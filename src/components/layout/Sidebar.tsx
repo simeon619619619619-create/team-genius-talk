@@ -102,7 +102,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { profile } = useProfile();
   const { invitations: pendingInvitations } = usePendingInvitations();
   const { permissions: memberPermissions } = useCurrentUserPermissions();
-  const { methodologyCompleted } = useMethodologyProgress();
+  const { methodologyCompleted, planCompleted } = useMethodologyProgress();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -152,19 +152,22 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     }
   };
 
-  // Pages available before methodology is completed
+  // Progressive unlock: Методология → Маркетинг план → Бизнес процеси → всичко
   const preMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings"]);
-  // Pages unlocked after methodology (marketing plan first, then rest)
-  const postMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/teams", "/tasks", "/business-plan", "/mindmap", "/automations", "/startup"]);
+  const postMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan"]);
+  const postPlanPaths = new Set(["/", "/modules", "/assistant", "/settings", "/plan", "/mindmap", "/teams", "/tasks", "/business-plan", "/automations", "/startup"]);
 
   // Filter navigation based on user type and permissions
   const filteredNavItems = journeyNavItems.filter(item => {
-    // Owners: gate by methodology progress
+    // Owners: progressive unlock
     if (isOwnerType) {
       if (!methodologyCompleted) {
         return preMethodologyPaths.has(item.path);
       }
-      return postMethodologyPaths.has(item.path);
+      if (!planCompleted) {
+        return postMethodologyPaths.has(item.path);
+      }
+      return postPlanPaths.has(item.path);
     }
     
     // Workers with member permissions can see specific sections

@@ -13,10 +13,8 @@ import { useState } from "react";
 export function MobileNav() {
   const location = useLocation();
   const { showBadge, pendingCount, markAsViewed } = useDailyTasks();
-  const { methodologyCompleted } = useMethodologyProgress();
+  const { methodologyCompleted, planCompleted } = useMethodologyProgress();
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  const preMethodologyPaths = new Set(["/", "/modules", "/assistant", "/settings"]);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Табло", path: "/" },
@@ -29,11 +27,12 @@ export function MobileNav() {
     { label: "Табло", path: "/" },
     { label: "Методология", path: "/modules" },
     { label: "AI Асистент", path: "/assistant" },
-    ...(methodologyCompleted ? [
-      { label: "Маркетинг план", path: "/plan" },
+    ...(methodologyCompleted ? [{ label: "Маркетинг план", path: "/plan" }] : []),
+    ...(planCompleted ? [
+      { label: "Бизнес процеси", path: "/mindmap" },
       { label: "Задачи", path: "/tasks" },
-      { label: "Бизнес план", path: "/business-plan" },
       { label: "Екипи", path: "/teams" },
+      { label: "Бизнес план", path: "/business-plan" },
     ] : []),
     { label: "Настройки", path: "/settings" },
   ];

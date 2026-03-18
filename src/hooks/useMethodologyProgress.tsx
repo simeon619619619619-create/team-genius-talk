@@ -8,6 +8,7 @@ export function useMethodologyProgress() {
   const { user } = useAuth();
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
   const [methodologyCompleted, setMethodologyCompleted] = useState(false);
+  const [planCompleted, setPlanCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadProgress = useCallback(async () => {
@@ -20,7 +21,7 @@ export function useMethodologyProgress() {
         .eq("user_id", user.id),
       supabase
         .from("profiles")
-        .select("methodology_completed")
+        .select("methodology_completed, plan_completed")
         .eq("user_id", user.id)
         .maybeSingle(),
     ]);
@@ -28,6 +29,7 @@ export function useMethodologyProgress() {
     const keys = new Set((completions || []).map((c: any) => c.module_key));
     setCompletedModules(keys);
     setMethodologyCompleted(profile?.methodology_completed || false);
+    setPlanCompleted((profile as any)?.plan_completed || false);
     setLoading(false);
   }, [user]);
 
@@ -66,6 +68,7 @@ export function useMethodologyProgress() {
   return {
     completedModules,
     methodologyCompleted,
+    planCompleted,
     loading,
     completeModule,
     isModuleCompleted,
