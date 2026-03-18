@@ -494,6 +494,26 @@ serve(async (req) => {
 
     const dateContext = getDateContext();
 
+    // Get user's business profile (website, industry etc.)
+    let businessProfileContext = "";
+    if (userId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("business_profile")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const bp = prof?.business_profile as any;
+      if (bp) {
+        const parts: string[] = [];
+        if (bp.website) parts.push(`🌐 Уебсайт: ${bp.website}`);
+        if (bp.industry) parts.push(`🏢 Индустрия: ${bp.industry}`);
+        if (bp.team_size) parts.push(`👥 Екип: ${bp.team_size}`);
+        if (bp.revenue) parts.push(`💰 Приходи: ${bp.revenue}`);
+        if (bp.main_goal) parts.push(`🎯 Цел: ${bp.main_goal}`);
+        if (parts.length > 0) businessProfileContext = "\n\n📋 БИЗНЕС ПРОФИЛ:\n" + parts.join("\n");
+      }
+    }
+
     // Get business plan for context
     let businessPlanContext = "";
     let businessPlanId: string | null = null;
@@ -673,7 +693,7 @@ CONCAT: ffmpeg -f concat -safe 0 -i list.txt -c copy merged.mp4
 
     // Build system prompt — module/bot context or default business context
     const systemPrompt = moduleSystemPrompt
-      ? `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`
+      ? `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${businessProfileContext}${chatHistoryContext}`
       : `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
 
 📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
@@ -681,6 +701,7 @@ CONCAT: ffmpeg -f concat -safe 0 -i list.txt -c copy merged.mp4
 🗓️ Тримесечие: Q${dateContext.quarter}
 📊 Година: ${dateContext.year}
 
+${businessProfileContext}
 ${businessPlanContext}
 ${marketingPlanContext}
 ${chatHistoryContext}

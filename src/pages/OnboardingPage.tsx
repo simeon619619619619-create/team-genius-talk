@@ -32,6 +32,7 @@ interface BusinessProfile {
   team_size: string;
   revenue: string;
   main_goal: string;
+  website: string;
   ghl_api_key: string;
   ghl_location_id: string;
 }
@@ -101,6 +102,7 @@ export default function OnboardingPage() {
     team_size: "",
     revenue: "",
     main_goal: "",
+    website: "",
     ghl_api_key: "",
     ghl_location_id: "",
   });
@@ -214,6 +216,7 @@ export default function OnboardingPage() {
         team_size: businessProfile.team_size,
         revenue: businessProfile.revenue,
         main_goal: businessProfile.main_goal,
+        website: businessProfile.website || null,
       };
     }
 
@@ -393,6 +396,16 @@ export default function OnboardingPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Уебсайт (незадължително)</Label>
+                      <Input
+                        placeholder="https://example.com"
+                        value={businessProfile.website}
+                        onChange={(e) => setBusinessProfile(p => ({ ...p, website: e.target.value }))}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">Елена (AI бот за уеб) ще анализира сайта ти и ще предложи подобрения</p>
                     </div>
                   </CardContent>
                 </Card>
