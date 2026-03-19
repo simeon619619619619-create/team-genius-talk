@@ -140,6 +140,8 @@ export default function OnboardingPage() {
     }
 
     await updateProfile(profileUpdate as Parameters<typeof updateProfile>[0]);
+    // Wait for profile update to propagate before creating org (RLS requires user_type = 'owner')
+    await new Promise(r => setTimeout(r, 1500));
     if (organizationName.trim()) {
       await createOrganization(organizationName.trim());
     }
