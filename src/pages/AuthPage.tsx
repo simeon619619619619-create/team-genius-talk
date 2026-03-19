@@ -19,6 +19,8 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -97,15 +99,42 @@ export default function AuthPage() {
     }
 
     setLoading(false);
-    toast.success("Регистрацията е успешна!");
-    if (signupUserType === "worker") {
-      navigate("/dashboard");
-    } else {
-      navigate("/onboarding");
-    }
+    setConfirmationEmail(signupEmail);
+    setShowConfirmation(true);
   };
 
   const passwordStrength = signupPassword.length >= 6;
+
+  // Email confirmation screen
+  if (showConfirmation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-hidden relative">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/20 via-transparent to-transparent rounded-full blur-3xl animate-pulse-slow" />
+        </div>
+        <div className="w-full max-w-md relative z-10 text-center space-y-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-card border border-border/50 mb-4 shadow-2xl">
+            <Mail className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-3xl font-display font-bold text-foreground">Потвърдете имейла си</h1>
+          <p className="text-muted-foreground text-lg">
+            Изпратихме линк за потвърждение на <strong className="text-foreground">{confirmationEmail}</strong>
+          </p>
+          <div className="bg-card border border-border/50 rounded-2xl p-6 space-y-3">
+            <p className="text-sm text-muted-foreground">1. Отворете имейла си</p>
+            <p className="text-sm text-muted-foreground">2. Кликнете бутона за потвърждение</p>
+            <p className="text-sm text-muted-foreground">3. Ще бъдете пренасочени автоматично</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Не виждате имейла? Проверете папка Спам.
+          </p>
+          <Button variant="ghost" onClick={() => { setShowConfirmation(false); setActiveTab("login"); }}>
+            Обратно към вход
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 overflow-hidden relative">
