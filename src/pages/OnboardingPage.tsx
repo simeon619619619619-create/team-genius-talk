@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronLeft, Check, Loader2,
-  Link2, CheckCircle2, ExternalLink, Building2
+  Link2, CheckCircle2, ExternalLink, Building2, Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ interface BusinessProfile {
   revenue: string;
   main_goal: string;
   website: string;
+  resend_api_key: string;
   ghl_api_key: string;
   ghl_location_id: string;
 }
@@ -52,9 +53,12 @@ export default function OnboardingPage() {
     revenue: "",
     main_goal: "",
     website: "",
+    resend_api_key: "",
     ghl_api_key: "",
     ghl_location_id: "",
   });
+  const [resendSaved, setResendSaved] = useState(false);
+  const [savingResend, setSavingResend] = useState(false);
   const [ghlSaved, setGhlSaved] = useState(false);
   const [savingGhl, setSavingGhl] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +103,27 @@ export default function OnboardingPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSaveResend = async () => {
+    if (!user || !businessProfile.resend_api_key.trim()) {
+      toast.error("Попълнете Resend API ключ");
+      return;
+    }
+    setSavingResend(true);
+    const { error } = await supabase
+      .from("resend_integrations")
+      .upsert(
+        { user_id: user.id, api_key: businessProfile.resend_api_key.trim(), updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+    if (error) {
+      toast.error("Грешка при свързване с Resend");
+    } else {
+      toast.success("Resend е свързан успешно!");
+      setResendSaved(true);
+    }
+    setSavingResend(false);
   };
 
   const handleSaveGhl = async () => {
@@ -287,6 +312,52 @@ export default function OnboardingPage() {
                       />
                       <p className="text-xs text-muted-foreground">Елена (AI бот за уеб) ще анализира сайта ти и ще предложи подобрения</p>
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Resend Connection */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Mail className="h-4 w-4" /> Resend — Email Marketing
+                          {resendSaved && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                        </CardTitle>
+                        <CardDescription className="text-xs mt-0.5">
+                          Свържи Resend за изпращане на имейл кампании от AI ботовете (незадължително)
+                        </CardDescription>
+                      </div>
+                      <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                        Resend <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">API ключ</Label>
+                      <Input
+                        type="password"
+                        placeholder="re_xxxxxxxx..."
+                        value={businessProfile.resend_api_key}
+                        onChange={(e) => setBusinessProfile(p => ({ ...p, resend_api_key: e.target.value }))}
+                      />
+                    </div>
+                    {!resendSaved ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveResend}
+                        disabled={savingResend || !businessProfile.resend_api_key}
+                      >
+                        {savingResend ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Свързване...</> : "Свържи Resend"}
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-green-600 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Resend е свързан успешно
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
 
