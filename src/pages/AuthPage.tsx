@@ -27,6 +27,7 @@ export default function AuthPage() {
 
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupUserType, setSignupUserType] = useState<"owner" | "worker" | null>(null);
 
@@ -72,8 +73,12 @@ export default function AuthPage() {
       toast.error("Моля, изберете тип акаунт");
       return;
     }
-    if (signupPassword.length < 6) {
-      toast.error("Паролата трябва да е поне 6 символа");
+    if (!passwordStrength) {
+      toast.error("Паролата трябва да е поне 8 символа, с главна буква и цифра");
+      return;
+    }
+    if (!passwordsMatch) {
+      toast.error("Паролите не съвпадат");
       return;
     }
 
@@ -103,7 +108,11 @@ export default function AuthPage() {
     setShowConfirmation(true);
   };
 
-  const passwordStrength = signupPassword.length >= 6;
+  const hasMinLength = signupPassword.length >= 8;
+  const hasUppercase = /[A-Z]/.test(signupPassword);
+  const hasDigit = /[0-9]/.test(signupPassword);
+  const passwordsMatch = signupPassword === signupConfirmPassword && signupConfirmPassword.length > 0;
+  const passwordStrength = hasMinLength && hasUppercase && hasDigit;
 
   // Email confirmation screen
   if (showConfirmation) {
@@ -314,13 +323,38 @@ export default function AuthPage() {
                         {showSignupPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
+                    {/* Confirm password */}
+                    <div className="group relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <Input
+                        type={showSignupPassword ? "text" : "password"}
+                        placeholder="Потвърди парола"
+                        value={signupConfirmPassword}
+                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                        className="pl-12 h-14 rounded-2xl border-border/60 bg-muted/30 text-base placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                      />
+                    </div>
+                    {/* Password requirements */}
                     {signupPassword && (
-                      <div className={cn(
-                        "flex items-center gap-2 text-sm transition-all duration-300",
-                        passwordStrength ? "text-success" : "text-muted-foreground"
-                      )}>
-                        <CheckCircle2 className={cn("h-4 w-4 transition-all", passwordStrength ? "opacity-100" : "opacity-40")} />
-                        <span>Минимум 6 символа</span>
+                      <div className="space-y-1.5">
+                        <div className={cn("flex items-center gap-2 text-sm", hasMinLength ? "text-green-500" : "text-muted-foreground")}>
+                          <CheckCircle2 className={cn("h-4 w-4", hasMinLength ? "opacity-100" : "opacity-40")} />
+                          <span>Минимум 8 символа</span>
+                        </div>
+                        <div className={cn("flex items-center gap-2 text-sm", hasUppercase ? "text-green-500" : "text-muted-foreground")}>
+                          <CheckCircle2 className={cn("h-4 w-4", hasUppercase ? "opacity-100" : "opacity-40")} />
+                          <span>Главна буква</span>
+                        </div>
+                        <div className={cn("flex items-center gap-2 text-sm", hasDigit ? "text-green-500" : "text-muted-foreground")}>
+                          <CheckCircle2 className={cn("h-4 w-4", hasDigit ? "opacity-100" : "opacity-40")} />
+                          <span>Цифра</span>
+                        </div>
+                        {signupConfirmPassword && (
+                          <div className={cn("flex items-center gap-2 text-sm", passwordsMatch ? "text-green-500" : "text-red-500")}>
+                            <CheckCircle2 className={cn("h-4 w-4", passwordsMatch ? "opacity-100" : "opacity-40")} />
+                            <span>{passwordsMatch ? "Паролите съвпадат" : "Паролите не съвпадат"}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
