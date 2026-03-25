@@ -236,8 +236,21 @@ async function callAI(config: AIConfig, system: string, messages: any[], withToo
   }
 
   if (provider === "gemini") {
-    const resp = await callGemini(apiKey, model, system, messages, withTools ? geminiTools : undefined);
-    return { text: getGeminiText(resp), toolCalls: getGeminiToolCalls(resp), rawResponse: resp };
+    try {
+      const resp = await callGemini(apiKey, model, system, messages, withTools ? geminiTools : undefined);
+      return { text: getGeminiText(resp), toolCalls: getGeminiToolCalls(resp), rawResponse: resp };
+    } catch (e: any) {
+      // Fallback to Claude on rate limit or quota exceeded
+      if (e?.message?.includes("RATE_LIMIT") || e?.message?.includes("429") || e?.message?.includes("quota")) {
+        console.log("Gemini rate limited, falling back to Claude");
+        const claudeKey = Deno.env.get("ANTHROPIC_API_KEY") || "";
+        if (claudeKey) {
+          const resp = await callClaude(claudeKey, "claude-sonnet-4-20250514", system, messages, withTools ? claudeTools : undefined);
+          return { text: getClaudeText(resp), toolCalls: getClaudeToolCalls(resp), rawResponse: resp };
+        }
+      }
+      throw e;
+    }
   }
 
   // Default: Claude
