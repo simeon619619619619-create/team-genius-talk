@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChatSession } from "@/hooks/useChatSessions";
-import { Plus, MessageSquare, Trash2, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Plus, MessageSquare, Trash2, PanelLeftClose, PanelLeft, CheckCircle2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ChatSidebarProps {
@@ -113,8 +113,14 @@ export function ChatSidebar({
                   )}
                   style={{ width: "calc(100% - 8px)" }}
                 >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                  <span className="truncate flex-1">{session.title}</span>
+                  {session.module_completed ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />
+                  ) : session.module_key ? (
+                    <BookOpen className="h-3.5 w-3.5 shrink-0 text-violet-400" />
+                  ) : (
+                    <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                  )}
+                  <span className={cn("truncate flex-1", session.module_completed && "text-green-500")}>{session.title}</span>
                   {hoveredId === session.id && (
                     <button
                       onClick={(e) => {

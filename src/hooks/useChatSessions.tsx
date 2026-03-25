@@ -7,6 +7,8 @@ export interface ChatSession {
   id: string;
   title: string;
   chat_key: string;
+  module_key?: string | null;
+  module_completed?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -82,7 +84,7 @@ export function useChatSessions(chatKey: string) {
     fetchSessions();
   }, [fetchSessions]);
 
-  const createSession = useCallback(async (title?: string): Promise<string | null> => {
+  const createSession = useCallback(async (title?: string, moduleKey?: string): Promise<string | null> => {
     if (!user) return null;
 
     try {
@@ -93,6 +95,7 @@ export function useChatSessions(chatKey: string) {
           project_id: projectId || null,
           chat_key: chatKey,
           title: title || "Нов чат",
+          module_key: moduleKey || null,
         })
         .select()
         .single();
@@ -160,6 +163,21 @@ export function useChatSessions(chatKey: string) {
     }
   }, []);
 
+  const markModuleCompleted = useCallback(async (sessionId: string, moduleLabel: string) => {
+    try {
+      await supabase
+        .from("chat_sessions")
+        .update({ module_completed: true, title: `${moduleLabel} ✅` })
+        .eq("id", sessionId);
+
+      setSessions(prev =>
+        prev.map(s => s.id === sessionId ? { ...s, module_completed: true, title: `${moduleLabel} ✅` } : s)
+      );
+    } catch (err) {
+      console.error("Error marking module completed:", err);
+    }
+  }, []);
+
   return {
     sessions,
     activeSessionId,
@@ -169,6 +187,7 @@ export function useChatSessions(chatKey: string) {
     updateSessionTitle,
     deleteSession,
     touchSession,
+    markModuleCompleted,
     refetch: fetchSessions,
   };
 }

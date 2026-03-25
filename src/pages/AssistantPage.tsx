@@ -164,6 +164,7 @@ export default function AssistantPage() {
     updateSessionTitle,
     deleteSession,
     touchSession,
+    markModuleCompleted,
   } = useChatSessions(chatKey);
 
   // Mark as viewed when page opens
@@ -186,11 +187,17 @@ export default function AssistantPage() {
   }, [moduleState]);
 
   const handleNewChat = useCallback(async () => {
-    await createSession();
-  }, [createSession]);
+    if (moduleState) {
+      await createSession(moduleState.label, moduleState.key);
+    } else {
+      await createSession();
+    }
+  }, [createSession, moduleState]);
 
   const handleFirstMessage = useCallback(async (text: string) => {
     if (!activeSessionId) return;
+    // Don't override module session titles
+    if (moduleState) return;
     const title = text.length > 60 ? text.substring(0, 57) + "..." : text;
     updateSessionTitle(activeSessionId, title);
     touchSession(activeSessionId);
@@ -245,9 +252,13 @@ export default function AssistantPage() {
 
           completeModule(moduleState.key, summary || undefined);
         })();
+        // Mark the chat session as module completed
+        if (activeSessionId) {
+          markModuleCompleted(activeSessionId, moduleState.label);
+        }
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted]);
+  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, activeSessionId, markModuleCompleted]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
