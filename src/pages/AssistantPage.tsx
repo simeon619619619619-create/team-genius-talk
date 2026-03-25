@@ -1,7 +1,8 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { ChevronDown, ArrowLeft, ChevronRight, Bot, Zap } from "lucide-react";
+import { ChevronDown, ArrowLeft, ChevronRight, Bot, Zap, PartyPopper } from "lucide-react";
+import confetti from "canvas-confetti";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,6 +212,7 @@ export default function AssistantPage() {
   useEffect(() => {
     if (moduleState && usedPrompts.size >= moduleState.prompts.length) {
       setShowCompleted(true);
+      fireConfetti();
       if (moduleState.key && user) {
         // Fetch chat messages for this module to build summary
         (async () => {
@@ -233,30 +235,40 @@ export default function AssistantPage() {
     }
   }, [usedPrompts.size, moduleState, completeModule, user]);
 
+  const fireConfetti = useCallback(() => {
+    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
+    setTimeout(() => {
+      confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] });
+      confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] });
+    }, 250);
+  }, []);
+
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
+    fireConfetti();
     const nextModule = MODULES.find(m => m.id === moduleState.id + 1);
-    if (nextModule) {
-      navigate("/assistant", {
-        state: {
-          module: {
-            id: nextModule.id,
-            key: nextModule.key,
-            label: nextModule.label,
-            systemPrompt: nextModule.systemPrompt,
-            initialMessage: nextModule.initialMessage,
-            prompts: nextModule.prompts,
+    setTimeout(() => {
+      if (nextModule) {
+        navigate("/assistant", {
+          state: {
+            module: {
+              id: nextModule.id,
+              key: nextModule.key,
+              label: nextModule.label,
+              systemPrompt: nextModule.systemPrompt,
+              initialMessage: nextModule.initialMessage,
+              prompts: nextModule.prompts,
+            },
           },
-        },
-      });
-      // Reset state for new module
-      setUsedPrompts(new Set());
-      setShowCompleted(false);
-      autoSentRef.current = false;
-    } else {
-      navigate("/modules");
-    }
-  }, [moduleState, navigate]);
+        });
+        setUsedPrompts(new Set());
+        setShowCompleted(false);
+        autoSentRef.current = false;
+      } else {
+        navigate("/modules");
+      }
+    }, 800);
+  }, [moduleState, navigate, fireConfetti]);
 
   const suggestions = moduleState
     ? moduleState.prompts.map((p, i) => ({
@@ -365,19 +377,26 @@ export default function AssistantPage() {
           {showCompleted && moduleState && (
             <div className="px-3 md:px-4 pb-3 shrink-0">
               <div className="mx-auto max-w-3xl">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                    {moduleState.label} завършен!
-                  </span>
+                <div className="flex flex-col sm:flex-row items-center gap-3 px-5 py-4 rounded-xl bg-gradient-to-r from-green-500/15 to-emerald-500/10 border border-green-500/30">
+                  <PartyPopper className="h-6 w-6 text-green-500 shrink-0" />
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                      {moduleState.label} завършен!
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {MODULES.find(m => m.id === moduleState.id + 1)
+                        ? `Следва: ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
+                        : "Всички модули са завършени!"}
+                    </p>
+                  </div>
                   <Button
-                    size="sm"
                     onClick={goToNextModule}
-                    className="gap-1.5"
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
                   >
                     {MODULES.find(m => m.id === moduleState.id + 1)
-                      ? `Към ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
+                      ? "Премини на следващата стъпка"
                       : "Обратно към модулите"}
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
