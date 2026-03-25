@@ -33,12 +33,20 @@ export function useChatSessions(chatKey: string) {
     }
 
     try {
+      const isModuleChat = chatKey.startsWith("module:");
+
       let query = supabase
         .from("chat_sessions")
         .select("*")
         .eq("user_id", user.id)
-        .eq("chat_key", chatKey)
         .order("updated_at", { ascending: false });
+
+      if (isModuleChat) {
+        // Show ALL module sessions (completed + current) so user sees full history
+        query = query.like("chat_key", "module:%");
+      } else {
+        query = query.eq("chat_key", chatKey);
+      }
 
       if (projectId) {
         query = query.eq("project_id", projectId);
