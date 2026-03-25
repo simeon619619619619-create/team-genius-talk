@@ -209,16 +209,22 @@ export default function AssistantPage() {
     }
   }, [moduleState]);
 
-  // Check module completion: by prompt buttons OR by AI content detection (min 6 messages exchanged)
+  const fireConfetti = useCallback(() => {
+    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
+    setTimeout(() => {
+      confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] });
+      confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] });
+    }, 250);
+  }, []);
+
+  // Check module completion: by prompt buttons OR by AI content detection
   const completionTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (!moduleState || showCompleted || completionTriggeredRef.current) return;
 
-    // Method 1: All prompt buttons clicked
     const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
 
-    // Method 2: AI signals completion (detect keywords in last assistant message)
     const lastMsg = chatMessages[chatMessages.length - 1];
     const hasEnoughMessages = chatMessages.filter(m => m.role === "user").length >= 2;
     const completionKeywords = ["ЗАВЪРШИХМЕ", "ПРЕХОД КЪМ СЛЕДВАЩ", "следващия модул", "Отивай при", "завърших", "приключихме", "модулът е завършен", "успешно завършен", "КАК ДА ПРОДЪЛЖИШ", "Успех с проекта", "Успех с развитието", "BusinessBot", "Модул 2", "Модул 1:", "СЛЕДВАЩИ СТЪПКИ"];
@@ -249,14 +255,6 @@ export default function AssistantPage() {
       }
     }
   }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, fireConfetti]);
-
-  const fireConfetti = useCallback(() => {
-    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
-    setTimeout(() => {
-      confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] });
-      confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] });
-    }, 250);
-  }, []);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
