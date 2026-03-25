@@ -31,6 +31,7 @@ import StartupPage from "./pages/StartupPage";
 import ModulesPage from "./pages/ModulesPage";
 import MindMapPage from "./pages/MindMapPage";
 import WebsitesPage from "./pages/WebsitesPage";
+import JourneyStepsPage from "./pages/JourneyStepsPage";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
                     <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+                    <Route path="/journey" element={<ProtectedRoute><JourneyStepsPage /></ProtectedRoute>} />
                     <Route path="/install" element={<InstallPage />} />
                     <Route path="/assistant" element={<ProtectedRoute><AssistantPage /></ProtectedRoute>} />
                     <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />

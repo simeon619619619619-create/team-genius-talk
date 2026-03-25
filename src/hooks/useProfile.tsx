@@ -79,11 +79,21 @@ export function useProfile() {
     return !profile.onboarding_completed;
   };
 
+  const needsJourneySteps = () => {
+    if (authLoading || loading) return false;
+    if (!user || !profile) return false;
+    if (!profile.onboarding_completed) return false;
+    // Check if journey steps have been seen (stored in business_profile JSON)
+    const bp = profile.business_profile as Record<string, string> | null;
+    return !bp?.journey_steps_seen;
+  };
+
   return {
     profile,
     loading: authLoading || loading,
     updateProfile,
     needsOnboarding,
+    needsJourneySteps,
     refetch: fetchProfile,
   };
 }

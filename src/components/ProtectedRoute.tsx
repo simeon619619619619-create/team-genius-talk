@@ -10,24 +10,30 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading, needsOnboarding } = useProfile();
+  const { profile, loading: profileLoading, needsOnboarding, needsJourneySteps } = useProfile();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const loading = authLoading || profileLoading;
-  
+
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth', { replace: true });
       return;
     }
-    
+
     // Redirect to onboarding if not completed (except if already on onboarding page)
     if (!loading && user && needsOnboarding() && location.pathname !== '/onboarding') {
       navigate('/onboarding', { replace: true });
+      return;
     }
-  }, [user, loading, navigate, needsOnboarding, location.pathname]);
-  
+
+    // Redirect to journey steps if not seen (except if already on journey or onboarding page)
+    if (!loading && user && needsJourneySteps() && location.pathname !== '/journey' && location.pathname !== '/onboarding') {
+      navigate('/journey', { replace: true });
+    }
+  }, [user, loading, navigate, needsOnboarding, needsJourneySteps, location.pathname]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -35,18 +41,18 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       </div>
     );
   }
-  
+
   if (!user) return null;
-  
-  // Allow onboarding page to render even if onboarding not completed
-  if (location.pathname === '/onboarding') {
+
+  // Allow onboarding and journey pages to render
+  if (location.pathname === '/onboarding' || location.pathname === '/journey') {
     return <>{children}</>;
   }
-  
+
   // Block other pages if onboarding not completed
   if (needsOnboarding()) {
     return null;
   }
-  
+
   return <>{children}</>;
 }
