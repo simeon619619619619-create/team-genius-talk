@@ -227,6 +227,22 @@ interface AIConfig {
   model: string;
 }
 
+function extractTokenUsage(provider: string, rawResponse: any): { tokensIn: number; tokensOut: number; total: number } {
+  if (provider === "gemini") {
+    const u = rawResponse?.usageMetadata;
+    return { tokensIn: u?.promptTokenCount || 0, tokensOut: u?.candidatesTokenCount || 0, total: u?.totalTokenCount || 0 };
+  }
+  if (provider === "claude") {
+    const u = rawResponse?.usage;
+    return { tokensIn: u?.input_tokens || 0, tokensOut: u?.output_tokens || 0, total: (u?.input_tokens || 0) + (u?.output_tokens || 0) };
+  }
+  if (provider === "openai") {
+    const u = rawResponse?.usage;
+    return { tokensIn: u?.prompt_tokens || 0, tokensOut: u?.completion_tokens || 0, total: u?.total_tokens || 0 };
+  }
+  return { tokensIn: 0, tokensOut: 0, total: 0 };
+}
+
 async function callAI(config: AIConfig, system: string, messages: any[], withTools: boolean): Promise<{ text: string; toolCalls: any[]; rawResponse: any }> {
   const { provider, apiKey, model } = config;
 
@@ -508,6 +524,24 @@ serve(async (req) => {
 
     const convertedMessages = convertMessages(messages);
 
+    // Helper: track token usage
+    const trackTokens = async (rawResp: any, moduleKey?: string) => {
+      try {
+        const usage = extractTokenUsage(aiConfig.provider, rawResp);
+        if (usage.total > 0) {
+          await supabase.from("token_usage").insert({
+            user_id: userId,
+            provider: aiConfig.provider,
+            model: aiConfig.model,
+            module_key: moduleKey || context || "business",
+            tokens_in: usage.tokensIn,
+            tokens_out: usage.tokensOut,
+            total_tokens: usage.total,
+          });
+        }
+      } catch (e) { console.error("Token tracking error:", e); }
+    };
+
     // Video context
     if (context === "video") {
       let folderContext = "";
@@ -558,6 +592,7 @@ FFmpeg път: /opt/homebrew/bin/ffmpeg
 - Предлагай конкретни текстове за overlay на български${folderContext}`;
 
       const result = await callAI(aiConfig, videoSystemPrompt, convertedMessages, false);
+      await trackTokens(result.rawResponse, "video");
       return new Response(JSON.stringify({ content: result.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -565,8 +600,18 @@ FFmpeg път: /opt/homebrew/bin/ffmpeg
 
     // Module context
     if (moduleSystemPrompt) {
-      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\nТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
+      // Extract module key from the prompt for tracking
+      const moduleKeyMatch = moduleSystemPrompt.match(/Ти си (\w+)/);
+      const moduleKey = moduleKeyMatch ? moduleKeyMatch[1].toLowerCase() : "module";
+
+      const fullModulePrompt = `${moduleSystemPrompt}
+
+ВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.
+ВАЖНО: Всички въпроси и подвъпроси които задаваш са ВЪТРЕ в текущия модул. Когато преминаваш към нов въпрос, казвай "Въпрос 2", "Въпрос 3" и т.н. НИКОГА не казвай "модул 2" или "следващия модул" — ти си ВЪТРЕ в един модул и работиш по въпросите в него.
+
+ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
       const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
+      await trackTokens(result.rawResponse, moduleKey);
       return new Response(JSON.stringify({ content: result.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -722,12 +767,15 @@ ${chatHistoryContext}
       const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
       const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, true);
 
+      await trackTokens(aiResult.rawResponse);
+      await trackTokens(followUpResult.rawResponse);
       return new Response(JSON.stringify({ content: followUpResult.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // No tool calls, return direct response
+    await trackTokens(aiResult.rawResponse);
     return new Response(JSON.stringify({ content: aiResult.text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

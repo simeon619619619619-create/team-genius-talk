@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Profile } from "@/hooks/useAdmin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2, User } from "lucide-react";
+import { Pencil, Trash2, User, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { bg } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProfilesTabProps {
   profiles: Profile[];
@@ -21,6 +22,25 @@ export function ProfilesTab({ profiles, onUpdateProfile, onDeleteProfile }: Prof
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [formData, setFormData] = useState<Partial<Profile>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<Record<string, { total: number; byModule: Record<string, number> }>>({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("token_usage")
+        .select("user_id, total_tokens, module_key");
+      if (data) {
+        const usage: Record<string, { total: number; byModule: Record<string, number> }> = {};
+        for (const row of data) {
+          if (!usage[row.user_id]) usage[row.user_id] = { total: 0, byModule: {} };
+          usage[row.user_id].total += row.total_tokens || 0;
+          const mk = row.module_key || "other";
+          usage[row.user_id].byModule[mk] = (usage[row.user_id].byModule[mk] || 0) + (row.total_tokens || 0);
+        }
+        setTokenUsage(usage);
+      }
+    })();
+  }, []);
 
   const handleEdit = (profile: Profile) => {
     setEditingProfile(profile);
@@ -65,6 +85,7 @@ export function ProfilesTab({ profiles, onUpdateProfile, onDeleteProfile }: Prof
               <TableHead>Email</TableHead>
               <TableHead>Телефон</TableHead>
               <TableHead>Instagram</TableHead>
+              <TableHead>Токени</TableHead>
               <TableHead>Регистриран</TableHead>
               <TableHead className="text-right">Действия</TableHead>
             </TableRow>
@@ -86,6 +107,23 @@ export function ProfilesTab({ profiles, onUpdateProfile, onDeleteProfile }: Prof
                 <TableCell>{profile.email}</TableCell>
                 <TableCell>{profile.phone || "-"}</TableCell>
                 <TableCell>{profile.instagram || "-"}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const u = tokenUsage[profile.user_id];
+                    if (!u || u.total === 0) return <span className="text-muted-foreground">0</span>;
+                    const formatted = u.total > 1000000
+                      ? `${(u.total / 1000000).toFixed(1)}M`
+                      : u.total > 1000
+                      ? `${(u.total / 1000).toFixed(1)}K`
+                      : u.total.toString();
+                    return (
+                      <div className="flex items-center gap-1.5" title={Object.entries(u.byModule).map(([k, v]) => `${k}: ${v}`).join(", ")}>
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <span className="font-medium">{formatted}</span>
+                      </div>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell>
                   {format(new Date(profile.created_at), "dd MMM yyyy", { locale: bg })}
                 </TableCell>
