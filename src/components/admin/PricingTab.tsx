@@ -15,11 +15,11 @@ export function PricingTab() {
       ...STRIPE_PLANS.lifetime,
     },
     {
-      key: "yearly",
+      key: "biannual",
       icon: Calendar,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10 border-blue-500/20",
-      ...STRIPE_PLANS.yearly,
+      ...STRIPE_PLANS.biannual,
     },
     {
       key: "monthly",
