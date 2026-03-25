@@ -219,8 +219,8 @@ export default function AssistantPage() {
 
     // Method 2: AI signals completion (detect keywords in last assistant message)
     const lastMsg = messages[messages.length - 1];
-    const hasEnoughMessages = messages.filter(m => m.role === "user").length >= 4;
-    const completionKeywords = ["ЗАВЪРШИХМЕ", "ПРЕХОД КЪМ СЛЕДВАЩ", "следващия модул", "Отивай при", "завърших", "приключихме", "модулът е завършен", "успешно завършен"];
+    const hasEnoughMessages = messages.filter(m => m.role === "user").length >= 2;
+    const completionKeywords = ["ЗАВЪРШИХМЕ", "ПРЕХОД КЪМ СЛЕДВАЩ", "следващия модул", "Отивай при", "завърших", "приключихме", "модулът е завършен", "успешно завършен", "КАК ДА ПРОДЪЛЖИШ", "Успех с проекта", "Успех с развитието", "BusinessBot", "Модул 2", "Модул 1:", "СЛЕДВАЩИ СТЪПКИ"];
     const aiSignalsComplete = hasEnoughMessages && lastMsg?.role === "assistant" &&
       completionKeywords.some(kw => lastMsg.content.includes(kw));
 
