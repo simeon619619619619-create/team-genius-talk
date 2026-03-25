@@ -102,7 +102,7 @@ export function AITaskBreakdownDialog({ teams, members, onAddTasks }: AITaskBrea
       
       return {
         title: st.title,
-        description: st.description + (st.handoffTo ? `\n\n📤 Предай на: ${members.find(m => m.id === st.handoffTo)?.name || st.handoffTo}` : ""),
+        description: st.description + (st.handoffTo ? `\n\nПредай на: ${members.find(m => m.id === st.handoffTo)?.name || st.handoffTo}` : ""),
         status: "todo" as const,
         priority: st.priority,
         assigneeId: st.assigneeId!,

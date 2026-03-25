@@ -116,7 +116,7 @@ export function useProjectTeamMembers() {
       const botMembers: ProjectTeamMember[] = bots.map((bot: { id: string; name: string; role: string }) => ({
         id: `ai-${bot.id}`,
         email: "",
-        full_name: `🤖 ${bot.name}`,
+        full_name: `${bot.name} (AI)`,
         role: bot.role,
       }));
       setAllMembers([...members, ...botMembers]);

@@ -25,17 +25,17 @@ import { useAuth } from "@/hooks/useAuth";
 
 const defaultSuggestions = [
   {
-    icon: "📅",
+    icon: "",
     title: "Добави задача за тази седмица",
     prompt: "Искам да добавя нова маркетинг задача за тази седмица",
   },
   {
-    icon: "⚠️",
+    icon: "",
     title: "Провери пропуснати задачи",
     prompt: "Има ли пропуснати задачи от миналите седмици?",
   },
   {
-    icon: "💡",
+    icon: "",
     title: "Предложи стратегия",
     prompt: "Предложи ми маркетинг стратегия за следващите 4 седмици",
   },
@@ -260,7 +260,7 @@ export default function AssistantPage() {
 
   const suggestions = moduleState
     ? moduleState.prompts.map((p, i) => ({
-        icon: usedPrompts.has(i) ? "✅" : "✨",
+        icon: usedPrompts.has(i) ? "" : "",
         title: p.label,
         prompt: p.text,
       }))
@@ -336,7 +336,7 @@ export default function AssistantPage() {
                         onClick={() => setSelectedBot(null)}
                         className={!selectedBot ? "bg-secondary" : ""}
                       >
-                        <span className="mr-2">💬</span> Симора (общ асистент)
+                        Симора (общ асистент)
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase">AI Ботове</DropdownMenuLabel>

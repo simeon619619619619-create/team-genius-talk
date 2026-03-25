@@ -81,127 +81,6 @@ const claudeTools = [
       },
       required: ["firstName"]
     }
-  },
-  {
-    name: "update_website_content",
-    description: "Редактирай съдържание на уебсайта на потребителя — създай блог пост, обнови страница, промени SEO мета описания, редактирай продуктови описания. Поддържа WordPress и Shopify.",
-    input_schema: {
-      type: "object",
-      properties: {
-        action: { type: "string", enum: ["create_post", "update_post", "update_page", "update_product", "update_meta"], description: "Тип действие" },
-        title: { type: "string", description: "Заглавие на поста/страницата" },
-        content: { type: "string", description: "HTML съдържание" },
-        slug: { type: "string", description: "URL slug за намиране на страницата (напр. about-us)" },
-        meta_title: { type: "string", description: "SEO мета заглавие" },
-        meta_description: { type: "string", description: "SEO мета описание (до 160 символа)" },
-        status: { type: "string", enum: ["draft", "publish"], description: "draft=чернова (по подразбиране), publish=публикувай" },
-        resource_id: { type: "string", description: "ID на ресурса за update (ако е известен)" }
-      },
-      required: ["action", "content"]
-    }
-  },
-  {
-    name: "analyze_meta_ads",
-    description: "Анализирай Meta (Facebook/Instagram) рекламни кампании. Взема данни от Meta Marketing API — разходи, импресии, кликове, конверсии, CPM, CPC, CTR, ROAS. Ивана използва това за анализ и оптимизация на реклами.",
-    input_schema: {
-      type: "object",
-      properties: {
-        date_preset: { type: "string", enum: ["today", "yesterday", "last_7d", "last_14d", "last_30d", "this_month", "last_month"], description: "Период за анализ" },
-        campaign_id: { type: "string", description: "ID на кампания (по избор — ако не е зададен, анализира всички)" },
-        action: { type: "string", enum: ["overview", "campaigns", "adsets", "ads", "recommendations"], description: "Тип анализ: overview=общ, campaigns=по кампании, recommendations=препоръки за оптимизация" }
-      },
-      required: ["action"]
-    }
-  },
-  {
-    name: "create_meta_post",
-    description: "Публикувай пост в Instagram или Facebook страница чрез Meta Graph API. Ивана може директно да публикува съдържание.",
-    input_schema: {
-      type: "object",
-      properties: {
-        platform: { type: "string", enum: ["instagram", "facebook"], description: "Платформа" },
-        message: { type: "string", description: "Текст на поста (caption)" },
-        image_url: { type: "string", description: "URL на изображение (трябва да е публично достъпен)" },
-        link: { type: "string", description: "Линк за споделяне (само за Facebook)" }
-      },
-      required: ["platform", "message"]
-    }
-  },
-  {
-    name: "send_email",
-    description: "Изпрати имейл чрез Resend API. Мария може да изпраща newsletter-и, follow-up имейли, welcome имейли директно.",
-    input_schema: {
-      type: "object",
-      properties: {
-        to: { type: "string", description: "Имейл на получателя" },
-        subject: { type: "string", description: "Тема на имейла" },
-        html: { type: "string", description: "HTML съдържание на имейла" }
-      },
-      required: ["to", "subject", "html"]
-    }
-  },
-  {
-    name: "resend_list_contacts",
-    description: "Покажи всички контакти от Resend. Виж имейл списъка, кой е абониран/отписан, филтрирай по сегмент.",
-    input_schema: {
-      type: "object",
-      properties: {
-        segment_id: { type: "string", description: "Филтрирай по сегмент ID (по избор)" },
-        limit: { type: "number", description: "Брой контакти (1-100, по подразбиране 20)" }
-      }
-    }
-  },
-  {
-    name: "resend_create_contact",
-    description: "Добави нов контакт в Resend имейл списъка.",
-    input_schema: {
-      type: "object",
-      properties: {
-        email: { type: "string", description: "Имейл адрес на контакта" },
-        first_name: { type: "string", description: "Собствено име" },
-        last_name: { type: "string", description: "Фамилно име" },
-        unsubscribed: { type: "boolean", description: "Дали е отписан (по подразбиране false)" }
-      },
-      required: ["email"]
-    }
-  },
-  {
-    name: "resend_list_audiences",
-    description: "Покажи всички аудитории (audiences) в Resend акаунта.",
-    input_schema: { type: "object", properties: {} }
-  },
-  {
-    name: "resend_list_broadcasts",
-    description: "Покажи всички broadcasts (масови кампании) в Resend.",
-    input_schema: { type: "object", properties: {} }
-  },
-  {
-    name: "resend_create_broadcast",
-    description: "Създай нова broadcast имейл кампания в Resend. Може да се изпрати веднага или да се насрочи.",
-    input_schema: {
-      type: "object",
-      properties: {
-        segment_id: { type: "string", description: "ID на сегмента, до който да се изпрати" },
-        from: { type: "string", description: "Подател (напр. 'Simora <noreply@simora.bg>')" },
-        subject: { type: "string", description: "Тема на имейла" },
-        html: { type: "string", description: "HTML съдържание на имейла" },
-        name: { type: "string", description: "Вътрешно име на кампанията" },
-        send: { type: "boolean", description: "true = изпрати веднага, false = запази като чернова (по подразбиране false)" },
-        scheduled_at: { type: "string", description: "Насрочи изпращане (напр. 'in 1 hour' или ISO 8601 дата). Изисква send: true" }
-      },
-      required: ["segment_id", "from", "subject", "html"]
-    }
-  },
-  {
-    name: "resend_send_broadcast",
-    description: "Изпрати вече създаден broadcast (чернова) до аудиторията.",
-    input_schema: {
-      type: "object",
-      properties: {
-        broadcast_id: { type: "string", description: "ID на broadcast-а за изпращане" }
-      },
-      required: ["broadcast_id"]
-    }
   }
 ];
 
@@ -461,11 +340,12 @@ serve(async (req) => {
       if (proj?.organization_id) orgId = proj.organization_id;
     }
 
-    // Default to Gemini (cheaper) — fallback to Claude if no Google key
-    const googleKey = Deno.env.get("GOOGLE_AI_KEY");
-    let aiConfig: AIConfig = googleKey
-      ? { provider: "gemini", apiKey: googleKey, model: "gemini-2.5-flash" }
-      : { provider: "claude", apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "", model: "claude-sonnet-4-20250514" };
+    // Look up org-specific active AI integration
+    let aiConfig: AIConfig = {
+      provider: "claude",
+      apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+      model: "claude-sonnet-4-20250514",
+    };
 
     if (orgId) {
       const { data: integration } = await supabase
@@ -492,26 +372,6 @@ serve(async (req) => {
     console.log(`Using AI provider: ${aiConfig.provider}, model: ${aiConfig.model}`);
 
     const dateContext = getDateContext();
-
-    // Get user's business profile (website, industry etc.)
-    let businessProfileContext = "";
-    if (userId) {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("business_profile")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const bp = prof?.business_profile as any;
-      if (bp) {
-        const parts: string[] = [];
-        if (bp.website) parts.push(`🌐 Уебсайт: ${bp.website}`);
-        if (bp.industry) parts.push(`🏢 Индустрия: ${bp.industry}`);
-        if (bp.team_size) parts.push(`👥 Екип: ${bp.team_size}`);
-        if (bp.revenue) parts.push(`💰 Приходи: ${bp.revenue}`);
-        if (bp.main_goal) parts.push(`🎯 Цел: ${bp.main_goal}`);
-        if (parts.length > 0) businessProfileContext = "\n\n📋 БИЗНЕС ПРОФИЛ:\n" + parts.join("\n");
-      }
-    }
 
     // Get business plan for context
     let businessPlanContext = "";
@@ -544,10 +404,10 @@ serve(async (req) => {
         .order("step_order");
 
       if (planSteps && planSteps.length > 0) {
-        marketingPlanContext = "\n\n📋 МАРКЕТИНГ ПЛАН:\n";
+        marketingPlanContext = "\n\nМАРКЕТИНГ ПЛАН:\n";
         for (const step of planSteps) {
           if (step.generated_content) {
-            marketingPlanContext += `\n### ${step.title} ${step.completed ? "✅" : "⏳"}:\n${step.generated_content.substring(0, 2000)}\n`;
+            marketingPlanContext += `\n### ${step.title} ${step.completed ? "[done]" : "[pending]"}:\n${step.generated_content.substring(0, 2000)}\n`;
           }
         }
       }
@@ -558,7 +418,7 @@ serve(async (req) => {
         .eq("project_id", projectId);
 
       if (stepAnswers && stepAnswers.length > 0) {
-        marketingPlanContext += "\n\n📝 ОТГОВОРИ ОТ МАРКЕТИНГ АНАЛИЗА:\n";
+        marketingPlanContext += "\n\nОТГОВОРИ ОТ МАРКЕТИНГ АНАЛИЗА:\n";
         for (const qa of stepAnswers.slice(0, 20)) {
           marketingPlanContext += `- ${qa.question_text}: ${qa.answer}\n`;
         }
@@ -573,7 +433,7 @@ serve(async (req) => {
           .eq("is_completed", false);
 
         if (overdueTasks && overdueTasks.length > 0) {
-          businessPlanContext += `\n\n⚠️ ПРОПУСНАТИ ЗАДАЧИ (${overdueTasks.length} броя):\n`;
+          businessPlanContext += `\n\nПРОПУСНАТИ ЗАДАЧИ (${overdueTasks.length} броя):\n`;
           overdueTasks.forEach(task => {
             businessPlanContext += `- Седмица ${task.week_number}: ${task.title} (${task.priority || 'medium'} приоритет)\n`;
           });
@@ -586,9 +446,9 @@ serve(async (req) => {
           .eq("week_number", dateContext.weekNumber);
 
         if (currentTasks && currentTasks.length > 0) {
-          businessPlanContext += `\n\n📋 ЗАДАЧИ ЗА ТАЗИ СЕДМИЦА (Седмица ${dateContext.weekNumber}):\n`;
+          businessPlanContext += `\n\nЗАДАЧИ ЗА ТАЗИ СЕДМИЦА (Седмица ${dateContext.weekNumber}):\n`;
           currentTasks.forEach(task => {
-            const status = task.is_completed ? "✅" : "⏳";
+            const status = task.is_completed ? "[done]" : "[pending]";
             businessPlanContext += `${status} ${task.title}${task.day_of_week ? ` (ден ${task.day_of_week})` : ""}\n`;
           });
         }
@@ -619,7 +479,7 @@ serve(async (req) => {
             bySession[sid].push(m);
           }
 
-          chatHistoryContext = "\n\n💬 ИСТОРИЯ ОТ ПРЕДИШНИ ЧАТОВЕ В ТОЗИ БИЗНЕС:\n";
+          chatHistoryContext = "\n\nИСТОРИЯ ОТ ПРЕДИШНИ ЧАТОВЕ В ТОЗИ БИЗНЕС:\n";
           for (const [, msgs] of Object.entries(bySession).slice(0, 5)) {
             const sorted = msgs.reverse();
             chatHistoryContext += "---\n";
@@ -639,7 +499,7 @@ serve(async (req) => {
     if (context === "video") {
       let folderContext = "";
       if (extraContext) {
-        folderContext = `\n\n📂 ФАЙЛОВЕ В ПАПКАТА НА ПОТРЕБИТЕЛЯ:
+        folderContext = `\n\nФАЙЛОВЕ В ПАПКАТА НА ПОТРЕБИТЕЛЯ:
 ${extraContext}
 
 ВАЖНО за работа с файлове:
@@ -652,19 +512,19 @@ ${extraContext}
 
       const videoSystemPrompt = `Ти си Симора - видео продуцент и експерт по ffmpeg, създаден от Симеон Димитров. Говориш на български език. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.
 
-🎬 КАКВО МОЖЕШ:
+КАКВО МОЖЕШ:
 1. Създаваш сценарии за видео съдържание (Reels, TikTok, Stories)
 2. Избираш кои файлове от папката пасват на всяка част от сценария
 3. Генерираш готови ffmpeg команди за обработка
 4. Правиш цветова корекция, crop, изрязване, субтитри, текст
 
-🧠 РАБОТЕН ПРОЦЕС:
+РАБОТЕН ПРОЦЕС:
 1. Потребителят дава идея за видео
 2. Ти пишеш кратък сценарий (кадър по кадър)
 3. Избираш файлове от папката за всеки кадър
 4. Даваш ffmpeg команди готови за copy-paste
 
-📋 ОСНОВНИ FFmpeg КОМАНДИ:
+ОСНОВНИ FFmpeg КОМАНДИ:
 
 ИЗРЯЗВАНЕ: ffmpeg -i input.mp4 -ss HH:MM:SS -to HH:MM:SS -c copy output.mp4
 CROP 9:16: ffmpeg -i input.mp4 -vf "crop=ih*9/16:ih" -c:a copy output.mp4
@@ -676,7 +536,7 @@ THUMBNAILS: ffmpeg -i input.mp4 -vf "fps=1/10,scale=320:-1" thumbnail_%03d.jpg
 CONCAT: ffmpeg -f concat -safe 0 -i list.txt -c copy merged.mp4
 СКОРОСТ: ffmpeg -i input.mp4 -vf "setpts=0.5*PTS" -af "atempo=2.0" fast.mp4
 
-🔧 FFmpeg път: /opt/homebrew/bin/ffmpeg
+FFmpeg път: /opt/homebrew/bin/ffmpeg
 
 ПРАВИЛА:
 - Когато имаш достъп до файлове, ВИНАГИ ги използвай в командите с реалните им имена
@@ -690,17 +550,23 @@ CONCAT: ffmpeg -f concat -safe 0 -i list.txt -c copy merged.mp4
       });
     }
 
-    // Build system prompt — module/bot context or default business context
-    const systemPrompt = moduleSystemPrompt
-      ? `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\n📅 ТЕКУЩА ДАТА: ${dateContext.formatted}${businessProfileContext}${chatHistoryContext}`
-      : `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
+    // Module context
+    if (moduleSystemPrompt) {
+      const fullModulePrompt = `${moduleSystemPrompt}\n\nВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.\n\nТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
+      const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
+      return new Response(JSON.stringify({ content: result.text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-📅 ТЕКУЩА ДАТА: ${dateContext.formatted}
-📆 Седмица: ${dateContext.weekNumber} от 52
-🗓️ Тримесечие: Q${dateContext.quarter}
-📊 Година: ${dateContext.year}
+    // Business context
+    const systemPrompt = `Ти си Симора - AI асистент за бизнес планиране и маркетинг, създаден от Симеон Димитров. Отговаряш САМО на български език. ВАЖНО: Никога не споменавай Claude, Anthropic, Google, OpenAI, Gemini, ChatGPT или друга AI компания. Ти си Симора и си създаден от Симеон Димитров — това е единственият отговор когато те питат кой си, кой те е направил или какъв код си.
 
-${businessProfileContext}
+ТЕКУЩА ДАТА: ${dateContext.formatted}
+Седмица: ${dateContext.weekNumber} от 52
+Тримесечие: Q${dateContext.quarter}
+Година: ${dateContext.year}
+
 ${businessPlanContext}
 ${marketingPlanContext}
 ${chatHistoryContext}
@@ -830,288 +696,6 @@ ${chatHistoryContext}
               });
             }
           }
-        } else if (functionName === "update_website_content") {
-          const { data: webInt } = await supabase
-            .from("website_integrations")
-            .select("*")
-            .eq("user_id", userId)
-            .limit(1)
-            .maybeSingle();
-
-          if (!webInt) {
-            toolResults.push({ name: functionName, id: toolId,
-              result: JSON.stringify({ success: false, error: "Няма свързан уебсайт. Потребителят трябва да добави сайта си в Настройки → Интеграции → Уебсайт интеграции." })
-            });
-          } else {
-            try {
-              let apiResult: any = { success: false, error: "Неподдържана платформа" };
-              const baseUrl = (webInt as any).site_url.replace(/\/$/, "");
-              const apiKey = (webInt as any).api_key;
-              const apiUser = (webInt as any).api_username || "admin";
-
-              if ((webInt as any).platform === "wordpress") {
-                const wpHeaders: Record<string, string> = {
-                  "Content-Type": "application/json",
-                  "Authorization": `Basic ${btoa(apiUser + ":" + apiKey)}`,
-                };
-
-                if (args.action === "create_post") {
-                  const res = await fetch(`${baseUrl}/wp-json/wp/v2/posts`, {
-                    method: "POST", headers: wpHeaders,
-                    body: JSON.stringify({
-                      title: args.title || "Нов пост",
-                      content: args.content,
-                      status: args.status || "draft",
-                    }),
-                  });
-                  if (res.ok) {
-                    const d = await res.json();
-                    apiResult = { success: true, id: d.id, link: d.link, message: `Пост "${args.title}" е създаден като ${args.status || "чернова"}.` };
-                  } else {
-                    apiResult = { success: false, error: `WordPress грешка: ${res.status} ${await res.text()}` };
-                  }
-                } else if (args.action === "update_page" || args.action === "update_post") {
-                  const endpoint = args.action === "update_page" ? "pages" : "posts";
-                  let resourceId = args.resource_id;
-                  if (!resourceId && args.slug) {
-                    const search = await fetch(`${baseUrl}/wp-json/wp/v2/${endpoint}?slug=${args.slug}`, { headers: wpHeaders });
-                    if (search.ok) {
-                      const items = await search.json();
-                      if (items.length > 0) resourceId = items[0].id;
-                    }
-                  }
-                  if (!resourceId) {
-                    apiResult = { success: false, error: "Не мога да намеря страницата. Дайте slug или ID." };
-                  } else {
-                    const body: any = { content: args.content };
-                    if (args.title) body.title = args.title;
-                    const res = await fetch(`${baseUrl}/wp-json/wp/v2/${endpoint}/${resourceId}`, {
-                      method: "PUT", headers: wpHeaders, body: JSON.stringify(body),
-                    });
-                    apiResult = res.ok
-                      ? { success: true, message: "Страницата е обновена успешно." }
-                      : { success: false, error: `WordPress грешка: ${res.status}` };
-                  }
-                } else if (args.action === "update_meta") {
-                  apiResult = { success: true, message: `Мета данни генерирани:\nTitle: ${args.meta_title}\nDescription: ${args.meta_description}\n\nЗа да ги приложите, инсталирайте Yoast SEO плъгин.` };
-                }
-              } else if ((webInt as any).platform === "shopify") {
-                const shHeaders = { "Content-Type": "application/json", "X-Shopify-Access-Token": apiKey };
-                if (args.action === "update_product" && args.resource_id) {
-                  const res = await fetch(`${baseUrl}/admin/api/2024-01/products/${args.resource_id}.json`, {
-                    method: "PUT", headers: shHeaders,
-                    body: JSON.stringify({ product: { body_html: args.content, title: args.title } }),
-                  });
-                  apiResult = res.ok ? { success: true, message: "Продуктът е обновен." } : { success: false, error: `Shopify грешка: ${res.status}` };
-                } else if (args.action === "create_post") {
-                  apiResult = { success: false, error: "За Shopify блог постове, използвайте Shopify Admin." };
-                }
-              }
-
-              toolResults.push({ name: functionName, id: toolId, result: JSON.stringify(apiResult) });
-            } catch (e: any) {
-              toolResults.push({ name: functionName, id: toolId,
-                result: JSON.stringify({ success: false, error: `Грешка: ${e.message}` })
-              });
-            }
-          }
-        } else if (functionName === "analyze_meta_ads") {
-          // Meta Marketing API
-          const { data: metaInt } = await supabase
-            .from("website_integrations")
-            .select("*")
-            .eq("user_id", userId)
-            .or("platform.eq.facebook,platform.eq.instagram,metadata->meta_token.neq.null")
-            .maybeSingle();
-
-          // Also check metadata on any integration for meta_token
-          const { data: allInts } = await supabase
-            .from("website_integrations")
-            .select("*")
-            .eq("user_id", userId);
-
-          const metaToken = (allInts || []).find((i: any) => i.metadata?.meta_token)?.metadata?.meta_token || metaInt?.api_key;
-          const adAccountId = (allInts || []).find((i: any) => i.metadata?.ad_account_id)?.metadata?.ad_account_id;
-
-          if (!metaToken || !adAccountId) {
-            toolResults.push({ name: functionName, id: toolId,
-              result: JSON.stringify({
-                success: false,
-                error: "Няма свързан Meta Ads акаунт. За да анализирам рекламите ви:\n1. Отидете в Настройки → Уебсайт интеграции\n2. Добавете сайт с платформа 'custom'\n3. В URL сложете вашия Facebook Page URL\n4. За API ключ — генерирайте от developers.facebook.com → Tools → Graph API Explorer\n\nАлтернативно, мога да анализирам данни ако ги copy-paste от Ads Manager."
-              })
-            });
-          } else {
-            try {
-              const datePreset = args.date_preset || "last_7d";
-              const level = args.action === "campaigns" ? "campaign" : args.action === "adsets" ? "adset" : args.action === "ads" ? "ad" : "account";
-              const fields = "campaign_name,impressions,clicks,spend,cpc,cpm,ctr,actions,cost_per_action_type,reach,frequency";
-
-              let url = `https://graph.facebook.com/v19.0/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}&level=${level}&limit=50&access_token=${metaToken}`;
-              if (args.campaign_id) url += `&filtering=[{"field":"campaign.id","operator":"EQUAL","value":"${args.campaign_id}"}]`;
-
-              const res = await fetch(url);
-              if (res.ok) {
-                const data = await res.json();
-                toolResults.push({ name: functionName, id: toolId,
-                  result: JSON.stringify({ success: true, data: data.data, period: datePreset, level })
-                });
-              } else {
-                const errText = await res.text();
-                toolResults.push({ name: functionName, id: toolId,
-                  result: JSON.stringify({ success: false, error: `Meta API грешка: ${res.status}. Моля, проверете токена.`, details: errText.substring(0, 200) })
-                });
-              }
-            } catch (e: any) {
-              toolResults.push({ name: functionName, id: toolId,
-                result: JSON.stringify({ success: false, error: e.message })
-              });
-            }
-          }
-        } else if (functionName === "create_meta_post") {
-          const { data: allInts } = await supabase
-            .from("website_integrations")
-            .select("*")
-            .eq("user_id", userId);
-
-          const metaToken = (allInts || []).find((i: any) => i.metadata?.meta_token)?.metadata?.meta_token;
-          const pageId = (allInts || []).find((i: any) => i.metadata?.page_id)?.metadata?.page_id;
-          const igAccountId = (allInts || []).find((i: any) => i.metadata?.ig_account_id)?.metadata?.ig_account_id;
-
-          if (!metaToken) {
-            toolResults.push({ name: functionName, id: toolId,
-              result: JSON.stringify({ success: false, error: "Няма свързан Meta акаунт. Добавете Meta токен в Настройки → Интеграции." })
-            });
-          } else {
-            try {
-              if (args.platform === "facebook" && pageId) {
-                const body: any = { message: args.message, access_token: metaToken };
-                if (args.link) body.link = args.link;
-                const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(body),
-                });
-                const data = await res.json();
-                toolResults.push({ name: functionName, id: toolId,
-                  result: JSON.stringify(res.ok ? { success: true, post_id: data.id, message: "Постът е публикуван във Facebook!" } : { success: false, error: data.error?.message })
-                });
-              } else if (args.platform === "instagram" && igAccountId && args.image_url) {
-                // Step 1: Create media container
-                const createRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media`, {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ image_url: args.image_url, caption: args.message, access_token: metaToken }),
-                });
-                const createData = await createRes.json();
-                if (createData.id) {
-                  // Step 2: Publish
-                  const pubRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ creation_id: createData.id, access_token: metaToken }),
-                  });
-                  const pubData = await pubRes.json();
-                  toolResults.push({ name: functionName, id: toolId,
-                    result: JSON.stringify({ success: true, post_id: pubData.id, message: "Постът е публикуван в Instagram!" })
-                  });
-                } else {
-                  toolResults.push({ name: functionName, id: toolId,
-                    result: JSON.stringify({ success: false, error: createData.error?.message || "Грешка при създаване на пост" })
-                  });
-                }
-              } else {
-                toolResults.push({ name: functionName, id: toolId,
-                  result: JSON.stringify({ success: false, error: args.platform === "instagram" ? "За Instagram е нужен image_url и свързан IG акаунт." : "Няма свързана Facebook страница." })
-                });
-              }
-            } catch (e: any) {
-              toolResults.push({ name: functionName, id: toolId,
-                result: JSON.stringify({ success: false, error: e.message })
-              });
-            }
-          }
-        } else if (functionName === "send_email" || functionName.startsWith("resend_")) {
-          // All Resend tools share the same API key lookup
-          const { data: resendInt } = await supabase
-            .from("resend_integrations")
-            .select("api_key")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          if (!resendInt) {
-            toolResults.push({ name: functionName, id: toolId,
-              result: JSON.stringify({ success: false, error: "Няма свързан Resend API ключ. Добавете го в Настройки → Интеграции." })
-            });
-          } else {
-            const resendHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${resendInt.api_key}` };
-            try {
-              let resendResult: any;
-
-              if (functionName === "send_email") {
-                const res = await fetch("https://api.resend.com/emails", {
-                  method: "POST", headers: resendHeaders,
-                  body: JSON.stringify({ from: "Simora <noreply@simora.bg>", to: args.to, subject: args.subject, html: args.html }),
-                });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, id: data.id, message: `Имейлът е изпратен до ${args.to}!` } : { success: false, error: data.message || "Resend грешка" };
-
-              } else if (functionName === "resend_list_contacts") {
-                const params = new URLSearchParams();
-                if (args.segment_id) params.set("segment_id", args.segment_id);
-                if (args.limit) params.set("limit", String(args.limit));
-                const qs = params.toString() ? `?${params}` : "";
-                const res = await fetch(`https://api.resend.com/contacts${qs}`, { headers: resendHeaders });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, contacts: data.data, has_more: data.has_more, total: data.data?.length } : { success: false, error: data.message || "Грешка" };
-
-              } else if (functionName === "resend_create_contact") {
-                const res = await fetch("https://api.resend.com/contacts", {
-                  method: "POST", headers: resendHeaders,
-                  body: JSON.stringify({ email: args.email, first_name: args.first_name, last_name: args.last_name, unsubscribed: args.unsubscribed || false }),
-                });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, id: data.id, message: `Контактът ${args.email} е добавен!` } : { success: false, error: data.message || "Грешка" };
-
-              } else if (functionName === "resend_list_audiences") {
-                const res = await fetch("https://api.resend.com/audiences", { headers: resendHeaders });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, audiences: data.data } : { success: false, error: data.message || "Грешка" };
-
-              } else if (functionName === "resend_list_broadcasts") {
-                const res = await fetch("https://api.resend.com/broadcasts", { headers: resendHeaders });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, broadcasts: data.data } : { success: false, error: data.message || "Грешка" };
-
-              } else if (functionName === "resend_create_broadcast") {
-                const res = await fetch("https://api.resend.com/broadcasts", {
-                  method: "POST", headers: resendHeaders,
-                  body: JSON.stringify({
-                    segment_id: args.segment_id,
-                    from: args.from || "Simora <noreply@simora.bg>",
-                    subject: args.subject,
-                    html: args.html,
-                    name: args.name,
-                    send: args.send || false,
-                    scheduled_at: args.scheduled_at,
-                  }),
-                });
-                const data = await res.json();
-                resendResult = res.ok
-                  ? { success: true, id: data.id, message: args.send ? "Broadcast-ът е изпратен!" : "Broadcast-ът е създаден като чернова." }
-                  : { success: false, error: data.message || "Грешка" };
-
-              } else if (functionName === "resend_send_broadcast") {
-                const res = await fetch(`https://api.resend.com/broadcasts/${args.broadcast_id}/send`, {
-                  method: "POST", headers: resendHeaders,
-                });
-                const data = await res.json();
-                resendResult = res.ok ? { success: true, message: "Broadcast-ът е изпратен!" } : { success: false, error: data.message || "Грешка" };
-              }
-
-              toolResults.push({ name: functionName, id: toolId, result: JSON.stringify(resendResult) });
-            } catch (e: any) {
-              toolResults.push({ name: functionName, id: toolId,
-                result: JSON.stringify({ success: false, error: e.message })
-              });
-            }
-          }
         } else {
           toolResults.push({
             name: functionName,
@@ -1122,24 +706,12 @@ ${chatHistoryContext}
       }
 
       // Second call with tool results
-      try {
-        const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
-        const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, false);
+      const followUpMessages = buildToolFollowUp(aiConfig, convertedMessages, aiResult.rawResponse, toolResults);
+      const followUpResult = await callAI(aiConfig, systemPrompt, followUpMessages, true);
 
-        return new Response(JSON.stringify({ content: followUpResult.text }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (followUpError: any) {
-        console.error("Follow-up call error:", followUpError);
-        // Fallback: return tool results directly as text
-        const fallbackText = toolResults.map(tr => {
-          const parsed = JSON.parse(tr.result);
-          return parsed.message || parsed.error || JSON.stringify(parsed);
-        }).join("\n");
-        return new Response(JSON.stringify({ content: fallbackText || aiResult.text || "Действието е изпълнено." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      return new Response(JSON.stringify({ content: followUpResult.text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // No tool calls, return direct response

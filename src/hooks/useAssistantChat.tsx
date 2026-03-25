@@ -13,13 +13,13 @@ export interface Message {
 const defaultInitialMessage: Message = {
   id: "1",
   role: "assistant",
-  content: "Здравейте! 👋 Аз съм Симора - вашият AI асистент за бизнес планиране. Мога да:\n\n📅 Добавям задачи в седмичния ви план\n⚠️ Напомням за пропуснати задачи\n💡 Предлагам маркетинг стратегии\n\nКак мога да ви помогна днес?"
+  content: "Здравейте! Аз съм Симора — вашият AI асистент за бизнес планиране. Мога да:\n\n- Добавям задачи в седмичния ви план\n- Напомням за пропуснати задачи\n- Предлагам маркетинг стратегии\n\nКак мога да ви помогна днес?"
 };
 
 const videoInitialMessage: Message = {
   id: "1",
   role: "assistant",
-  content: "Здравейте! 👋 Аз съм вашият AI видео асистент. Мога да ви помогна с:\n\n🎬 Изрязване на клипове\n📝 Генериране на субтитри\n🔥 Burn-in субтитри\n📐 Crop за Reels/TikTok\n📦 Компресия\n🖼️ Thumbnails\n\nКажете ми какво искате да направите с видеото си — ще ви дам готова ffmpeg команда!"
+  content: "Здравейте! Аз съм вашият AI видео асистент. Мога да ви помогна с:\n\n- Изрязване на клипове\n- Генериране на субтитри\n- Burn-in субтитри\n- Crop за Reels/TikTok\n- Компресия\n- Thumbnails\n\nКажете ми какво искате да направите с видеото си — ще ви дам готова ffmpeg команда!"
 };
 
 export function useAssistantChat(
@@ -161,7 +161,7 @@ export function useAssistantChat(
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "⚠️ Възникна грешка при връзката. Моля, опитайте отново.",
+        content: "Възникна грешка при връзката. Моля, опитайте отново.",
       };
 
       setMessages(prev => [...prev, errorMessage]);

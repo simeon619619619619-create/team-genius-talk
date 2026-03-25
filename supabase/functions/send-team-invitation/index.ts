@@ -140,7 +140,7 @@ serve(async (req: Request): Promise<Response> => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>🎉 Покана за екип</h1>
+              <h1>Покана за екип</h1>
             </div>
             <div class="content">
               <p>Здравейте${name ? ` ${name}` : ""},</p>

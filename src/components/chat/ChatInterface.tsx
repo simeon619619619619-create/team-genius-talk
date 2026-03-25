@@ -308,7 +308,7 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
         uploadedNames.push(pf.name);
       }
 
-      const filesList = uploadedNames.map(n => `📎 ${n}`).join('\n');
+      const filesList = uploadedNames.map(n => `[${n}]`).join('\n');
       const fullMessage = `${text}\n\n${filesList}`;
       sendMessage(fullMessage);
 
@@ -355,7 +355,7 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
                 onClick={() => handleSuggestionClick(suggestion.prompt)}
                 className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary/50 hover:bg-secondary text-sm transition-colors"
               >
-                <span>{suggestion.icon}</span>
+                {suggestion.icon && <span>{suggestion.icon}</span>}
                 <span>{suggestion.title}</span>
               </button>
             ))}

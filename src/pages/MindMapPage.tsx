@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { cn } from "@/lib/utils";
 import {
@@ -577,7 +576,6 @@ function StepDetail({
   teamMembers,
   botSkills,
   onAddToTasks,
-  onStartBotChat,
 }: {
   step: ProcessStep;
   stepIndex: number;
@@ -586,7 +584,6 @@ function StepDetail({
   teamMembers: string[];
   botSkills: BotSkillInfo[];
   onAddToTasks: (title: string, assignee?: string) => void;
-  onStartBotChat: (stepTitle: string, actionText: string, botName: string) => void;
 }) {
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingActionAssignee, setEditingActionAssignee] = useState<number | null>(null);
@@ -598,60 +595,60 @@ function StepDetail({
     const action = step.actions[actionIndex];
     if (action.running) return;
 
-    const botName = action.assignee?.replace("🤖 ", "") || "";
-    const botInfo = botSkills.find(b => b.name === botName);
+    // Find bot info for assignee
+    const botInfo = action.assignee
+      ? botSkills.find(b => `${b.name} (AI)` === action.assignee)
+      : null;
 
-    if (botInfo || action.assignee?.startsWith("🤖")) {
-      // Open chat with bot - interactive conversation
-      onStartBotChat(step.title, action.text, botName);
-
-      // Add as task too
-      onAddToTasks(action.text, botName);
-
-      toast.success(`Отворен чат с ${botName} за "${action.text.substring(0, 30)}..."`);
-      return;
-    }
-
-    // Non-bot: one-shot AI execution
+    // Mark as running
     const runningUpdate = { ...step, actions: step.actions.map((a, i) => i === actionIndex ? { ...a, running: true } : a) };
     onUpdate(runningUpdate);
 
     try {
-      const persona = action.assignee
-        ? `Ти работиш като ${action.assignee}.`
-        : `Ти си бизнес асистент.`;
+      const persona = botInfo
+        ? `Ти си ${botInfo.name}, специалист в: ${botInfo.skills.join(", ")}.`
+        : action.assignee
+          ? `Ти работиш като ${action.assignee}.`
+          : `Ти си бизнес асистент.`;
 
       const { data, error } = await supabase.functions.invoke("assistant-chat", {
         body: {
-          messages: [{
-            role: "user",
-            content: `${persona} Стъпка от процеса "${step.title}": Изпълни това действие и дай кратък отчет (макс 3 изречения).\n\n"${action.text}"`,
-          }],
+          messages: [
+            {
+              role: "user",
+              content: `${persona} Стъпка от процеса "${step.title}": Изпълни това действие и дай кратък отчет (макс 3 изречения). Ако не можеш, обясни какво ти трябва:\n\n"${action.text}"`,
+            },
+          ],
           context: "business",
         },
       });
 
-      const result = error ? "Грешка при изпълнение" : data?.content || "Задачата е изпълнена.";
-      const isSuccess = !error && !result.toLowerCase().includes("не мога");
+      const result = error
+        ? "Грешка при изпълнение"
+        : data?.content || "Задачата е изпълнена.";
 
-      onUpdate({
+      const isSuccess = !error && !result.toLowerCase().includes("не мога") && !result.toLowerCase().includes("нямам достъп");
+
+      const doneUpdate = {
         ...step,
         actions: step.actions.map((a, i) =>
           i === actionIndex ? { ...a, done: isSuccess, running: false, result } : a
         ),
-      });
+      };
+      onUpdate(doneUpdate);
       setExpandedResults(prev => ({ ...prev, [actionIndex]: true }));
 
       if (isSuccess) {
         toast.success(`${action.assignee || "AI"} завърши: "${action.text.substring(0, 40)}..."`);
       }
     } catch {
-      onUpdate({
+      const errUpdate = {
         ...step,
         actions: step.actions.map((a, i) =>
           i === actionIndex ? { ...a, running: false, result: "Грешка при връзката с AI" } : a
         ),
-      });
+      };
+      onUpdate(errUpdate);
     }
   };
 
@@ -678,7 +675,7 @@ function StepDetail({
     const unmatched: string[] = [];
 
     for (const member of teamMembers) {
-      const botInfo = botSkills.find(b => `🤖 ${b.name}` === member);
+      const botInfo = botSkills.find(b => `${b.name} (AI)` === member);
       if (botInfo && botInfo.skills.length > 0) {
         const hasSkill = botInfo.skills.some(skill =>
           text.includes(skill.toLowerCase()) || skill.toLowerCase().includes(text.substring(0, 10))
@@ -833,7 +830,7 @@ function StepDetail({
                     </button>
                   )}
                   <button
-                    onClick={() => onAddToTasks(action.text, action.assignee?.replace("🤖 ", ""))}
+                    onClick={() => onAddToTasks(action.text, action.assignee?.replace(" (AI)", ""))}
                     className="opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all whitespace-nowrap flex items-center gap-0.5"
                     title="Добави като задача"
                   >
@@ -901,44 +898,6 @@ export default function MindMapPage() {
   const { user } = useAuth();
   const { tasks, addTask } = useTasks();
   const { currentOrganization } = useOrganizations();
-  const navigate = useNavigate();
-
-  // Open AI Assistant with bot context from a business process step
-  const handleStartBotChat = useCallback((stepTitle: string, actionText: string, botName: string) => {
-    // Find the bot from localStorage
-    try {
-      const saved = localStorage.getItem("simora_ai_bots");
-      if (saved) {
-        const bots = JSON.parse(saved);
-        const bot = bots.find((b: any) => b.name === botName);
-        if (bot) {
-          // Navigate to assistant with bot + process context
-          navigate("/assistant", {
-            state: {
-              selectedBot: bot,
-              processContext: {
-                stepTitle,
-                actionText,
-                initialMessage: `Работя по бизнес процес "${stepTitle}". Задачата ми е: "${actionText}". Помогни ми да я изпълня стъпка по стъпка. Задавай ми въпроси за да разбереш какво точно искам и когато сме готови, ще определим дата и часове за изпълнение.`,
-              },
-            },
-          });
-          return;
-        }
-      }
-    } catch { /* ignore */ }
-
-    // Fallback: navigate without bot
-    navigate("/assistant", {
-      state: {
-        processContext: {
-          stepTitle,
-          actionText,
-          initialMessage: `Работя по бизнес процес "${stepTitle}". Задачата ми е: "${actionText}". Помогни ми стъпка по стъпка.`,
-        },
-      },
-    });
-  }, [navigate]);
   const [connectedApis, setConnectedApis] = useState<Set<string>>(new Set());
   const [processes, setProcesses] = useState<ProcessData[]>(DEFAULT_PROCESSES);
   const [selectedProcess, setSelectedProcess] = useState<ProcessData | null>(null);
@@ -968,7 +927,7 @@ export default function MindMapPage() {
       const botsJson = localStorage.getItem("simora_ai_bots");
       if (botsJson) {
         const bots = JSON.parse(botsJson);
-        const botNames = bots.map((b: { name: string }) => `🤖 ${b.name}`);
+        const botNames = bots.map((b: { name: string }) => `${b.name} (AI)`);
         const skills: BotSkillInfo[] = bots.map((b: { name: string; skills?: string[] }) => ({
           name: b.name,
           skills: b.skills || [],
@@ -1428,7 +1387,6 @@ export default function MindMapPage() {
                       teamMembers={teamMembers}
                       botSkills={botSkillsData}
                       onUpdate={(updated) => updateStep(selectedProcess.id, i, updated)}
-                      onStartBotChat={handleStartBotChat}
                       onAddToTasks={(title, assignee) => {
                         const alreadyExists = tasks.some(t => t.title === title && t.status !== "done");
                         if (alreadyExists) {
@@ -1566,7 +1524,7 @@ export default function MindMapPage() {
                   </div>
 
                   <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 p-3">
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">💡 Полезно:</p>
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Полезно:</p>
                     <p className="text-xs text-amber-700/80 dark:text-amber-400/80">{guide.tip}</p>
                   </div>
 

@@ -301,14 +301,14 @@ export default function SettingsPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border-2 border-primary cursor-pointer transition-all duration-200 hover:bg-primary/15">
-                <span className="text-3xl">🇧🇬</span>
+                <span className="text-lg font-bold text-primary">BG</span>
                 <div>
                   <span className="font-semibold text-foreground">Български</span>
                   <p className="text-xs text-muted-foreground">Избран</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 border-2 border-transparent hover:border-border hover:bg-secondary cursor-pointer transition-all duration-200">
-                <span className="text-3xl">🇬🇧</span>
+                <span className="text-lg font-bold text-muted-foreground">EN</span>
                 <div>
                   <span className="font-semibold text-foreground">English</span>
                   <p className="text-xs text-muted-foreground">Скоро</p>

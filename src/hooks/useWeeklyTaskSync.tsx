@@ -49,7 +49,7 @@ export async function syncWeeklyTaskToTasks(
     const dueDate = getDateFromWeekDay(year, weekNumber, task.dayOfWeek);
     
     // Build description with source info
-    const sourceInfo = `📅 Седмица ${weekNumber}, ${dayNames[task.dayOfWeek] || "Ден " + task.dayOfWeek}\n📋 Източник: Бизнес план`;
+    const sourceInfo = `Седмица ${weekNumber}, ${dayNames[task.dayOfWeek] || "Ден " + task.dayOfWeek}\nИзточник: Бизнес план`;
     const fullDescription = task.description 
       ? `${task.description}\n\n---\n${sourceInfo}` 
       : sourceInfo;

@@ -396,7 +396,7 @@ export function DailyPlanWidget() {
       {dailyTasks.length > 0 && completedCount === dailyTasks.length && (
         <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20 text-center">
           <CheckCircle2 className="h-6 w-6 text-success mx-auto mb-2" />
-          <p className="text-sm font-medium text-success">Браво! Завършихте всички задачи за днес! 🎉</p>
+          <p className="text-sm font-medium text-success">Браво! Завършихте всички задачи за днес!</p>
         </div>
       )}
     </Card>

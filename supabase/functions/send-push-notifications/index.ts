@@ -105,7 +105,7 @@ serve(async (req) => {
       const firstTaskTitle = tasks[0].title;
 
       const payload = {
-        title: "🔔 Напомняне за задачи",
+        title: "Напомняне за задачи",
         body:
           taskCount === 1
             ? `Имате 1 непълна задача: ${firstTaskTitle}`
