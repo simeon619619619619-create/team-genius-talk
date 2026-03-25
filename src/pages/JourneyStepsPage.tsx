@@ -129,7 +129,8 @@ export default function JourneyStepsPage() {
     await updateProfile({
       business_profile: { ...bp, journey_steps_seen: "true" },
     } as any);
-    navigate("/modules", { replace: true });
+    // Hard redirect to avoid ProtectedRoute seeing stale profile
+    window.location.href = "/modules";
   };
 
   return (
