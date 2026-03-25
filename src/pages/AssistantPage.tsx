@@ -209,14 +209,6 @@ export default function AssistantPage() {
     }
   }, [moduleState]);
 
-  const fireConfetti = useCallback(() => {
-    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
-    setTimeout(() => {
-      confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] });
-      confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] });
-    }, 250);
-  }, []);
-
   // Check module completion: by prompt buttons OR by AI content detection
   const completionTriggeredRef = useRef(false);
 
@@ -234,7 +226,8 @@ export default function AssistantPage() {
     if (allPromptsUsed || aiSignalsComplete) {
       completionTriggeredRef.current = true;
       setShowCompleted(true);
-      fireConfetti();
+      confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
+      setTimeout(() => { confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] }); confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] }); }, 250);
       if (moduleState.key && user) {
         (async () => {
           const ck = "module:" + moduleState.systemPrompt.substring(0, 80);
@@ -254,7 +247,7 @@ export default function AssistantPage() {
         })();
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, fireConfetti]);
+  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
@@ -281,7 +274,7 @@ export default function AssistantPage() {
         navigate("/modules");
       }
     }, 800);
-  }, [moduleState, navigate, fireConfetti]);
+  }, [moduleState, navigate]);
 
   const suggestions = moduleState
     ? moduleState.prompts.map((p, i) => ({
