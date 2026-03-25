@@ -340,11 +340,11 @@ serve(async (req) => {
       if (proj?.organization_id) orgId = proj.organization_id;
     }
 
-    // Look up org-specific active AI integration
+    // Default: Gemini (20x cheaper). Claude only for website generation.
     let aiConfig: AIConfig = {
-      provider: "claude",
-      apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
-      model: "claude-sonnet-4-20250514",
+      provider: "gemini",
+      apiKey: Deno.env.get("GOOGLE_AI_KEY") || "",
+      model: "gemini-2.5-flash",
     };
 
     if (orgId) {
