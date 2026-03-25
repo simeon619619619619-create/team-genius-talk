@@ -102,6 +102,7 @@ export default function AssistantPage() {
   const [usedPrompts, setUsedPrompts] = useState<Set<number>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
   const autoSentRef = useRef(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string }>>([]);
 
   // Auto-route to best bot based on message content
   const [autoRouted, setAutoRouted] = useState(false);
@@ -218,8 +219,8 @@ export default function AssistantPage() {
     const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
 
     // Method 2: AI signals completion (detect keywords in last assistant message)
-    const lastMsg = messages[messages.length - 1];
-    const hasEnoughMessages = messages.filter(m => m.role === "user").length >= 2;
+    const lastMsg = chatMessages[chatMessages.length - 1];
+    const hasEnoughMessages = chatMessages.filter(m => m.role === "user").length >= 2;
     const completionKeywords = ["ЗАВЪРШИХМЕ", "ПРЕХОД КЪМ СЛЕДВАЩ", "следващия модул", "Отивай при", "завърших", "приключихме", "модулът е завършен", "успешно завършен", "КАК ДА ПРОДЪЛЖИШ", "Успех с проекта", "Успех с развитието", "BusinessBot", "Модул 2", "Модул 1:", "СЛЕДВАЩИ СТЪПКИ"];
     const aiSignalsComplete = hasEnoughMessages && lastMsg?.role === "assistant" &&
       completionKeywords.some(kw => lastMsg.content.includes(kw));
@@ -247,7 +248,7 @@ export default function AssistantPage() {
         })();
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user, messages, showCompleted, fireConfetti]);
+  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, fireConfetti]);
 
   const fireConfetti = useCallback(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
@@ -451,6 +452,7 @@ export default function AssistantPage() {
               onMessage={routeToBestBot}
               autoSendPrompt={autoSendPrompt || autoSendProcessMsg}
               onSuggestionUsed={handleSuggestionUsed}
+              onMessagesChange={setChatMessages}
             />
           </div>
 

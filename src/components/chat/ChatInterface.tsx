@@ -34,6 +34,7 @@ interface ChatInterfaceProps {
   onSuggestionUsed?: (promptText: string) => void;
   extraContext?: string;
   onAssistantMessage?: (content: string) => void;
+  onMessagesChange?: (messages: Array<{ role: string; content: string }>) => void;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -112,7 +113,7 @@ const LoadingDots = () => (
   </div>
 );
 
-export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, onMessage, autoSendPrompt, onSuggestionUsed, extraContext, onAssistantMessage }: ChatInterfaceProps) {
+export function ChatInterface({ suggestions = [], context = "business", moduleSystemPrompt, moduleInitialMessage, sessionId, onFirstMessage, onMessage, autoSendPrompt, onSuggestionUsed, extraContext, onAssistantMessage, onMessagesChange }: ChatInterfaceProps) {
   const { messages, isLoading, sendMessage } = useAssistantChat(context, moduleSystemPrompt, moduleInitialMessage, sessionId, extraContext);
   const lastMessageCountRef = useRef(0);
 
@@ -129,6 +130,14 @@ export function ChatInterface({ suggestions = [], context = "business", moduleSy
       lastMessageCountRef.current = messages.length;
     }
   }, [messages, isLoading, onAssistantMessage]);
+
+  // Sync messages to parent for module completion detection
+  useEffect(() => {
+    if (onMessagesChange) {
+      onMessagesChange(messages.map(m => ({ role: m.role, content: m.content })));
+    }
+  }, [messages, onMessagesChange]);
+
   const autoSentRef = useRef(false);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
