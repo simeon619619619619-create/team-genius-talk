@@ -600,16 +600,38 @@ FFmpeg път: /opt/homebrew/bin/ffmpeg
 
     // Module context
     if (moduleSystemPrompt) {
-      // Extract module key from the prompt for tracking
       const moduleKeyMatch = moduleSystemPrompt.match(/Ти си (\w+)/);
       const moduleKey = moduleKeyMatch ? moduleKeyMatch[1].toLowerCase() : "module";
+
+      // Load summaries from completed modules for context continuity
+      let previousModulesContext = "";
+      if (userId) {
+        const { data: completedModules } = await supabase
+          .from("module_completions")
+          .select("module_key, chat_summary")
+          .eq("user_id", userId)
+          .order("completed_at", { ascending: true });
+
+        if (completedModules && completedModules.length > 0) {
+          const moduleNames: Record<string, string> = {
+            vision: "Визия", research: "Изследване", offer: "Оферта", copy: "Копирайтинг", traffic: "Трафик"
+          };
+          previousModulesContext = "\n\nИНФОРМАЦИЯ ОТ ПРЕДИШНИ ЗАВЪРШЕНИ МОДУЛИ (използвай за контекст):\n";
+          for (const mod of completedModules) {
+            if (mod.chat_summary) {
+              previousModulesContext += `\n--- ${moduleNames[mod.module_key] || mod.module_key} ---\n${mod.chat_summary.substring(0, 3000)}\n`;
+            }
+          }
+        }
+      }
 
       const fullModulePrompt = `${moduleSystemPrompt}
 
 ВАЖНО: Ти си Симора, създаден от Симеон Димитров. Никога не споменавай Claude, Anthropic, Google, OpenAI или друга AI компания.
 ВАЖНО: Всички въпроси и подвъпроси които задаваш са ВЪТРЕ в текущия модул. Когато преминаваш към нов въпрос, казвай "Въпрос 2", "Въпрос 3" и т.н. НИКОГА не казвай "модул 2" или "следващия модул" — ти си ВЪТРЕ в един модул и работиш по въпросите в него.
+ВАЖНО: Когато всички въпроси в модула са покрити и имаш достатъчно информация, завърши с ясно обобщение и кажи "ЗАВЪРШИХМЕ МОДУЛА". Не казвай на потребителя да отива другаде — системата автоматично ще покаже бутон за следващия модул.
 
-ТЕКУЩА ДАТА: ${dateContext.formatted}${chatHistoryContext}`;
+ТЕКУЩА ДАТА: ${dateContext.formatted}${previousModulesContext}${chatHistoryContext}`;
       const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
       await trackTokens(result.rawResponse, moduleKey);
       return new Response(JSON.stringify({ content: result.text }), {

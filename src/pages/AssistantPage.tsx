@@ -208,13 +208,27 @@ export default function AssistantPage() {
     }
   }, [moduleState]);
 
-  // Check if all prompts answered → show completion banner + persist with chat summary
+  // Check module completion: by prompt buttons OR by AI content detection (min 6 messages exchanged)
+  const completionTriggeredRef = useRef(false);
+
   useEffect(() => {
-    if (moduleState && usedPrompts.size >= moduleState.prompts.length) {
+    if (!moduleState || showCompleted || completionTriggeredRef.current) return;
+
+    // Method 1: All prompt buttons clicked
+    const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
+
+    // Method 2: AI signals completion (detect keywords in last assistant message)
+    const lastMsg = messages[messages.length - 1];
+    const hasEnoughMessages = messages.filter(m => m.role === "user").length >= 4;
+    const completionKeywords = ["ЗАВЪРШИХМЕ", "ПРЕХОД КЪМ СЛЕДВАЩ", "следващия модул", "Отивай при", "завърших", "приключихме", "модулът е завършен", "успешно завършен"];
+    const aiSignalsComplete = hasEnoughMessages && lastMsg?.role === "assistant" &&
+      completionKeywords.some(kw => lastMsg.content.includes(kw));
+
+    if (allPromptsUsed || aiSignalsComplete) {
+      completionTriggeredRef.current = true;
       setShowCompleted(true);
       fireConfetti();
       if (moduleState.key && user) {
-        // Fetch chat messages for this module to build summary
         (async () => {
           const ck = "module:" + moduleState.systemPrompt.substring(0, 80);
           const { data: msgs } = await supabase
@@ -233,7 +247,7 @@ export default function AssistantPage() {
         })();
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user]);
+  }, [usedPrompts.size, moduleState, completeModule, user, messages, showCompleted, fireConfetti]);
 
   const fireConfetti = useCallback(() => {
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
