@@ -251,7 +251,8 @@ export default function AssistantPage() {
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
-    fireConfetti();
+    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
+    setTimeout(() => { confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#34d399', '#6ee7b7'] }); confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#fbbf24', '#f59e0b', '#fcd34d'] }); }, 250);
     const nextModule = MODULES.find(m => m.id === moduleState.id + 1);
     setTimeout(() => {
       if (nextModule) {
