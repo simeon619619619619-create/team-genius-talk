@@ -42,16 +42,15 @@ export function useChatSessions(chatKey: string) {
         .order("updated_at", { ascending: false });
 
       if (isModuleChat) {
-        // Show ALL module sessions (completed + current) so user sees full history
+        // Show ALL module sessions (completed + current) — no project_id filter
         query = query.like("chat_key", "module:%");
       } else {
         query = query.eq("chat_key", chatKey);
-      }
-
-      if (projectId) {
-        query = query.eq("project_id", projectId);
-      } else {
-        query = query.is("project_id", null);
+        if (projectId) {
+          query = query.eq("project_id", projectId);
+        } else {
+          query = query.is("project_id", null);
+        }
       }
 
       const { data, error } = await query;
