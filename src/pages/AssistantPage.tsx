@@ -373,32 +373,31 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Module completion banner */}
+          {/* Module completion overlay */}
           {showCompleted && moduleState && (
-            <div className="px-3 md:px-4 pb-3 shrink-0">
-              <div className="mx-auto max-w-3xl">
-                <div className="flex flex-col sm:flex-row items-center gap-3 px-5 py-4 rounded-xl bg-gradient-to-r from-green-500/15 to-emerald-500/10 border border-green-500/30">
-                  <PartyPopper className="h-6 w-6 text-green-500 shrink-0" />
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-                      {moduleState.label} завършен!
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {MODULES.find(m => m.id === moduleState.id + 1)
-                        ? `Следва: ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
-                        : "Всички модули са завършени!"}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={goToNextModule}
-                    className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
-                  >
-                    {MODULES.find(m => m.id === moduleState.id + 1)
-                      ? "Премини на следващата стъпка"
-                      : "Обратно към модулите"}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-500">
+              <div className="flex flex-col items-center gap-6 text-center px-6">
+                <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <PartyPopper className="h-10 w-10 text-green-500" />
                 </div>
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">{moduleState.label} завършен!</h2>
+                  <p className="text-muted-foreground">
+                    {MODULES.find(m => m.id === moduleState.id + 1)
+                      ? `Следва: ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
+                      : "Поздравления! Всички модули са завършени!"}
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  onClick={goToNextModule}
+                  className="gap-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-10 py-6 text-lg rounded-xl shadow-lg shadow-green-500/25"
+                >
+                  {MODULES.find(m => m.id === moduleState.id + 1)
+                    ? "Продължи към следващия модул"
+                    : "Обратно към модулите"}
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
               </div>
             </div>
           )}
