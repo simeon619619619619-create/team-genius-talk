@@ -53,7 +53,7 @@ export default function AssistantPage() {
   const [selectedBot, setSelectedBot] = useState<AiBot | null>(null);
   const { user } = useAuth();
   const { markAsViewed } = useDailyTasks();
-  const { completeModule } = useMethodologyProgress();
+  const { completeModule, isModuleCompleted } = useMethodologyProgress();
 
   const { overdueTasks } = useOverdueTasks();
   const [showOverdue, setShowOverdue] = useState(true);
@@ -235,6 +235,9 @@ export default function AssistantPage() {
   // Module completes ONLY when ALL prompts/questions have been used
   useEffect(() => {
     if (!moduleState || showCompleted || completionTriggeredRef.current) return;
+
+    // Skip if this module is already completed in DB (user is reviewing)
+    if (isModuleCompleted(moduleState.key)) return;
 
     const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
 
