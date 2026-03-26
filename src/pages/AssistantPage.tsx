@@ -232,21 +232,13 @@ export default function AssistantPage() {
   // Check module completion: by prompt buttons OR by AI content detection
   const completionTriggeredRef = useRef(false);
 
+  // Module completes ONLY when ALL prompts/questions have been used
   useEffect(() => {
     if (!moduleState || showCompleted || completionTriggeredRef.current) return;
 
     const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
 
-    const lastMsg = chatMessages[chatMessages.length - 1];
-    const hasEnoughMessages = chatMessages.filter(m => m.role === "user").length >= 3;
-    // Strip markdown formatting (**, *, #, etc.) before checking keywords
-    const stripMd = (s: string) => s.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s?/g, '').replace(/[_.~`]/g, '');
-    const completionKeywords = ["ЗАВЪРШИХМЕ МОДУЛА", "ПРЕХОД КЪМ СЛЕДВАЩ МОДУЛ", "модулът е завършен", "успешно завършен модул"];
-    const lastMsgClean = lastMsg ? stripMd(lastMsg.content) : '';
-    const aiSignalsComplete = hasEnoughMessages && lastMsg?.role === "assistant" &&
-      completionKeywords.some(kw => lastMsgClean.includes(kw));
-
-    if (allPromptsUsed || aiSignalsComplete) {
+    if (allPromptsUsed) {
       completionTriggeredRef.current = true;
       setShowCompleted(true);
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
@@ -268,7 +260,6 @@ export default function AssistantPage() {
 
           completeModule(moduleState.key, summary || undefined);
         })();
-        // Mark the chat session as module completed
         if (activeSessionId) {
           markModuleCompleted(activeSessionId, moduleState.label);
         }
@@ -278,7 +269,7 @@ export default function AssistantPage() {
         }, 4000);
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, activeSessionId, markModuleCompleted]);
+  }, [usedPrompts.size, moduleState, completeModule, user, showCompleted, activeSessionId, markModuleCompleted]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
