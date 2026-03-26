@@ -408,16 +408,15 @@ export default function AssistantPage() {
 
           {/* Banner for already-completed module: go to next */}
           {moduleAlreadyCompleted && !showCompleted && moduleState && (
-            <div className="mx-4 mt-2 mb-0 p-3 rounded-lg bg-green-500/15 border border-green-500/30 flex items-center justify-between gap-3">
+            <div className="mx-4 mt-2 mb-0 p-4 rounded-lg bg-green-500/15 border border-green-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-green-400">
                 <CheckCircle className="h-4 w-4 shrink-0" />
                 <span>Този модул е завършен.</span>
               </div>
-              <Button size="sm" onClick={goToNextModule} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shrink-0">
+              <Button onClick={goToNextModule} className="gap-2 bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto">
                 {MODULES.find(m => m.id === moduleState.id + 1)
-                  ? `Към ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
+                  ? `Премини към следващия модул →`
                   : "Обратно към модулите"}
-                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           )}
