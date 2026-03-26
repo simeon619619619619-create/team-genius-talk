@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Scissors, Crop, Type, Gauge, Palette, Film, Image, FileText, Merge, Volume2, FolderOpen, Copy, Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -325,6 +325,8 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
   const [showDriveInput, setShowDriveInput] = useState(false);
   const [driveLinkInput, setDriveLinkInput] = useState("");
   const [manualText, setManualText] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveFiles = (newFiles: string[], path?: string, link?: string) => {
     setFiles(newFiles);
@@ -364,6 +366,30 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Pick individual files via <input type="file">
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    if (selected.length === 0) return;
+    const names = selected.map(f => f.name);
+    saveFiles([...files, ...names], `${names.length} файла избрани`);
+    toast.success(`${names.length} файла добавени`);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Drag & drop
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const items = Array.from(e.dataTransfer.files);
+    if (items.length === 0) return;
+    const mediaFiles = items.filter(f =>
+      /\.(mp4|mov|avi|mkv|webm|m4v|mp3|wav|aac|jpg|jpeg|png|gif|srt|ass|vtt)$/i.test(f.name)
+    );
+    const names = mediaFiles.map(f => f.name);
+    saveFiles([...files, ...names], `${names.length} файла (drag & drop)`);
+    toast.success(`${names.length} файла добавени`);
   };
 
   // Save Google Drive link
@@ -429,42 +455,59 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
         </div>
       </div>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="video/*,audio/*,image/*,.srt,.ass,.vtt"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
       <div className="px-4 pb-4 pt-3 space-y-3">
         {files.length === 0 ? (
           <>
-            {/* Three source options */}
-            <div className="grid grid-cols-3 gap-2">
-              {/* Local folder */}
-              <button
+            {/* Drag & drop zone + click to select files */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                isDragging
+                  ? "border-amber-400 bg-amber-500/10"
+                  : "border-border hover:border-amber-400 hover:bg-amber-500/5"
+              }`}
+            >
+              <Film className="h-8 w-8 text-amber-500" />
+              <p className="text-sm font-medium">Пусни файлове тук или натисни за избор</p>
+              <p className="text-xs text-muted-foreground">Видео, снимки, аудио, субтитри</p>
+            </div>
+
+            {/* Additional options */}
+            <div className="flex gap-2">
+              <Button
+                size="sm" variant="outline"
                 onClick={handlePickFolder}
                 disabled={isLoading}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-amber-400 hover:bg-amber-500/5 transition-all"
+                className="flex-1 text-xs gap-1.5"
               >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FolderOpen className="h-5 w-5 text-amber-500" />}
-                <span className="text-[11px] text-muted-foreground text-center leading-tight">Папка от компютъра</span>
-              </button>
-
-              {/* Google Drive */}
-              <button
-                onClick={() => setShowDriveInput(true)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-blue-400 hover:bg-blue-500/5 transition-all"
+                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderOpen className="h-3.5 w-3.5" />}
+                Цяла папка
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                onClick={() => setShowDriveInput(!showDriveInput)}
+                className="flex-1 text-xs gap-1.5"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                   <path d="M8.267 14.68l-1.605 2.776H20.09l1.605-2.776H8.267z" fill="#4285f4"/>
                   <path d="M14.635 3.275l-5.406 9.368 1.604 2.776 5.406-9.368-1.604-2.776z" fill="#ea4335"/>
                   <path d="M2.306 17.456l1.604 2.776 5.406-9.368-1.604-2.776L2.306 17.456z" fill="#fbbc04"/>
                 </svg>
-                <span className="text-[11px] text-muted-foreground text-center leading-tight">Google Drive линк</span>
-              </button>
-
-              {/* Manual */}
-              <button
-                onClick={() => setShowDriveInput(false)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-purple-400 hover:bg-purple-500/5 transition-all"
-              >
-                <FileText className="h-5 w-5 text-purple-500" />
-                <span className="text-[11px] text-muted-foreground text-center leading-tight">Напиши файлове ръчно</span>
-              </button>
+                Google Drive
+              </Button>
             </div>
 
             {/* Google Drive link input */}
@@ -484,25 +527,30 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  След свързване, напиши имената на файловете от папката по-долу
+                  След свързване, добави имената на файловете от папката отдолу или с drag & drop
                 </p>
               </div>
             )}
 
-            {/* Manual file names input — always visible */}
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Имена на файлове (по едно на ред):</p>
-              <textarea
-                value={manualText}
-                onChange={(e) => setManualText(e.target.value)}
-                placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo.mov"}
-                rows={3}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              />
-              <Button size="sm" onClick={handleManualAdd} disabled={!manualText.trim()} className="w-full text-xs">
-                Добави файлове
-              </Button>
-            </div>
+            {/* Manual file names — collapsible */}
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors list-none flex items-center gap-1">
+                <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
+                Или напиши имената ръчно
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                <textarea
+                  value={manualText}
+                  onChange={(e) => setManualText(e.target.value)}
+                  placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4"}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
+                />
+                <Button size="sm" onClick={handleManualAdd} disabled={!manualText.trim()} className="w-full text-xs">
+                  Добави
+                </Button>
+              </div>
+            </details>
           </>
         ) : (
           <>
