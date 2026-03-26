@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scissors, Crop, Type, Gauge, Palette, Film, Image, FileText, Merge, Volume2, FolderOpen, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { Scissors, Crop, Type, Gauge, Palette, Film, Image, FileText, Merge, Volume2, FolderOpen, Copy, Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -307,109 +307,193 @@ function ToolCard({ tool, onSendToChat }: { tool: VideoTool; onSendToChat: (cmd:
   );
 }
 
-// ─── Google Drive Link Section ───
-function DriveSection({ onSendToChat }: { onSendToChat: (msg: string) => void }) {
-  const [driveLink, setDriveLink] = useState("");
-  const [savedLink, setSavedLink] = useState<string | null>(() => {
-    try { return localStorage.getItem("simora_drive_link"); } catch { return null; }
+// ─── Folder / Files Section ───
+function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }) {
+  const [files, setFiles] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("simora_drive_files");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
-  const [fileList, setFileList] = useState("");
+  const [folderPath, setFolderPath] = useState<string>(() => {
+    try { return localStorage.getItem("simora_folder_path") || ""; } catch { return ""; }
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSaveLink = () => {
-    if (!driveLink.trim()) return;
-    localStorage.setItem("simora_drive_link", driveLink.trim());
-    setSavedLink(driveLink.trim());
-    setDriveLink("");
-    toast.success("Google Drive папката е свързана!");
+  const saveFiles = (newFiles: string[], path?: string) => {
+    setFiles(newFiles);
+    localStorage.setItem("simora_drive_files", JSON.stringify(newFiles));
+    if (path) {
+      setFolderPath(path);
+      localStorage.setItem("simora_folder_path", path);
+    }
   };
 
-  const handleDisconnect = () => {
-    localStorage.removeItem("simora_drive_link");
+  // Use File System Access API to pick a folder
+  const handlePickFolder = async () => {
+    try {
+      // @ts-ignore — showDirectoryPicker is not in all TS libs
+      const dirHandle = await window.showDirectoryPicker({ mode: "read" });
+      setIsLoading(true);
+      const fileNames: string[] = [];
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind === "file") {
+          const name: string = entry.name;
+          // Only show media files
+          if (/\.(mp4|mov|avi|mkv|webm|m4v|mp3|wav|aac|jpg|jpeg|png|gif|srt|ass|vtt)$/i.test(name)) {
+            fileNames.push(name);
+          }
+        }
+      }
+      fileNames.sort();
+      saveFiles(fileNames, dirHandle.name);
+      toast.success(`${fileNames.length} файла намерени в "${dirHandle.name}"`);
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        toast.error("Браузърът не поддържа избор на папка. Добави файловете ръчно.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Manual paste
+  const handleManualAdd = (text: string) => {
+    const newFiles = text.split("\n").map(f => f.trim()).filter(Boolean);
+    saveFiles(newFiles, "Ръчно добавени");
+  };
+
+  const handleClear = () => {
+    setFiles([]);
+    setFolderPath("");
     localStorage.removeItem("simora_drive_files");
-    setSavedLink(null);
-    setFileList("");
-    toast.success("Google Drive е изключен");
+    localStorage.removeItem("simora_folder_path");
+    toast.success("Файловете са изчистени");
   };
 
-  const handleSaveFiles = () => {
-    if (!fileList.trim()) return;
-    localStorage.setItem("simora_drive_files", fileList.trim());
-    toast.success("Файловете са запазени!");
-  };
-
-  const savedFiles = (() => {
-    try { return localStorage.getItem("simora_drive_files") || ""; } catch { return ""; }
-  })();
+  const videoFiles = files.filter(f => /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(f));
+  const audioFiles = files.filter(f => /\.(mp3|wav|aac)$/i.test(f));
+  const imageFiles = files.filter(f => /\.(jpg|jpeg|png|gif)$/i.test(f));
+  const subtitleFiles = files.filter(f => /\.(srt|ass|vtt)$/i.test(f));
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5">
-        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-          <FolderOpen className="h-5 w-5 text-blue-500" />
+      <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 border-b border-border">
+        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+          <FolderOpen className="h-5 w-5 text-amber-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm">Google Drive</h4>
+          <h4 className="font-medium text-sm">Моите кадри</h4>
           <p className="text-xs text-muted-foreground">
-            {savedLink ? "Папка свързана" : "Свържи папка с видео файлове"}
+            {files.length > 0 ? `${files.length} файла${folderPath ? ` от "${folderPath}"` : ""}` : "Добави папка с видео файлове"}
           </p>
         </div>
-        {savedLink && (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <a href={savedLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
-              Отвори
-            </a>
-            <span className="text-muted-foreground/30">|</span>
-            <button onClick={handleDisconnect} className="text-xs text-red-400 hover:underline">
-              Изключи
-            </button>
-          </div>
+        {files.length > 0 && (
+          <button onClick={handleClear} className="text-xs text-red-400 hover:underline shrink-0">
+            Изчисти
+          </button>
         )}
       </div>
 
-      <div className="px-4 pb-4 pt-2 space-y-3">
-        {!savedLink ? (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Paste-ни линк към Google Drive папка с видео файлове:</p>
-            <div className="flex gap-2">
-              <Input
-                value={driveLink}
-                onChange={(e) => setDriveLink(e.target.value)}
-                placeholder="https://drive.google.com/drive/folders/..."
-                className="h-9 bg-secondary/50 text-sm flex-1"
-                onKeyDown={(e) => { if (e.key === "Enter") handleSaveLink(); }}
-              />
-              <Button size="sm" onClick={handleSaveLink} disabled={!driveLink.trim()} className="text-xs shrink-0">
-                Свържи
-              </Button>
+      <div className="px-4 pb-4 pt-3 space-y-3">
+        {files.length === 0 ? (
+          <>
+            {/* Pick folder button */}
+            <Button
+              onClick={handlePickFolder}
+              variant="outline"
+              className="w-full h-20 border-2 border-dashed flex flex-col gap-1.5 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/10"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <FolderOpen className="h-5 w-5 text-amber-500" />
+                  <span className="text-xs">Избери папка от компютъра</span>
+                </>
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              <span>или paste-ни файлове</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Напиши имената на файловете от папката (по едно на ред).
-              Ще ги ползваш в инструментите по-долу:
-            </p>
+
+            {/* Manual paste */}
             <textarea
-              value={fileList || savedFiles}
-              onChange={(e) => setFileList(e.target.value)}
-              placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo_animation.mov"}
-              rows={4}
-              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+              placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo.mov"}
+              rows={3}
+              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
+              onBlur={(e) => {
+                if (e.target.value.trim()) handleManualAdd(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.metaKey) {
+                  handleManualAdd((e.target as HTMLTextAreaElement).value);
+                }
+              }}
             />
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={handleSaveFiles} className="text-xs flex-1">
-                Запази файлове
+            <p className="text-[10px] text-muted-foreground text-center">Напиши имената на файловете (по едно на ред) и натисни Tab или Cmd+Enter</p>
+          </>
+        ) : (
+          <>
+            {/* File summary */}
+            <div className="flex flex-wrap gap-2">
+              {videoFiles.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-medium">
+                  {videoFiles.length} видео
+                </span>
+              )}
+              {imageFiles.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-medium">
+                  {imageFiles.length} снимки
+                </span>
+              )}
+              {audioFiles.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-medium">
+                  {audioFiles.length} аудио
+                </span>
+              )}
+              {subtitleFiles.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-medium">
+                  {subtitleFiles.length} субтитри
+                </span>
+              )}
+            </div>
+
+            {/* File list */}
+            <div className="max-h-32 overflow-y-auto rounded-lg bg-zinc-900/80 p-2 space-y-0.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 px-2 py-0.5 text-xs font-mono text-zinc-300">
+                  <span className="text-zinc-500">{i + 1}.</span>
+                  <span className="truncate">{f}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick actions */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm" variant="outline"
+                onClick={handlePickFolder}
+                className="text-xs gap-1.5"
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                Смени папка
               </Button>
               <Button
                 size="sm"
-                onClick={() => onSendToChat(`Ето файловете от моя Google Drive:\n\n${fileList || savedFiles}\n\nНапиши ми сценарий за Reels видео (30 сек) и кажи кои файлове за кой кадър.`)}
-                className="text-xs flex-1 bg-purple-600 hover:bg-purple-700"
-                disabled={!(fileList || savedFiles).trim()}
+                onClick={() => onSendToChat(
+                  `Ето моите налични кадри:\n\n${files.map((f, i) => `${i + 1}. ${f}`).join("\n")}\n\nАнализирай файловете и:\n1. Предложи какво съдържание мога да направя от тях (Reels, постове, Stories)\n2. За всяко — кой файл за кой кадър\n3. Кажи какви ДОПЪЛНИТЕЛНИ кадри ми трябват за пълна седмица контент`
+                )}
+                className="text-xs gap-1.5 bg-purple-600 hover:bg-purple-700"
               >
-                Генерирай сценарий
+                Анализирай кадри
               </Button>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
@@ -424,8 +508,8 @@ interface VideoToolsPanelProps {
 export function VideoToolsPanel({ onSendToChat }: VideoToolsPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-      {/* Google Drive */}
-      <DriveSection onSendToChat={onSendToChat} />
+      {/* Folder / Files */}
+      <FolderSection onSendToChat={onSendToChat} />
 
       {/* Tools grid */}
       <div className="space-y-2">
