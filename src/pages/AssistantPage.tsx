@@ -112,10 +112,19 @@ export default function AssistantPage() {
       setChatMessages([]);
       setUsedPrompts(new Set());
       setShowCompleted(false);
-      completionTriggeredRef.current = false;
+      // Keep completionTriggeredRef TRUE until chatMessages is actually cleared
+      // to prevent stale messages from triggering completion for the new module
+      completionTriggeredRef.current = true;
       autoSentRef.current = false;
     }
   }, [moduleState?.id]);
+
+  // Only enable completion detection after messages are reset for new module
+  useEffect(() => {
+    if (moduleState && completionTriggeredRef.current && chatMessages.filter(m => m.role === "user").length === 0) {
+      completionTriggeredRef.current = false;
+    }
+  }, [chatMessages, moduleState?.id]);
 
   // Auto-route to best bot based on message content
   const [autoRouted, setAutoRouted] = useState(false);
@@ -298,7 +307,9 @@ export default function AssistantPage() {
         });
         setUsedPrompts(new Set());
         setShowCompleted(false);
-        completionTriggeredRef.current = false;
+        // Don't reset completionTriggeredRef here — stale chatMessages
+        // from the old module could trigger completion for the new one.
+        // The ref resets once chatMessages is actually cleared (see useEffect above).
         autoSentRef.current = false;
       } else {
         navigate("/modules");
