@@ -37,6 +37,7 @@ import { VirtualOfficeGame } from "@/components/teams/VirtualOfficeGame";
 import { lazy, Suspense } from "react";
 const VirtualOffice3D = lazy(() => import("@/components/teams/VirtualOffice3D").then(m => ({ default: m.VirtualOffice3D })));
 import { AiBotCard } from "@/components/teams/AiBotCard";
+import { BotChatPanel } from "@/components/teams/BotChatPanel";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useOrganizationBots } from "@/hooks/useOrganizationBots";
@@ -104,12 +105,14 @@ export default function TeamsPage() {
   const { savePermissions, getPermissions, loading: permissionsLoading } = useMemberPermissions();
   const navigate = useNavigate();
 
-  // Navigate to assistant with selected bot (bots are synced to localStorage by the hook)
+  // Open inline bot chat
   const handleOpenBotChat = useCallback((bot: AiBot) => {
-    navigate("/assistant", { state: { selectedBotId: bot.id, selectedBot: bot } });
-  }, [navigate]);
+    setActiveTeamTab(bot.id);
+    setChatBotId(bot.id);
+  }, []);
 
   const [activeTeamTab, setActiveTeamTab] = useState<string>('command-center');
+  const [chatBotId, setChatBotId] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
   const [newTeamOpen, setNewTeamOpen] = useState(false);
   const [newMemberOpen, setNewMemberOpen] = useState(false);
@@ -1224,26 +1227,42 @@ export default function TeamsPage() {
                   )}
 
                   {/* COO Chat - Simora bot */}
-                  <div className="border border-border rounded-xl bg-card overflow-hidden">
-                    <div className="flex items-center gap-3 px-4 py-3 bg-primary/10 border-b border-border">
-                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">С</div>
-                      <div>
-                        <h3 className="font-semibold">Симора</h3>
-                        <p className="text-xs text-muted-foreground">COO -- Разпределя задачи между екипите</p>
-                      </div>
-                    </div>
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>Чатът с COO бота Симора ще бъде достъпен скоро.</p>
-                      <p className="text-xs mt-1">Тук ще можете да разпределяте задачи между отделите.</p>
-                    </div>
-                  </div>
+                  <BotChatPanel
+                    bot={{
+                      id: "bot-coo",
+                      name: "Симора",
+                      role: "COO — Координира екипите",
+                      process: "Task Distribution",
+                      frequency: "24/7",
+                      automations: [],
+                      tasks: [],
+                      skills: ["координация", "делегиране", "приоритизация", "екипен мениджмънт"],
+                      shirtColor: "hsl(var(--primary))",
+                      hairColor: "#2c1608",
+                      skinColor: "#f5c6a0",
+                      state: "idle",
+                    }}
+                    onClose={() => setActiveTeamTab('command-center')}
+                  />
                 </div>
               ) : (
                 /* Individual department view */
                 (() => {
                   const bot = aiBots.find(b => b.id === activeTeamTab);
                   if (!bot) return null;
+
+                  // Show chat panel if chatBotId matches
+                  if (chatBotId === bot.id) {
+                    return (
+                      <BotChatPanel
+                        key={bot.id}
+                        bot={bot}
+                        onClose={() => setChatBotId(null)}
+                      />
+                    );
+                  }
+
+                  // Otherwise show task panel with chat button
                   return (
                     <div className="border border-border rounded-xl bg-card overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-3 border-b border-border" style={{ backgroundColor: `${bot.shirtColor}15` }}>
@@ -1257,7 +1276,7 @@ export default function TeamsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleOpenBotChat(bot)} className="gap-1.5 text-xs">
+                          <Button size="sm" variant="outline" onClick={() => setChatBotId(bot.id)} className="gap-1.5 text-xs">
                             <MessageSquare className="h-3.5 w-3.5" />
                             Чат
                           </Button>
