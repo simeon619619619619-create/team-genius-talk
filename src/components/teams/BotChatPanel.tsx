@@ -245,6 +245,104 @@ const BOT_SUGGESTIONS: Record<string, Array<{ icon: string; text: string }>> = {
   ],
 };
 
+// ─── Strategy generation prompts (triggered after marketing plan is done) ───
+const STRATEGY_PROMPTS: Record<string, { title: string; description: string; color: string; prompt: string }> = {
+  "bot-1": {
+    title: "Генерирай стратегия за съдържание",
+    description: "Контент план + видео продукция от наличните кадри",
+    color: "#34d399",
+    prompt: `На база на маркетинг плана и стратегията на бизнеса, генерирай ПЪЛНА стратегия за съдържание за следващите 4 седмици:
+
+1. КОНТЕНТ СТРАТЕГИЯ:
+   - Основни теми и рубрики (3-5 бр.)
+   - Формати: Feed постове, Reels, Stories, Карусели — с точен баланс
+   - Честота на публикуване по дни и часове
+   - Tone of voice и визуален стил
+
+2. КОНТЕНТ КАЛЕНДАР (4 седмици):
+   - Таблица: Ден | Формат | Тема | Caption идея | Хаштагове
+   - Мин. 20 публикации за месеца
+
+3. ВИДЕО ПРОДУКЦИЯ ОТ НАЛИЧНИ КАДРИ:
+   {DRIVE_FILES}
+   - Разпредели наличните кадри по публикации — кой файл за какво
+   - За всеки клип напиши кратък сценарий (hook → story → CTA)
+   - Предложи ffmpeg команди за основната обработка (crop, trim, текст)
+
+4. КАКВИ КАДРИ ОЩЕ ТРЯБВАТ:
+   - Списък с конкретни клипове/снимки които липсват
+   - За всеки — описание какво точно трябва да се заснеме
+   - Приоритет: критично / хубаво е да има
+
+Бъди КОНКРЕТНА — дай готово за изпълнение съдържание, не абстрактни препоръки.`,
+  },
+  "bot-1-ads": {
+    title: "Генерирай стратегия за платени реклами",
+    description: "Meta Ads + бюджет + аудитории + криейтиви",
+    color: "#fb923c",
+    prompt: `На база на маркетинг плана, генерирай ПЪЛНА стратегия за платени реклами (Meta Ads):
+
+1. РЕКЛАМНА СТРАТЕГИЯ:
+   - Цел на кампаниите (awareness / traffic / conversions)
+   - Месечен бюджет и разпределение по кампании
+   - Funnel структура: TOF → MOF → BOF
+
+2. АУДИТОРИИ (мин. 5):
+   - За всяка: име, описание, targeting настройки (interests, demographics, behaviors)
+   - Lookalike аудитории от какви sources
+   - Custom audiences за ретаргетинг
+
+3. КРИЕЙТИВИ (мин. 10 рекламни варианта):
+   - За всяка реклама: формат (single image / carousel / video / stories)
+   - Headline (3 варианта)
+   - Primary text (готов copy)
+   - Description
+   - CTA бутон
+
+4. A/B ТЕСТОВЕ:
+   - Какво тестваме първо и защо
+   - Timeline: кога анализираме и кога оптимизираме
+   - KPI за всеки тест: ROAS, CTR, CPC targets
+
+5. REPORTING FRAMEWORK:
+   - Дневни и седмични метрики за следене
+   - Red flags — кога спираме реклама
+
+Бъди КОНКРЕТНА — дай настройки готови за въвеждане в Meta Ads Manager.`,
+  },
+  "bot-3": {
+    title: "Генерирай имейл маркетинг стратегия",
+    description: "Кампании + автоматизации + sequences",
+    color: "#f472b6",
+    prompt: `На база на маркетинг плана, генерирай ПЪЛНА имейл маркетинг стратегия:
+
+1. ИМЕЙЛ СТРАТЕГИЯ:
+   - Цели: list growth, engagement, conversions
+   - Сегменти на аудиторията (мин. 4)
+   - Честота на изпращане по сегмент
+
+2. АВТОМАТИЗАЦИИ (Flows):
+   a) Welcome Sequence (5 имейла) — subject, preview text, body outline, timing
+   b) Abandoned Cart (3 имейла) — timing и messaging
+   c) Re-engagement (3 имейла) — за неактивни абонати
+   d) Post-Purchase (3 имейла) — upsell / review / referral
+
+3. КАМПАНИИ ЗА МЕСЕЦА (мин. 4 newsletter-а):
+   - За всеки: тема, subject line (3 варианта), preview text, ключови секции, CTA
+   - A/B тест план за subject lines
+
+4. LEAD MAGNETS:
+   - 3 идеи за lead magnets за list growth
+   - Къде и как да ги промотираме
+
+5. МЕТРИКИ И BENCHMARKS:
+   - Target: open rate, CTR, conversion rate, unsubscribe rate
+   - Какво правим ако метриките са под target
+
+Бъди КОНКРЕТНА — напиши готови subject lines и body outlines, не абстрактни описания.`,
+  },
+};
+
 // ─── Message interface ───
 interface Message {
   id: string;
@@ -503,19 +601,67 @@ export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
           </div>
         )}
 
-        {/* Suggestions — shown only when no user messages */}
-        {messages.length <= 1 && suggestions.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-            {suggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => sendMessage(s.text)}
-                className="text-left px-3 py-2.5 rounded-xl border border-border hover:border-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 transition-all text-sm group"
-              >
-                <span className="mr-2">{s.icon}</span>
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors">{s.text}</span>
-              </button>
-            ))}
+        {/* Strategy cards + suggestions — shown only when no user messages */}
+        {messages.length <= 1 && (
+          <div className="space-y-3 pt-2">
+            {/* Strategy generation cards */}
+            {(() => {
+              const driveFiles = (() => { try { return localStorage.getItem("simora_drive_files") || ""; } catch { return ""; } })();
+              const strategies = Object.entries(STRATEGY_PROMPTS).filter(([key]) => {
+                if (key === "bot-1" || key === "bot-1-ads") return bot.id === "bot-1";
+                return key === bot.id;
+              });
+              if (strategies.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium px-1">От маркетинг плана</p>
+                  {strategies.map(([key, strat]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        const prompt = strat.prompt.replace("{DRIVE_FILES}",
+                          driveFiles
+                            ? `\nНАЛИЧНИ КАДРИ (от Google Drive):\n${driveFiles}\n`
+                            : "\n(Няма свързани кадри от Google Drive — предложи какви кадри трябва да се заснемат)\n"
+                        );
+                        sendMessage(prompt);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-xl border-2 border-dashed transition-all hover:shadow-md group"
+                      style={{ borderColor: strat.color + "40", backgroundColor: strat.color + "08" }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg" style={{ backgroundColor: strat.color + "20" }}>
+                          {key.includes("ads") ? "📣" : bot.id === "bot-1" ? "📋" : bot.id === "bot-3" ? "📧" : "📊"}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-sm group-hover:text-foreground">{strat.title}</h4>
+                          <p className="text-xs text-muted-foreground">{strat.description}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Quick suggestions */}
+            {suggestions.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground font-medium px-1 mb-2">Бързи действия</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendMessage(s.text)}
+                      className="text-left px-3 py-2.5 rounded-xl border border-border hover:border-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 transition-all text-sm group"
+                    >
+                      <span className="mr-2">{s.icon}</span>
+                      <span className="text-muted-foreground group-hover:text-foreground transition-colors">{s.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
