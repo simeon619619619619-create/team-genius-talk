@@ -227,10 +227,11 @@ export default function AuthPage() {
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors group-focus-within:text-primary" />
                   <Input
                     type="tel"
-                    placeholder="Телефон (незадължително)"
+                    placeholder="Телефон *"
                     value={waitlistForm.phone}
                     onChange={(e) => setWaitlistForm(f => ({ ...f, phone: e.target.value }))}
                     className="pl-12 h-14 rounded-2xl border-border/60 bg-muted/30 text-base"
+                    required
                   />
                 </div>
                 <div className="group relative">
