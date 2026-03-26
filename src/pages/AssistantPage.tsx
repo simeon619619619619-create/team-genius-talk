@@ -232,12 +232,26 @@ export default function AssistantPage() {
   // Check module completion: by prompt buttons OR by AI content detection
   const completionTriggeredRef = useRef(false);
 
+  // If module is already completed, auto-advance to next uncompleted module
+  useEffect(() => {
+    if (!moduleState || completionTriggeredRef.current) return;
+    if (isModuleCompleted(moduleState.key)) {
+      completionTriggeredRef.current = true;
+      // Find next uncompleted module
+      const MODULES_LIST = [
+        { id: 0, key: "vision" }, { id: 1, key: "research" }, { id: 2, key: "offer" },
+        { id: 3, key: "copy" }, { id: 4, key: "traffic" },
+      ];
+      const nextUncompleted = MODULES_LIST.find(m => m.id > moduleState.id && !isModuleCompleted(m.key));
+      if (nextUncompleted) {
+        setTimeout(() => goToNextModule(), 500);
+      }
+    }
+  }, [moduleState, isModuleCompleted]);
+
   // Module completes ONLY when ALL prompts/questions have been used
   useEffect(() => {
     if (!moduleState || showCompleted || completionTriggeredRef.current) return;
-
-    // Skip if this module is already completed in DB (user is reviewing)
-    if (isModuleCompleted(moduleState.key)) return;
 
     const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
 
