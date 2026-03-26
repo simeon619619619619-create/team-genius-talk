@@ -30,7 +30,6 @@ import { useProfile } from "@/hooks/useProfile";
 import { usePendingInvitations } from "@/hooks/usePendingInvitations";
 import { useCurrentUserPermissions } from "@/hooks/useCurrentUserPermissions";
 import { useMethodologyProgress } from "@/hooks/useMethodologyProgress";
-import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -108,8 +107,6 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const { invitations: pendingInvitations } = usePendingInvitations();
   const { permissions: memberPermissions } = useCurrentUserPermissions();
   const { methodologyCompleted, planCompleted } = useMethodologyProgress();
-  const { subscribed, planType } = useSubscription();
-  const isSubscribed = subscribed && (planType === 'lifetime' || planType === 'monthly' || planType === 'biannual');
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -166,8 +163,8 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const getItemLockState = (path: string): { locked: boolean; lockMessage: string } => {
     if (alwaysUnlocked.has(path)) return { locked: false, lockMessage: "" };
 
-    // Subscribed users get full access
-    if (isSubscribed) return { locked: false, lockMessage: "" };
+    // Super admins (dev accounts) get full access
+    if (isAdmin) return { locked: false, lockMessage: "" };
 
     if (isOwnerType) {
       // Tier 2: unlocks after methodology
