@@ -1246,55 +1246,46 @@ export default function TeamsPage() {
                   />
                 </div>
               ) : (
-                /* Individual department view */
+                /* Individual department view — chat + tasks */
                 (() => {
                   const bot = aiBots.find(b => b.id === activeTeamTab);
                   if (!bot) return null;
-
-                  // Show chat panel if chatBotId matches
-                  if (chatBotId === bot.id) {
-                    return (
+                  return (
+                    <div className="space-y-4">
+                      {/* Bot chat — always visible */}
                       <BotChatPanel
                         key={bot.id}
                         bot={bot}
-                        onClose={() => setChatBotId(null)}
+                        onClose={() => setActiveTeamTab('command-center')}
                       />
-                    );
-                  }
 
-                  // Otherwise show task panel with chat button
-                  return (
-                    <div className="border border-border rounded-xl bg-card overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-border" style={{ backgroundColor: `${bot.shirtColor}15` }}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bot.shirtColor }}>
-                            {bot.name[0]}
+                      {/* Bot tasks — below chat */}
+                      <div className="border border-border rounded-xl bg-card overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-border" style={{ backgroundColor: `${bot.shirtColor}15` }}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bot.shirtColor }}>
+                              {bot.name[0]}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-sm">Задачи на {bot.name}</h3>
+                              <p className="text-xs text-muted-foreground">{bot.role}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-semibold">{bot.name}</h3>
-                            <p className="text-xs text-muted-foreground">{bot.role} • {bot.frequency}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setChatBotId(bot.id)} className="gap-1.5 text-xs">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            Чат
-                          </Button>
                           <Button size="sm" variant="outline" onClick={() => openAiBotModal(bot)} className="gap-1.5 text-xs">
                             <Edit className="h-3.5 w-3.5" />
                             Редактирай
                           </Button>
                         </div>
-                      </div>
-                      <div className="p-4">
-                        <AiBotCard
-                          bot={bot}
-                          onEdit={openAiBotModal}
-                          onDelete={handleDeleteAiBot}
-                          onUpdate={handleUpdateAiBot}
-                          onOpenChat={handleOpenBotChat}
-                          embedded
-                        />
+                        <div className="p-4">
+                          <AiBotCard
+                            bot={bot}
+                            onEdit={openAiBotModal}
+                            onDelete={handleDeleteAiBot}
+                            onUpdate={handleUpdateAiBot}
+                            onOpenChat={handleOpenBotChat}
+                            embedded
+                          />
+                        </div>
                       </div>
                     </div>
                   );
