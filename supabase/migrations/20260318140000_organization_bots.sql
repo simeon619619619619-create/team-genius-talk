@@ -54,37 +54,37 @@ RETURNS void AS $$
 BEGIN
   INSERT INTO public.organization_bots (organization_id, bot_id, name, role, process, frequency, automations, tasks, task_groups, skills, shirt_color, hair_color, skin_color, locked)
   VALUES
-    (org_id, 'bot-1', 'Ивана', 'Съдържание & Реклами', 'Content + Ads', 'Ежедневно',
+    (org_id, 'bot-1', 'Симона', 'Съдържание & Реклами', 'Content + Ads', 'Ежедневно',
      '["Posts", "Stories", "Reels", "Meta Ads", "Анализи"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-1a","title":"Създаване на съдържание","subtasks":[{"id":"st-1a1","text":"Планиране на месечен контент календар","done":false},{"id":"st-1a2","text":"Генериране на 5 идеи за постове тази седмица","done":false},{"id":"st-1a3","text":"Напиши caption за Instagram пост","done":false},{"id":"st-1a4","text":"Подготви script за Reels/TikTok видео","done":false},{"id":"st-1a5","text":"Генерирай 20 хаштагa за нишата ми","done":false}]},{"id":"tg-1c","title":"Анализ на реклами","subtasks":[{"id":"st-1c1","text":"Анализирай рекламите за последните 7 дни","done":false},{"id":"st-1c2","text":"Покажи ROAS и CPM по кампании","done":false},{"id":"st-1c3","text":"Дай препоръки за оптимизация на рекламите","done":false},{"id":"st-1c4","text":"Сравни performance на рекламите този vs миналия месец","done":false},{"id":"st-1c5","text":"Публикувай пост в Instagram","done":false}]},{"id":"tg-1b","title":"Инструменти","subtasks":[{"id":"st-1b1","text":"Отвори Canva за дизайн","done":false,"action":{"type":"open_url","url":"https://www.canva.com"}},{"id":"st-1b2","text":"Отвори Meta Ads Manager","done":false,"action":{"type":"open_url","url":"https://adsmanager.facebook.com"}},{"id":"st-1b3","text":"Отвори Meta Business Suite","done":false,"action":{"type":"open_url","url":"https://business.facebook.com"}}]}]'::jsonb,
      '["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове", "реклами", "Meta Ads", "Facebook Ads", "анализ", "ROAS", "CPM", "CTR"]'::jsonb,
      '#34d399', '#8b4513', '#f5d0b0', true),
 
-    (org_id, 'bot-2', 'Лина', 'Продажби & Клиенти', 'Lead Pipeline', 'При нужда',
+    (org_id, 'bot-2', 'Симоне', 'Продажби & Клиенти', 'Lead Pipeline', 'При нужда',
      '["CRM", "Follow-up", "Оферти"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-2a","title":"Продажби","subtasks":[{"id":"st-2a1","text":"Напиши follow-up имейл за потенциален клиент","done":false},{"id":"st-2a2","text":"Генерирай оферта/предложение за услуга","done":false},{"id":"st-2a3","text":"Анализирай защо клиент не купи и предложи подход","done":false},{"id":"st-2a4","text":"Създай скрипт за продажбено обаждане","done":false}]},{"id":"tg-2b","title":"Инструменти","subtasks":[{"id":"st-2b1","text":"Отвори Stripe Dashboard","done":false,"action":{"type":"open_url","url":"https://dashboard.stripe.com"}}]}]'::jsonb,
      '["продажби", "лийдове", "follow-up", "клиенти", "имейл", "оферти", "преговори", "CRM"]'::jsonb,
      '#fb923c', '#3d1c02', '#f5c8b0', true),
 
-    (org_id, 'bot-3', 'Мария', 'Email Маркетинг', 'Email Campaigns', 'Седмично',
+    (org_id, 'bot-3', 'Моника', 'Email Маркетинг', 'Email Campaigns', 'Седмично',
      '["Newsletter", "Автоматизации", "Сегменти"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-3a","title":"Имейл кампании","subtasks":[{"id":"st-3a1","text":"Напиши седмичен newsletter","done":false},{"id":"st-3a2","text":"Генерирай 5 subject line варианта за A/B тест","done":false},{"id":"st-3a3","text":"Създай welcome email за нови абонати","done":false},{"id":"st-3a4","text":"Напиши промоционален имейл за оферта","done":false}]}]'::jsonb,
      '["имейл", "newsletter", "кампании", "автоматизация", "сегментация", "копирайтинг", "subject line"]'::jsonb,
      '#f472b6', '#1a0a00', '#f0b88a', true),
 
-    (org_id, 'bot-4', 'Дара', 'Стратегия & Анализи', 'Business Analytics', 'Седмично',
+    (org_id, 'bot-4', 'Симони', 'Стратегия & Анализи', 'Business Analytics', 'Седмично',
      '["KPIs", "Отчети", "Конкуренция"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-4a","title":"Бизнес анализи","subtasks":[{"id":"st-4a1","text":"Направи SWOT анализ на бизнеса ми","done":false},{"id":"st-4a2","text":"Анализирай конкурентите ми и предложи стратегия","done":false},{"id":"st-4a3","text":"Определи 5 ключови KPI за следващия месец","done":false},{"id":"st-4a4","text":"Създай финансова прогноза за следващото тримесечие","done":false}]},{"id":"tg-4b","title":"Инструменти","subtasks":[{"id":"st-4b1","text":"Google Analytics","done":false,"action":{"type":"open_url","url":"https://analytics.google.com"}},{"id":"st-4b2","text":"Google Trends","done":false,"action":{"type":"open_url","url":"https://trends.google.com"}}]}]'::jsonb,
      '["стратегия", "анализи", "KPI", "конкуренция", "SWOT", "пазарно проучване", "бизнес план", "финанси"]'::jsonb,
      '#60a5fa', '#660000', '#e8b898', true),
 
-    (org_id, 'bot-5', 'Елена', 'Уеб & Техническа поддръжка', 'Web Maintenance', '24/7',
+    (org_id, 'bot-5', 'Симонета', 'Уеб & Техническа поддръжка', 'Web Maintenance', '24/7',
      '["SEO Check", "Uptime", "Performance"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-5a","title":"Уеб оптимизация","subtasks":[{"id":"st-5a1","text":"Напиши SEO-оптимизиран текст за начална страница","done":false},{"id":"st-5a2","text":"Генерирай meta description за 5 страници","done":false},{"id":"st-5a3","text":"Предложи подобрения за UX на сайта","done":false},{"id":"st-5a4","text":"Създай копи за Landing Page","done":false}]},{"id":"tg-5b","title":"Проверки","subtasks":[{"id":"st-5b1","text":"Google PageSpeed","done":false,"action":{"type":"open_url","url":"https://pagespeed.web.dev"}},{"id":"st-5b2","text":"Google Search Console","done":false,"action":{"type":"open_url","url":"https://search.google.com/search-console"}}]}]'::jsonb,
      '["уеб", "SEO", "оптимизация", "поддръжка", "performance", "UX", "landing page", "копирайтинг за уеб"]'::jsonb,
      '#818cf8', '#4a2810', '#f5c6a0', true),
 
-    (org_id, 'bot-6', 'Софи', 'Проджект Мениджър', 'Project Tracking', 'Ежедневно',
+    (org_id, 'bot-6', 'Симонка', 'Проджект Мениджър', 'Project Tracking', 'Ежедневно',
      '["Задачи", "Дедлайни", "Координация"]'::jsonb, '[]'::jsonb,
      '[{"id":"tg-6a","title":"Управление на проекти","subtasks":[{"id":"st-6a1","text":"Планирай задачите за тази седмица","done":false},{"id":"st-6a2","text":"Приоритизирай текущите задачи","done":false},{"id":"st-6a3","text":"Направи ретроспектива на миналата седмица","done":false},{"id":"st-6a4","text":"Създай timeline за нов проект","done":false}]}]'::jsonb,
      '["проджект мениджмънт", "задачи", "дедлайни", "планиране", "координация", "екип", "приоритизация", "ретроспектива"]'::jsonb,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid, Sparkles, ClipboardList, MessageSquare } from "lucide-react";
+import { Plus, Users, UserCircle, ArrowLeft, Trash2, UserPlus, Loader2, Pencil, Copy, Check, Settings, Bot, LayoutGrid, Sparkles, ClipboardList, MessageSquare, Gamepad2, Edit } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export default function TeamsPage() {
     navigate("/assistant", { state: { selectedBotId: bot.id, selectedBot: bot } });
   }, [navigate]);
 
+  const [activeTeamTab, setActiveTeamTab] = useState<string>('command-center');
   const [selectedTeam, setSelectedTeam] = useState<TeamWithMembers | null>(null);
   const [newTeamOpen, setNewTeamOpen] = useState(false);
   const [newMemberOpen, setNewMemberOpen] = useState(false);
@@ -134,7 +135,7 @@ export default function TeamsPage() {
   // Default bots are now seeded in the database via migration trigger.
   // Keep them here only as reference for the template picker description display.
   const DEFAULT_AI_BOTS: AiBot[] = [
-    { id: "bot-1", name: "Ивана", role: "Съдържание & Реклами", process: "Content + Ads", frequency: "Ежедневно", locked: true, automations: ["Posts", "Stories", "Reels", "Meta Ads", "Анализи"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове", "реклами", "Meta Ads", "Facebook Ads", "анализ", "ROAS", "CPM", "CTR"], taskGroups: [
+    { id: "bot-1", name: "Симона", role: "Съдържание & Реклами", process: "Content + Ads", frequency: "Ежедневно", locked: true, automations: ["Posts", "Stories", "Reels", "Meta Ads", "Анализи"], tasks: [], skills: ["контент", "соц. мрежи", "Instagram", "Reels", "Stories", "copywriting", "дизайн", "календар", "хаштагове", "реклами", "Meta Ads", "Facebook Ads", "анализ", "ROAS", "CPM", "CTR"], taskGroups: [
       { id: "tg-1a", title: "Създаване на съдържание", subtasks: [
         { id: "st-1a1", text: "Планиране на месечен контент календар", done: false },
         { id: "st-1a2", text: "Генериране на 5 идеи за постове тази седмица", done: false },
@@ -155,7 +156,7 @@ export default function TeamsPage() {
         { id: "st-1b3", text: "Отвори Meta Business Suite", done: false, action: { type: "open_url", url: "https://business.facebook.com" } },
       ]},
     ], skinColor: "#f5d0b0", hairColor: "#8b4513", shirtColor: "#34d399", state: "idle" },
-    { id: "bot-2", name: "Лина", role: "Продажби & Клиенти", process: "Lead Pipeline", frequency: "При нужда", locked: true, automations: ["CRM", "Follow-up", "Оферти"], tasks: [], skills: ["продажби", "лийдове", "follow-up", "клиенти", "имейл", "оферти", "преговори", "CRM"], taskGroups: [
+    { id: "bot-2", name: "Симоне", role: "Продажби & Клиенти", process: "Lead Pipeline", frequency: "При нужда", locked: true, automations: ["CRM", "Follow-up", "Оферти"], tasks: [], skills: ["продажби", "лийдове", "follow-up", "клиенти", "имейл", "оферти", "преговори", "CRM"], taskGroups: [
       { id: "tg-2a", title: "Продажби", subtasks: [
         { id: "st-2a1", text: "Напиши follow-up имейл за потенциален клиент", done: false },
         { id: "st-2a2", text: "Генерирай оферта/предложение за услуга", done: false },
@@ -166,7 +167,7 @@ export default function TeamsPage() {
         { id: "st-2b1", text: "Отвори Stripe Dashboard", done: false, action: { type: "open_url", url: "https://dashboard.stripe.com" } },
       ]},
     ], skinColor: "#f5c8b0", hairColor: "#3d1c02", shirtColor: "#fb923c", state: "idle" },
-    { id: "bot-3", name: "Мария", role: "Email Маркетинг", process: "Email Campaigns", frequency: "Седмично", locked: true, automations: ["Newsletter", "Автоматизации", "Сегменти"], tasks: [], skills: ["имейл", "newsletter", "кампании", "автоматизация", "сегментация", "копирайтинг", "subject line"], taskGroups: [
+    { id: "bot-3", name: "Моника", role: "Email Маркетинг", process: "Email Campaigns", frequency: "Седмично", locked: true, automations: ["Newsletter", "Автоматизации", "Сегменти"], tasks: [], skills: ["имейл", "newsletter", "кампании", "автоматизация", "сегментация", "копирайтинг", "subject line"], taskGroups: [
       { id: "tg-3a", title: "Имейл кампании", subtasks: [
         { id: "st-3a1", text: "Напиши седмичен newsletter", done: false },
         { id: "st-3a2", text: "Генерирай 5 subject line варианта за A/B тест", done: false },
@@ -174,7 +175,7 @@ export default function TeamsPage() {
         { id: "st-3a4", text: "Напиши промоционален имейл за оферта", done: false },
       ]},
     ], skinColor: "#f0b88a", hairColor: "#1a0a00", shirtColor: "#f472b6", state: "idle" },
-    { id: "bot-4", name: "Дара", role: "Стратегия & Анализи", process: "Business Analytics", frequency: "Седмично", locked: true, automations: ["KPIs", "Отчети", "Конкуренция"], tasks: [], skills: ["стратегия", "анализи", "KPI", "конкуренция", "SWOT", "пазарно проучване", "бизнес план", "финанси"], taskGroups: [
+    { id: "bot-4", name: "Симони", role: "Стратегия & Анализи", process: "Business Analytics", frequency: "Седмично", locked: true, automations: ["KPIs", "Отчети", "Конкуренция"], tasks: [], skills: ["стратегия", "анализи", "KPI", "конкуренция", "SWOT", "пазарно проучване", "бизнес план", "финанси"], taskGroups: [
       { id: "tg-4a", title: "Бизнес анализи", subtasks: [
         { id: "st-4a1", text: "Направи SWOT анализ на бизнеса ми", done: false },
         { id: "st-4a2", text: "Анализирай конкурентите ми и предложи стратегия", done: false },
@@ -186,7 +187,7 @@ export default function TeamsPage() {
         { id: "st-4b2", text: "Google Trends", done: false, action: { type: "open_url", url: "https://trends.google.com" } },
       ]},
     ], skinColor: "#e8b898", hairColor: "#660000", shirtColor: "#60a5fa", state: "idle" },
-    { id: "bot-5", name: "Елена", role: "Уеб & Техническа поддръжка", process: "Web Maintenance", frequency: "24/7", locked: true, automations: ["SEO Check", "Uptime", "Performance"], tasks: [], skills: ["уеб", "SEO", "оптимизация", "поддръжка", "performance", "UX", "landing page", "копирайтинг за уеб"], taskGroups: [
+    { id: "bot-5", name: "Симонета", role: "Уеб & Техническа поддръжка", process: "Web Maintenance", frequency: "24/7", locked: true, automations: ["SEO Check", "Uptime", "Performance"], tasks: [], skills: ["уеб", "SEO", "оптимизация", "поддръжка", "performance", "UX", "landing page", "копирайтинг за уеб"], taskGroups: [
       { id: "tg-5a", title: "Уеб оптимизация", subtasks: [
         { id: "st-5a1", text: "Напиши SEO-оптимизиран текст за начална страница", done: false },
         { id: "st-5a2", text: "Генерирай meta description за 5 страници", done: false },
@@ -198,7 +199,7 @@ export default function TeamsPage() {
         { id: "st-5b2", text: "Google Search Console", done: false, action: { type: "open_url", url: "https://search.google.com/search-console" } },
       ]},
     ], skinColor: "#f5c6a0", hairColor: "#4a2810", shirtColor: "#818cf8", state: "idle" },
-    { id: "bot-6", name: "Софи", role: "Проджект Мениджър", process: "Project Tracking", frequency: "Ежедневно", locked: true, automations: ["Задачи", "Дедлайни", "Координация"], tasks: [], skills: ["проджект мениджмънт", "задачи", "дедлайни", "планиране", "координация", "екип", "приоритизация", "ретроспектива"], taskGroups: [
+    { id: "bot-6", name: "Симонка", role: "Проджект Мениджър", process: "Project Tracking", frequency: "Ежедневно", locked: true, automations: ["Задачи", "Дедлайни", "Координация"], tasks: [], skills: ["проджект мениджмънт", "задачи", "дедлайни", "планиране", "координация", "екип", "приоритизация", "ретроспектива"], taskGroups: [
       { id: "tg-6a", title: "Управление на проекти", subtasks: [
         { id: "st-6a1", text: "Планирай задачите за тази седмица", done: false },
         { id: "st-6a2", text: "Приоритизирай текущите задачи", done: false },
@@ -1176,76 +1177,110 @@ export default function TeamsPage() {
             </div>
           ) : (
             <>
-              {viewMode3D ? (
-                <Suspense fallback={<div className="flex items-center justify-center h-[500px] bg-[#1a1a2e] rounded-xl"><Loader2 className="h-8 w-8 animate-spin text-purple-500" /></div>}>
-                  <VirtualOffice3D
-                    bots={aiBots}
-                    selectedBotId={selectedAiBot}
-                    onSelectBot={setSelectedAiBot}
-                  />
-                </Suspense>
-              ) : (
-                <VirtualOfficeGame
-                  bots={aiBots}
-                  selectedBotId={selectedAiBot}
-                  onSelectBot={setSelectedAiBot}
-                  onOpenChat={handleOpenBotChat}
-                />
-              )}
-
-              {/* Selected bot task panel — shown below game */}
-              {selectedAiBot && (() => {
-                const bot = aiBots.find(b => b.id === selectedAiBot);
-                if (!bot) return null;
-                return (
-                  <div className="mt-3 border border-purple-500/30 rounded-xl bg-card overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 bg-purple-500/10 border-b border-purple-500/20">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: bot.shirtColor }}>
-                          {bot.name[0]}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{bot.name}</h3>
-                          <p className="text-xs text-muted-foreground">{bot.role}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleOpenBotChat(bot)} className="gap-1.5 text-xs">
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          Чат
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setSelectedAiBot(null)} className="text-xs">
-                          Затвори
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <AiBotCard
-                        bot={bot}
-                        onEdit={openAiBotModal}
-                        onDelete={handleDeleteAiBot}
-                        onUpdate={handleUpdateAiBot}
-                        onOpenChat={handleOpenBotChat}
-                        embedded
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* All bots grid — below selected panel */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                {aiBots.filter(b => b.id !== selectedAiBot).map((bot) => (
-                  <AiBotCard
+              {/* Department navigation tabs */}
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                <Button
+                  variant={activeTeamTab === 'command-center' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTeamTab('command-center')}
+                  className="shrink-0"
+                >
+                  <Gamepad2 className="h-4 w-4 mr-1.5" />
+                  Команден център
+                </Button>
+                {aiBots.map((bot) => (
+                  <Button
                     key={bot.id}
-                    bot={bot}
-                    onEdit={openAiBotModal}
-                    onDelete={handleDeleteAiBot}
-                    onUpdate={handleUpdateAiBot}
-                    onOpenChat={handleOpenBotChat}
-                  />
+                    variant={activeTeamTab === bot.id ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setActiveTeamTab(bot.id)}
+                    className="shrink-0"
+                  >
+                    <div className="w-4 h-4 rounded-full mr-1.5" style={{ backgroundColor: bot.shirtColor }} />
+                    {bot.role.split(' & ')[0]}
+                  </Button>
                 ))}
               </div>
+
+              {/* Tab content */}
+              {activeTeamTab === 'command-center' ? (
+                <div className="space-y-4">
+                  {/* Video game */}
+                  {viewMode3D ? (
+                    <Suspense fallback={<div className="flex items-center justify-center h-[500px] bg-[#1a1a2e] rounded-xl"><Loader2 className="h-8 w-8 animate-spin text-purple-500" /></div>}>
+                      <VirtualOffice3D
+                        bots={aiBots}
+                        selectedBotId={selectedAiBot}
+                        onSelectBot={(id) => { setSelectedAiBot(id); if (id) setActiveTeamTab(id); }}
+                      />
+                    </Suspense>
+                  ) : (
+                    <VirtualOfficeGame
+                      bots={aiBots}
+                      selectedBotId={selectedAiBot}
+                      onSelectBot={(id) => { setSelectedAiBot(id); if (id) setActiveTeamTab(id); }}
+                      onOpenChat={handleOpenBotChat}
+                    />
+                  )}
+
+                  {/* COO Chat - Simora bot */}
+                  <div className="border border-border rounded-xl bg-card overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-primary/10 border-b border-border">
+                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">С</div>
+                      <div>
+                        <h3 className="font-semibold">Симора</h3>
+                        <p className="text-xs text-muted-foreground">COO -- Разпределя задачи между екипите</p>
+                      </div>
+                    </div>
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>Чатът с COO бота Симора ще бъде достъпен скоро.</p>
+                      <p className="text-xs mt-1">Тук ще можете да разпределяте задачи между отделите.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Individual department view */
+                (() => {
+                  const bot = aiBots.find(b => b.id === activeTeamTab);
+                  if (!bot) return null;
+                  return (
+                    <div className="border border-border rounded-xl bg-card overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-border" style={{ backgroundColor: `${bot.shirtColor}15` }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bot.shirtColor }}>
+                            {bot.name[0]}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{bot.name}</h3>
+                            <p className="text-xs text-muted-foreground">{bot.role} • {bot.frequency}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleOpenBotChat(bot)} className="gap-1.5 text-xs">
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            Чат
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => openAiBotModal(bot)} className="gap-1.5 text-xs">
+                            <Edit className="h-3.5 w-3.5" />
+                            Редактирай
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <AiBotCard
+                          bot={bot}
+                          onEdit={openAiBotModal}
+                          onDelete={handleDeleteAiBot}
+                          onUpdate={handleUpdateAiBot}
+                          onOpenChat={handleOpenBotChat}
+                          embedded
+                        />
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
             </>
           )}
         </div>
