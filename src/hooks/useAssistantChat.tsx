@@ -49,6 +49,17 @@ export function useAssistantChat(
   const [isLoading, setIsLoading] = useState(false);
   const loadedRef = useRef(false);
   const lastSessionRef = useRef<string | null | undefined>(undefined);
+  const lastChatKeyRef = useRef(chatKey);
+
+  // Reset when module/chatKey changes (same-path navigation doesn't unmount)
+  useEffect(() => {
+    if (lastChatKeyRef.current !== chatKey) {
+      lastChatKeyRef.current = chatKey;
+      lastSessionRef.current = undefined;
+      loadedRef.current = false;
+      setMessages([getInitialMsg()]);
+    }
+  }, [chatKey]);
 
   // Load messages when session changes
   useEffect(() => {

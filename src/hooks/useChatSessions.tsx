@@ -60,7 +60,31 @@ export function useChatSessions(chatKey: string, defaultTitle?: string) {
         setSessions(data);
         // Auto-select the most recent session if none active
         if (!activeSessionId) {
-          setActiveSessionId(data[0].id);
+          // For module chats, prefer a session matching the current chatKey
+          const matchingSession = isModuleChat
+            ? data.find(s => s.chat_key === chatKey)
+            : data[0];
+          if (matchingSession) {
+            setActiveSessionId(matchingSession.id);
+          } else {
+            // No session for this specific module — create one
+            const { data: newSession, error: createErr } = await supabase
+              .from("chat_sessions")
+              .insert({
+                user_id: user.id,
+                project_id: projectId || null,
+                chat_key: chatKey,
+                title: defaultTitle || "Нов чат",
+                module_key: chatKey.startsWith("module:") ? chatKey : null,
+              })
+              .select()
+              .single();
+
+            if (!createErr && newSession) {
+              setSessions(prev => [newSession, ...prev]);
+              setActiveSessionId(newSession.id);
+            }
+          }
         }
       } else {
         // Auto-create a first session so user always has one
