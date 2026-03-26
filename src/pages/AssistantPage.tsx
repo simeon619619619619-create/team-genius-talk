@@ -104,6 +104,19 @@ export default function AssistantPage() {
   const autoSentRef = useRef(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string }>>([]);
 
+  // Reset state when module changes (same-path navigation doesn't unmount)
+  const prevModuleIdRef = useRef(moduleState?.id);
+  useEffect(() => {
+    if (moduleState && moduleState.id !== prevModuleIdRef.current) {
+      prevModuleIdRef.current = moduleState.id;
+      setChatMessages([]);
+      setUsedPrompts(new Set());
+      setShowCompleted(false);
+      completionTriggeredRef.current = false;
+      autoSentRef.current = false;
+    }
+  }, [moduleState?.id]);
+
   // Auto-route to best bot based on message content
   const [autoRouted, setAutoRouted] = useState(false);
   const routeToBestBot = useCallback((message: string) => {
