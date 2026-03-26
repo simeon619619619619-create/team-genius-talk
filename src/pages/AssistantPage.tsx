@@ -476,6 +476,7 @@ export default function AssistantPage() {
           {/* Chat Interface - Full height */}
           <div className="flex-1 min-h-0">
             <ChatInterface
+              key={moduleState ? `module-${moduleState.id}` : selectedBot ? `bot-${selectedBot.id}` : 'default'}
               suggestions={suggestions}
               context="business"
               moduleSystemPrompt={moduleState?.systemPrompt || botSystemPrompt}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useCurrentProject } from "./useCurrentProject";
@@ -19,18 +19,17 @@ export function useChatSessions(chatKey: string, defaultTitle?: string) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const prevChatKeyRef = useRef(chatKey);
 
-  // Reset active session when chatKey changes (e.g., switching bots)
-  useEffect(() => {
-    setActiveSessionId(null);
-  }, [chatKey]);
-
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (forceSelectForKey?: string) => {
     if (!user) {
       setSessions([]);
       setLoading(false);
       return;
     }
+
+    // If chatKey changed, we MUST select a new session
+    const needsNewSelection = !!forceSelectForKey;
 
     try {
       const isModuleChat = chatKey.startsWith("module:");
@@ -58,11 +57,11 @@ export function useChatSessions(chatKey: string, defaultTitle?: string) {
 
       if (data && data.length > 0) {
         setSessions(data);
-        // Auto-select the most recent session if none active
-        if (!activeSessionId) {
-          // For module chats, prefer a session matching the current chatKey
+        // Auto-select: when chatKey changed OR no active session
+        if (needsNewSelection) {
+          // Find a non-completed session matching the exact current chatKey
           const matchingSession = isModuleChat
-            ? data.find(s => s.chat_key === chatKey)
+            ? data.find(s => s.chat_key === chatKey && !s.module_completed)
             : data[0];
           if (matchingSession) {
             setActiveSessionId(matchingSession.id);
@@ -110,11 +109,17 @@ export function useChatSessions(chatKey: string, defaultTitle?: string) {
     } finally {
       setLoading(false);
     }
-  }, [user, projectId, chatKey, activeSessionId]);
+  }, [user, projectId, chatKey, defaultTitle]);
 
+  // Fetch on mount and when chatKey changes
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    const chatKeyChanged = prevChatKeyRef.current !== chatKey;
+    prevChatKeyRef.current = chatKey;
+    if (chatKeyChanged) {
+      setActiveSessionId(null);
+    }
+    fetchSessions(chatKeyChanged ? chatKey : undefined);
+  }, [fetchSessions, chatKey]);
 
   const createSession = useCallback(async (title?: string, moduleKey?: string): Promise<string | null> => {
     if (!user) return null;
