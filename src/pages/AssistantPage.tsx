@@ -239,10 +239,12 @@ export default function AssistantPage() {
 
     const lastMsg = chatMessages[chatMessages.length - 1];
     const hasEnoughMessages = chatMessages.filter(m => m.role === "user").length >= 3;
-    // Only trigger on very explicit completion phrases from the AI
+    // Strip markdown formatting (**, *, #, etc.) before checking keywords
+    const stripMd = (s: string) => s.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s?/g, '').replace(/[_.~`]/g, '');
     const completionKeywords = ["ЗАВЪРШИХМЕ МОДУЛА", "ПРЕХОД КЪМ СЛЕДВАЩ МОДУЛ", "модулът е завършен", "успешно завършен модул"];
+    const lastMsgClean = lastMsg ? stripMd(lastMsg.content) : '';
     const aiSignalsComplete = hasEnoughMessages && lastMsg?.role === "assistant" &&
-      completionKeywords.some(kw => lastMsg.content.includes(kw));
+      completionKeywords.some(kw => lastMsgClean.includes(kw));
 
     if (allPromptsUsed || aiSignalsComplete) {
       completionTriggeredRef.current = true;
