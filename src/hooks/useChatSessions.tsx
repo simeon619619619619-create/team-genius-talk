@@ -13,7 +13,7 @@ export interface ChatSession {
   updated_at: string;
 }
 
-export function useChatSessions(chatKey: string) {
+export function useChatSessions(chatKey: string, defaultTitle?: string) {
   const { user } = useAuth();
   const { projectId } = useCurrentProject();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -70,7 +70,8 @@ export function useChatSessions(chatKey: string) {
             user_id: user.id,
             project_id: projectId || null,
             chat_key: chatKey,
-            title: "Нов чат",
+            title: defaultTitle || "Нов чат",
+            module_key: chatKey.startsWith("module:") ? chatKey : null,
           })
           .select()
           .single();

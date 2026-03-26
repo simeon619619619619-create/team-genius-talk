@@ -165,7 +165,7 @@ export default function AssistantPage() {
     deleteSession,
     touchSession,
     markModuleCompleted,
-  } = useChatSessions(chatKey);
+  } = useChatSessions(chatKey, moduleState ? moduleState.label : undefined);
 
   // Mark as viewed when page opens
   useEffect(() => {
@@ -256,6 +256,10 @@ export default function AssistantPage() {
         if (activeSessionId) {
           markModuleCompleted(activeSessionId, moduleState.label);
         }
+        // Auto-advance to next module after 4 seconds
+        setTimeout(() => {
+          goToNextModule();
+        }, 4000);
       }
     }
   }, [usedPrompts.size, moduleState, completeModule, user, chatMessages, showCompleted, activeSessionId, markModuleCompleted]);
