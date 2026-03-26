@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { ChevronDown, ArrowLeft, ChevronRight, Bot, Zap, PartyPopper } from "lucide-react";
+import { ChevronDown, ArrowLeft, ChevronRight, Bot, Zap, PartyPopper, CheckCircle } from "lucide-react";
 import confetti from "canvas-confetti";
 import {
   DropdownMenu,
@@ -232,22 +232,8 @@ export default function AssistantPage() {
   // Check module completion: by prompt buttons OR by AI content detection
   const completionTriggeredRef = useRef(false);
 
-  // If module is already completed, auto-advance to next uncompleted module
-  useEffect(() => {
-    if (!moduleState || completionTriggeredRef.current) return;
-    if (isModuleCompleted(moduleState.key)) {
-      completionTriggeredRef.current = true;
-      // Find next uncompleted module
-      const MODULES_LIST = [
-        { id: 0, key: "vision" }, { id: 1, key: "research" }, { id: 2, key: "offer" },
-        { id: 3, key: "copy" }, { id: 4, key: "traffic" },
-      ];
-      const nextUncompleted = MODULES_LIST.find(m => m.id > moduleState.id && !isModuleCompleted(m.key));
-      if (nextUncompleted) {
-        setTimeout(() => goToNextModule(), 500);
-      }
-    }
-  }, [moduleState, isModuleCompleted]);
+  // Track if current module is already completed (for showing banner)
+  const moduleAlreadyCompleted = moduleState ? isModuleCompleted(moduleState.key) : false;
 
   // Module completes ONLY when ALL prompts/questions have been used
   useEffect(() => {
@@ -419,6 +405,22 @@ export default function AssistantPage() {
               </div>
             </div>
           </div>
+
+          {/* Banner for already-completed module: go to next */}
+          {moduleAlreadyCompleted && !showCompleted && moduleState && (
+            <div className="mx-4 mt-2 mb-0 p-3 rounded-lg bg-green-500/15 border border-green-500/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>Този модул е завършен.</span>
+              </div>
+              <Button size="sm" onClick={goToNextModule} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white shrink-0">
+                {MODULES.find(m => m.id === moduleState.id + 1)
+                  ? `Към ${MODULES.find(m => m.id === moduleState.id + 1)!.label}`
+                  : "Обратно към модулите"}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
 
           {/* Module completion overlay */}
           {showCompleted && moduleState && (
