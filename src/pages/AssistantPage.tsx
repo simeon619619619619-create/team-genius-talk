@@ -235,13 +235,16 @@ export default function AssistantPage() {
   // Track if current module is already completed (for showing banner)
   const moduleAlreadyCompleted = moduleState ? isModuleCompleted(moduleState.key) : false;
 
-  // Module completes ONLY when ALL prompts/questions have been used
+  // Module completes when user has answered enough questions (prompt clicks OR free-text messages)
+  const userMessageCount = chatMessages.filter(m => m.role === "user").length;
   useEffect(() => {
     if (!moduleState || showCompleted || completionTriggeredRef.current) return;
 
-    const allPromptsUsed = usedPrompts.size >= moduleState.prompts.length;
+    // Count both: prompt button clicks and user messages typed
+    const progress = Math.max(usedPrompts.size, userMessageCount);
+    const allDone = progress >= moduleState.prompts.length;
 
-    if (allPromptsUsed) {
+    if (allDone) {
       completionTriggeredRef.current = true;
       setShowCompleted(true);
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ec4899'] });
@@ -272,7 +275,7 @@ export default function AssistantPage() {
         }, 4000);
       }
     }
-  }, [usedPrompts.size, moduleState, completeModule, user, showCompleted, activeSessionId, markModuleCompleted]);
+  }, [usedPrompts.size, userMessageCount, moduleState, completeModule, user, showCompleted, activeSessionId, markModuleCompleted]);
 
   const goToNextModule = useCallback(() => {
     if (!moduleState) return;
@@ -343,7 +346,7 @@ export default function AssistantPage() {
             <div className="flex flex-col items-center gap-0.5">
               {moduleState && (
                 <span className="text-xs text-muted-foreground font-medium">
-                  {moduleState.label} ({usedPrompts.size}/{moduleState.prompts.length})
+                  {moduleState.label} ({Math.min(chatMessages.filter(m => m.role === "user").length, moduleState.prompts.length)}/{moduleState.prompts.length})
                 </span>
               )}
               <div className="flex items-center gap-2">
@@ -406,8 +409,8 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          {/* Banner for already-completed module: go to next */}
-          {moduleAlreadyCompleted && !showCompleted && moduleState && (
+          {/* Banner for already-completed module: only before user starts chatting */}
+          {moduleAlreadyCompleted && !showCompleted && moduleState && chatMessages.filter(m => m.role === "user").length === 0 && (
             <div className="mx-4 mt-2 mb-0 p-4 rounded-lg bg-green-500/15 border border-green-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-green-400">
                 <CheckCircle className="h-4 w-4 shrink-0" />
