@@ -318,63 +318,88 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
   const [folderPath, setFolderPath] = useState<string>(() => {
     try { return localStorage.getItem("simora_folder_path") || ""; } catch { return ""; }
   });
+  const [driveLink, setDriveLink] = useState<string>(() => {
+    try { return localStorage.getItem("simora_drive_link") || ""; } catch { return ""; }
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [showDriveInput, setShowDriveInput] = useState(false);
+  const [driveLinkInput, setDriveLinkInput] = useState("");
+  const [manualText, setManualText] = useState("");
 
-  const saveFiles = (newFiles: string[], path?: string) => {
+  const saveFiles = (newFiles: string[], path?: string, link?: string) => {
     setFiles(newFiles);
     localStorage.setItem("simora_drive_files", JSON.stringify(newFiles));
-    if (path) {
+    if (path !== undefined) {
       setFolderPath(path);
       localStorage.setItem("simora_folder_path", path);
     }
+    if (link !== undefined) {
+      setDriveLink(link);
+      localStorage.setItem("simora_drive_link", link);
+    }
   };
 
-  // Use File System Access API to pick a folder
+  // Use File System Access API to pick a local folder
   const handlePickFolder = async () => {
     try {
-      // @ts-ignore — showDirectoryPicker is not in all TS libs
+      // @ts-ignore
       const dirHandle = await window.showDirectoryPicker({ mode: "read" });
       setIsLoading(true);
       const fileNames: string[] = [];
       for await (const entry of dirHandle.values()) {
         if (entry.kind === "file") {
           const name: string = entry.name;
-          // Only show media files
           if (/\.(mp4|mov|avi|mkv|webm|m4v|mp3|wav|aac|jpg|jpeg|png|gif|srt|ass|vtt)$/i.test(name)) {
             fileNames.push(name);
           }
         }
       }
       fileNames.sort();
-      saveFiles(fileNames, dirHandle.name);
-      toast.success(`${fileNames.length} файла намерени в "${dirHandle.name}"`);
+      saveFiles(fileNames, dirHandle.name, "");
+      toast.success(`${fileNames.length} файла от "${dirHandle.name}"`);
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        toast.error("Браузърът не поддържа избор на папка. Добави файловете ръчно.");
+        toast.error("Браузърът не поддържа избор на папка. Опитай Google Drive или добави ръчно.");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Manual paste
-  const handleManualAdd = (text: string) => {
-    const newFiles = text.split("\n").map(f => f.trim()).filter(Boolean);
+  // Save Google Drive link
+  const handleSaveDriveLink = () => {
+    if (!driveLinkInput.trim()) return;
+    saveFiles(files, folderPath || "Google Drive", driveLinkInput.trim());
+    setShowDriveInput(false);
+    setDriveLinkInput("");
+    toast.success("Google Drive папката е свързана!");
+  };
+
+  // Manual paste of file names
+  const handleManualAdd = () => {
+    if (!manualText.trim()) return;
+    const newFiles = manualText.split("\n").map(f => f.trim()).filter(Boolean);
     saveFiles(newFiles, "Ръчно добавени");
+    setManualText("");
   };
 
   const handleClear = () => {
     setFiles([]);
     setFolderPath("");
+    setDriveLink("");
     localStorage.removeItem("simora_drive_files");
     localStorage.removeItem("simora_folder_path");
-    toast.success("Файловете са изчистени");
+    localStorage.removeItem("simora_drive_link");
+    toast.success("Изчистено");
   };
 
   const videoFiles = files.filter(f => /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(f));
   const audioFiles = files.filter(f => /\.(mp3|wav|aac)$/i.test(f));
   const imageFiles = files.filter(f => /\.(jpg|jpeg|png|gif)$/i.test(f));
   const subtitleFiles = files.filter(f => /\.(srt|ass|vtt)$/i.test(f));
+
+  // Source label
+  const sourceLabel = driveLink ? "Google Drive" : folderPath || "";
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -385,61 +410,103 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm">Моите кадри</h4>
           <p className="text-xs text-muted-foreground">
-            {files.length > 0 ? `${files.length} файла${folderPath ? ` от "${folderPath}"` : ""}` : "Добави папка с видео файлове"}
+            {files.length > 0
+              ? `${files.length} файла${sourceLabel ? ` — ${sourceLabel}` : ""}`
+              : "Добави кадри от компютър, Google Drive или ръчно"}
           </p>
         </div>
-        {files.length > 0 && (
-          <button onClick={handleClear} className="text-xs text-red-400 hover:underline shrink-0">
-            Изчисти
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {driveLink && (
+            <a href={driveLink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline">
+              Drive
+            </a>
+          )}
+          {files.length > 0 && (
+            <button onClick={handleClear} className="text-[10px] text-red-400 hover:underline">
+              Изчисти
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-4 pt-3 space-y-3">
         {files.length === 0 ? (
           <>
-            {/* Pick folder button */}
-            <Button
-              onClick={handlePickFolder}
-              variant="outline"
-              className="w-full h-20 border-2 border-dashed flex flex-col gap-1.5 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/10"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <FolderOpen className="h-5 w-5 text-amber-500" />
-                  <span className="text-xs">Избери папка от компютъра</span>
-                </>
-              )}
-            </Button>
+            {/* Three source options */}
+            <div className="grid grid-cols-3 gap-2">
+              {/* Local folder */}
+              <button
+                onClick={handlePickFolder}
+                disabled={isLoading}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-amber-400 hover:bg-amber-500/5 transition-all"
+              >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FolderOpen className="h-5 w-5 text-amber-500" />}
+                <span className="text-[11px] text-muted-foreground text-center leading-tight">Папка от компютъра</span>
+              </button>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-px flex-1 bg-border" />
-              <span>или paste-ни файлове</span>
-              <div className="h-px flex-1 bg-border" />
+              {/* Google Drive */}
+              <button
+                onClick={() => setShowDriveInput(true)}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-blue-400 hover:bg-blue-500/5 transition-all"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <path d="M8.267 14.68l-1.605 2.776H20.09l1.605-2.776H8.267z" fill="#4285f4"/>
+                  <path d="M14.635 3.275l-5.406 9.368 1.604 2.776 5.406-9.368-1.604-2.776z" fill="#ea4335"/>
+                  <path d="M2.306 17.456l1.604 2.776 5.406-9.368-1.604-2.776L2.306 17.456z" fill="#fbbc04"/>
+                </svg>
+                <span className="text-[11px] text-muted-foreground text-center leading-tight">Google Drive линк</span>
+              </button>
+
+              {/* Manual */}
+              <button
+                onClick={() => setShowDriveInput(false)}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border hover:border-purple-400 hover:bg-purple-500/5 transition-all"
+              >
+                <FileText className="h-5 w-5 text-purple-500" />
+                <span className="text-[11px] text-muted-foreground text-center leading-tight">Напиши файлове ръчно</span>
+              </button>
             </div>
 
-            {/* Manual paste */}
-            <textarea
-              placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo.mov"}
-              rows={3}
-              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              onBlur={(e) => {
-                if (e.target.value.trim()) handleManualAdd(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.metaKey) {
-                  handleManualAdd((e.target as HTMLTextAreaElement).value);
-                }
-              }}
-            />
-            <p className="text-[10px] text-muted-foreground text-center">Напиши имената на файловете (по едно на ред) и натисни Tab или Cmd+Enter</p>
+            {/* Google Drive link input */}
+            {showDriveInput && (
+              <div className="space-y-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                <p className="text-xs text-muted-foreground">Линк към Google Drive папка:</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={driveLinkInput}
+                    onChange={(e) => setDriveLinkInput(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="h-9 bg-secondary/50 text-sm flex-1"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveDriveLink(); }}
+                  />
+                  <Button size="sm" onClick={handleSaveDriveLink} disabled={!driveLinkInput.trim()} className="text-xs shrink-0">
+                    Свържи
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  След свързване, напиши имената на файловете от папката по-долу
+                </p>
+              </div>
+            )}
+
+            {/* Manual file names input — always visible */}
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Имена на файлове (по едно на ред):</p>
+              <textarea
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo.mov"}
+                rows={3}
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
+              />
+              <Button size="sm" onClick={handleManualAdd} disabled={!manualText.trim()} className="w-full text-xs">
+                Добави файлове
+              </Button>
+            </div>
           </>
         ) : (
           <>
-            {/* File summary */}
+            {/* File summary badges */}
             <div className="flex flex-wrap gap-2">
               {videoFiles.length > 0 && (
                 <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-medium">
@@ -464,7 +531,7 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
             </div>
 
             {/* File list */}
-            <div className="max-h-32 overflow-y-auto rounded-lg bg-zinc-900/80 p-2 space-y-0.5">
+            <div className="max-h-28 overflow-y-auto rounded-lg bg-zinc-900/80 p-2 space-y-0.5">
               {files.map((f, i) => (
                 <div key={i} className="flex items-center gap-2 px-2 py-0.5 text-xs font-mono text-zinc-300">
                   <span className="text-zinc-500">{i + 1}.</span>
@@ -473,15 +540,11 @@ function FolderSection({ onSendToChat }: { onSendToChat: (msg: string) => void }
               ))}
             </div>
 
-            {/* Quick actions */}
+            {/* Actions */}
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                size="sm" variant="outline"
-                onClick={handlePickFolder}
-                className="text-xs gap-1.5"
-              >
+              <Button size="sm" variant="outline" onClick={handlePickFolder} className="text-xs gap-1.5">
                 <FolderOpen className="h-3.5 w-3.5" />
-                Смени папка
+                Смени източник
               </Button>
               <Button
                 size="sm"
