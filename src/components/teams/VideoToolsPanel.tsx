@@ -307,38 +307,125 @@ function ToolCard({ tool, onSendToChat }: { tool: VideoTool; onSendToChat: (cmd:
   );
 }
 
+// ─── Google Drive Link Section ───
+function DriveSection({ onSendToChat }: { onSendToChat: (msg: string) => void }) {
+  const [driveLink, setDriveLink] = useState("");
+  const [savedLink, setSavedLink] = useState<string | null>(() => {
+    try { return localStorage.getItem("simora_drive_link"); } catch { return null; }
+  });
+  const [fileList, setFileList] = useState("");
+
+  const handleSaveLink = () => {
+    if (!driveLink.trim()) return;
+    localStorage.setItem("simora_drive_link", driveLink.trim());
+    setSavedLink(driveLink.trim());
+    setDriveLink("");
+    toast.success("Google Drive папката е свързана!");
+  };
+
+  const handleDisconnect = () => {
+    localStorage.removeItem("simora_drive_link");
+    localStorage.removeItem("simora_drive_files");
+    setSavedLink(null);
+    setFileList("");
+    toast.success("Google Drive е изключен");
+  };
+
+  const handleSaveFiles = () => {
+    if (!fileList.trim()) return;
+    localStorage.setItem("simora_drive_files", fileList.trim());
+    toast.success("Файловете са запазени!");
+  };
+
+  const savedFiles = (() => {
+    try { return localStorage.getItem("simora_drive_files") || ""; } catch { return ""; }
+  })();
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/5">
+        <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+          <FolderOpen className="h-5 w-5 text-blue-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm">Google Drive</h4>
+          <p className="text-xs text-muted-foreground">
+            {savedLink ? "Папка свързана" : "Свържи папка с видео файлове"}
+          </p>
+        </div>
+        {savedLink && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <a href={savedLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">
+              Отвори
+            </a>
+            <span className="text-muted-foreground/30">|</span>
+            <button onClick={handleDisconnect} className="text-xs text-red-400 hover:underline">
+              Изключи
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="px-4 pb-4 pt-2 space-y-3">
+        {!savedLink ? (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Paste-ни линк към Google Drive папка с видео файлове:</p>
+            <div className="flex gap-2">
+              <Input
+                value={driveLink}
+                onChange={(e) => setDriveLink(e.target.value)}
+                placeholder="https://drive.google.com/drive/folders/..."
+                className="h-9 bg-secondary/50 text-sm flex-1"
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveLink(); }}
+              />
+              <Button size="sm" onClick={handleSaveLink} disabled={!driveLink.trim()} className="text-xs shrink-0">
+                Свържи
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Напиши имената на файловете от папката (по едно на ред).
+              Ще ги ползваш в инструментите по-долу:
+            </p>
+            <textarea
+              value={fileList || savedFiles}
+              onChange={(e) => setFileList(e.target.value)}
+              placeholder={"intro_clip.mp4\nbroll_office.mp4\ninterview_raw.mp4\nlogo_animation.mov"}
+              rows={4}
+              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleSaveFiles} className="text-xs flex-1">
+                Запази файлове
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => onSendToChat(`Ето файловете от моя Google Drive:\n\n${fileList || savedFiles}\n\nНапиши ми сценарий за Reels видео (30 сек) и кажи кои файлове за кой кадър.`)}
+                className="text-xs flex-1 bg-purple-600 hover:bg-purple-700"
+                disabled={!(fileList || savedFiles).trim()}
+              >
+                Генерирай сценарий
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Panel ───
 interface VideoToolsPanelProps {
   onSendToChat: (message: string) => void;
-  onConnectDrive?: () => void;
-  driveConnected?: boolean;
 }
 
-export function VideoToolsPanel({ onSendToChat, onConnectDrive, driveConnected }: VideoToolsPanelProps) {
+export function VideoToolsPanel({ onSendToChat }: VideoToolsPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-      {/* Google Drive connection */}
-      <div className="rounded-xl border border-dashed border-border p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-            <FolderOpen className="h-5 w-5 text-blue-500" />
-          </div>
-          <div>
-            <h4 className="font-medium text-sm">Google Drive</h4>
-            <p className="text-xs text-muted-foreground">
-              {driveConnected ? "Свързан — може да зарежда кадри" : "Свържи за достъп до видео файлове"}
-            </p>
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant={driveConnected ? "outline" : "default"}
-          onClick={onConnectDrive}
-          className="text-xs shrink-0"
-        >
-          {driveConnected ? "Свързан" : "Свържи Drive"}
-        </Button>
-      </div>
+      {/* Google Drive */}
+      <DriveSection onSendToChat={onSendToChat} />
 
       {/* Tools grid */}
       <div className="space-y-2">

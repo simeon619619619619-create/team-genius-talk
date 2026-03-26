@@ -482,12 +482,7 @@ export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
 
       {/* Video Tools Tab */}
       {activeTab === "video" && bot.id === "bot-1" ? (
-        <VideoToolsPanel
-          onSendToChat={handleVideoToChat}
-          onConnectDrive={() => {
-            window.open("https://drive.google.com", "_blank");
-          }}
-        />
+        <VideoToolsPanel onSendToChat={handleVideoToChat} />
       ) : (
       <>
       {/* Messages */}
