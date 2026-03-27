@@ -32,6 +32,7 @@ import ModulesPage from "./pages/ModulesPage";
 import MindMapPage from "./pages/MindMapPage";
 import WebsitesPage from "./pages/WebsitesPage";
 import JourneyStepsPage from "./pages/JourneyStepsPage";
+import SocialInboxPage from "./pages/SocialInboxPage";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
                     <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
                     <Route path="/mindmap" element={<ProtectedRoute><MindMapPage /></ProtectedRoute>} />
                     <Route path="/websites" element={<ProtectedRoute><WebsitesPage /></ProtectedRoute>} />
+                    <Route path="/social-inbox" element={<ProtectedRoute><SocialInboxPage /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                     <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                     <Route path="/accept-invitation" element={<AcceptInvitationPage />} />

@@ -18,7 +18,8 @@ import {
   Rocket,
   BookOpen,
   GitBranch,
-  Globe
+  Globe,
+  MessageCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -62,6 +63,7 @@ const baseNavItems: NavItem[] = [
   { icon: BookOpen, label: "Методология", path: "/modules" },
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: Users, label: "Екипи", path: "/teams" },
+  { icon: MessageCircle, label: "Социална кутия", path: "/social-inbox" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
@@ -76,6 +78,7 @@ const automationNavItems: NavItem[] = [
   { icon: MessageSquare, label: "AI Асистент", path: "/assistant" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
   { icon: Users, label: "Екипи", path: "/teams" },
+  { icon: MessageCircle, label: "Социална кутия", path: "/social-inbox" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
@@ -89,6 +92,7 @@ const startupNavItems: NavItem[] = [
   { icon: FileText, label: "Бизнес план", path: "/business-plan" },
   { icon: TrendingUp, label: "Маркетинг план", path: "/plan" },
   { icon: ListTodo, label: "Задачи", path: "/tasks" },
+  { icon: MessageCircle, label: "Социална кутия", path: "/social-inbox" },
   { icon: GitBranch, label: "Бизнес процеси", path: "/mindmap" },
   { icon: Settings, label: "Настройки", path: "/settings" },
 ];
