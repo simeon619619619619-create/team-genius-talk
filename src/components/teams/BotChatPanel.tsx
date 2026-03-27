@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Loader2, MessageSquare, Film } from "lucide-react";
+import { X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentProject } from "@/hooks/useCurrentProject";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { ChatMessage } from "@/components/chat/ChatMessage";
-import { VideoToolsPanel } from "./VideoToolsPanel";
 import type { AiBot } from "./VirtualOffice";
 
 // ─── MASTER SYSTEM PROMPTS ───
@@ -355,14 +354,6 @@ interface BotChatPanelProps {
   onClose: () => void;
 }
 
-// Tabs config per bot
-const BOT_TABS: Record<string, Array<{ id: string; label: string; icon: React.ReactNode }>> = {
-  "bot-1": [
-    { id: "chat", label: "Чат", icon: <MessageSquare className="h-3.5 w-3.5" /> },
-    { id: "video", label: "Видео обработка", icon: <Film className="h-3.5 w-3.5" /> },
-  ],
-};
-
 export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
   const { user } = useAuth();
   const { projectId } = useCurrentProject();
@@ -370,8 +361,6 @@ export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
 
   const systemPrompt = getBotSystemPrompt(bot);
   const suggestions = BOT_SUGGESTIONS[bot.id] || [];
-  const tabs = BOT_TABS[bot.id] || null;
-  const [activeTab, setActiveTab] = useState("chat");
 
   const initialMessage: Message = {
     id: "init",
@@ -525,64 +514,31 @@ export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
     }
   };
 
-  // Switch to chat and send a message from video tools
-  const handleVideoToChat = useCallback((message: string) => {
-    setActiveTab("chat");
-    setTimeout(() => sendMessage(message), 300);
-  }, [sendMessage]);
-
   return (
     <div className="border border-purple-500/30 rounded-xl bg-card overflow-hidden flex flex-col" style={{ height: "600px" }}>
       {/* Header */}
-      <div className="shrink-0">
-        <div className="flex items-center justify-between px-4 py-3 bg-purple-500/10">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg"
-              style={{ backgroundColor: bot.shirtColor }}
-            >
-              {bot.name[0]}
-            </div>
-            <div>
-              <h3 className="font-semibold text-sm">{bot.name}</h3>
-              <p className="text-xs text-muted-foreground">{bot.role}</p>
-            </div>
-            <div className="flex items-center gap-1 ml-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] text-green-500 font-medium">Online</span>
-            </div>
+      <div className="flex items-center justify-between px-4 py-3 bg-purple-500/10 border-b border-purple-500/20 shrink-0">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-lg"
+            style={{ backgroundColor: bot.shirtColor }}
+          >
+            {bot.name[0]}
           </div>
-          <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8">
-            <X className="h-4 w-4" />
-          </Button>
+          <div>
+            <h3 className="font-semibold text-sm">{bot.name}</h3>
+            <p className="text-xs text-muted-foreground">{bot.role}</p>
+          </div>
+          <div className="flex items-center gap-1 ml-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] text-green-500 font-medium">Online</span>
+          </div>
         </div>
-
-        {/* Tabs — only if bot has tabs */}
-        {tabs && (
-          <div className="flex border-b border-purple-500/20 px-4 gap-1 bg-purple-500/5">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? "border-purple-500 text-purple-400"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8">
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Video Tools Tab */}
-      {activeTab === "video" && bot.id === "bot-1" ? (
-        <VideoToolsPanel onSendToChat={handleVideoToChat} />
-      ) : (
-      <>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((msg) => (
@@ -702,8 +658,6 @@ export function BotChatPanel({ bot, onClose }: BotChatPanelProps) {
           </Button>
         </div>
       </div>
-      </>
-      )}
     </div>
   );
 }
