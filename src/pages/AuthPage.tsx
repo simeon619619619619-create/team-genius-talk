@@ -26,7 +26,8 @@ export default function AuthPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState("");
 
-  // Waitlist state
+  // Waitlist state (waitlist mode: showLogin=false hides signup, shows waitlist form;
+  // enter backdoor password "777" to reveal login form)
   const [showLogin, setShowLogin] = useState(false);
   const [backdoorInput, setBackdoorInput] = useState("");
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);

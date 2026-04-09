@@ -11,7 +11,8 @@ import { PromoCodesTab } from "@/components/admin/PromoCodesTab";
 import { PricingTab } from "@/components/admin/PricingTab";
 import { AppHealthTab } from "@/components/admin/AppHealthTab";
 import { BusinessDirectoryTab } from "@/components/admin/BusinessDirectoryTab";
-import { Shield, Users, Bot, Loader2, LayoutDashboard, CreditCard, Ticket, DollarSign, Activity, RefreshCw, Building2 } from "lucide-react";
+import { AgentsTab } from "@/components/admin/AgentsTab";
+import { Shield, Users, Bot, Loader2, LayoutDashboard, CreditCard, Ticket, DollarSign, Activity, RefreshCw, Building2, Cpu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -162,6 +163,10 @@ export default function AdminPage() {
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Health</span>
             </TabsTrigger>
+            <TabsTrigger value="agents" className="flex items-center gap-2 data-[state=active]:bg-secondary rounded-full px-4 py-2">
+              <Cpu className="h-4 w-4" />
+              <span className="hidden sm:inline">Агенти</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -224,6 +229,10 @@ export default function AdminPage() {
               healthChecks={healthChecks}
               onRunCheck={runHealthCheck}
             />
+          </TabsContent>
+
+          <TabsContent value="agents">
+            <AgentsTab />
           </TabsContent>
         </Tabs>
       </div>
