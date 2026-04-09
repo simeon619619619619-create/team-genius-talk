@@ -64,6 +64,11 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024, // 20MB limit (debug builds can be large)
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Force new SW to take over all tabs immediately on deploy
+        skipWaiting: true,
+        clientsClaim: true,
+        // Don't serve stale index.html from SW cache (breaks new deploys)
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
