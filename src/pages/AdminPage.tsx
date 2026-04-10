@@ -12,7 +12,8 @@ import { PricingTab } from "@/components/admin/PricingTab";
 import { AppHealthTab } from "@/components/admin/AppHealthTab";
 import { BusinessDirectoryTab } from "@/components/admin/BusinessDirectoryTab";
 import { AgentsTab } from "@/components/admin/AgentsTab";
-import { Shield, Users, Bot, Loader2, LayoutDashboard, CreditCard, Ticket, DollarSign, Activity, RefreshCw, Building2, Cpu } from "lucide-react";
+import { PaperTradingTab } from "@/components/admin/PaperTradingTab";
+import { Shield, Users, Bot, Loader2, LayoutDashboard, CreditCard, Ticket, DollarSign, Activity, RefreshCw, Building2, Cpu, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,10 @@ export default function AdminPage() {
               <Cpu className="h-4 w-4" />
               <span className="hidden sm:inline">Агенти</span>
             </TabsTrigger>
+            <TabsTrigger value="paper-trading" className="flex items-center gap-2 data-[state=active]:bg-secondary rounded-full px-4 py-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Paper Trading</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -233,6 +238,10 @@ export default function AdminPage() {
 
           <TabsContent value="agents">
             <AgentsTab />
+          </TabsContent>
+
+          <TabsContent value="paper-trading">
+            <PaperTradingTab />
           </TabsContent>
         </Tabs>
       </div>
