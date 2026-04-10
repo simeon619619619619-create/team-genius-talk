@@ -316,9 +316,22 @@ async function placeLiveBets(): Promise<{ alerts: string[]; positions: number }>
     const noPrice = prices[1];
 
     // Skip resolved markets (price at 0 or 1 = already decided)
-    if (yesPrice >= 0.97 || yesPrice <= 0.03) continue;
+    if (yesPrice >= 0.95 || yesPrice <= 0.05) continue;
     // Skip if no clear edge (between 0.35 and 0.65 = coin flip)
     if (yesPrice > 0.35 && yesPrice < 0.65) continue;
+
+    // Skip joke/absurd/religious markets
+    const q = (m.question || m.title || '').toLowerCase();
+    const skipWords = ['jesus', 'god ', 'alien', 'ufo', 'rapture', 'zombie', 'flat earth', 'simulation', 'bigfoot', 'loch ness', 'santa', 'unicorn'];
+    if (skipWords.some(w => q.includes(w))) continue;
+
+    // Only allow: politics, sports, finance, crypto, geopolitics, elections
+    const tags = (m.tags || []).map((t: any) => (typeof t === 'string' ? t : t?.label || '').toLowerCase());
+    const slug = (m.slug || '').toLowerCase();
+    const allowedCategories = ['politics', 'sports', 'crypto', 'finance', 'elections', 'geopolitics', 'world', 'nba', 'nfl', 'mlb', 'soccer', 'tennis', 'golf', 'economy', 'fed', 'trump', 'biden', 'war', 'ceasefire', 'president', 'nato'];
+    const hasAllowedTag = tags.some((t: string) => allowedCategories.some(c => t.includes(c)));
+    const hasAllowedSlug = allowedCategories.some(c => q.includes(c) || slug.includes(c));
+    if (!hasAllowedTag && !hasAllowedSlug) continue;
 
     // Skip if already have position in this market
     const conditionId = m.conditionId || m.condition_id || '';
