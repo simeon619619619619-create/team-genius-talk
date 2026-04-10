@@ -309,7 +309,9 @@ async function placeLiveBets(): Promise<{ alerts: string[]; positions: number }>
     const yesPrice = prices[0];
     const noPrice = prices[1];
 
-    // Skip if no clear edge (between 0.35 and 0.65)
+    // Skip resolved markets (price at 0 or 1 = already decided)
+    if (yesPrice >= 0.97 || yesPrice <= 0.03) continue;
+    // Skip if no clear edge (between 0.35 and 0.65 = coin flip)
     if (yesPrice > 0.35 && yesPrice < 0.65) continue;
 
     // Skip if already have position in this market
