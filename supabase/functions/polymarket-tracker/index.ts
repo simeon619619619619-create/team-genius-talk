@@ -465,26 +465,59 @@ Deno.serve(async (req: Request) => {
     // 4. Update prices on open positions
     await updateOpenPositions();
 
-    // 5. Get current P&L summary (split by source)
+    // 5. Get full P&L summary (split by source, open + closed)
     const { data: allOpen } = await supabase
       .from('paper_positions')
       .select('pnl_usd, size_usd, wallet_source')
       .eq('status', 'open');
 
-    const aiPositions = (allOpen || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
-    const copyPositions = (allOpen || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
+    const { data: allClosed } = await supabase
+      .from('paper_positions')
+      .select('pnl_usd, wallet_source')
+      .neq('status', 'open');
 
-    const aiPnl = aiPositions.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
-    const copyPnl = copyPositions.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
-    const totalPnl = aiPnl + copyPnl;
+    const aiOpen = (allOpen || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
+    const copyOpen = (allOpen || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
+    const aiClosed = (allClosed || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
+    const copyClosed = (allClosed || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
+
+    const aiUnrealized = aiOpen.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const copyUnrealized = copyOpen.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const aiRealized = aiClosed.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const copyRealized = copyClosed.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+
+    const aiWins = aiClosed.filter((p: any) => (p.pnl_usd || 0) > 0).length;
+    const aiLosses = aiClosed.filter((p: any) => (p.pnl_usd || 0) < 0).length;
+    const copyWins = copyClosed.filter((p: any) => (p.pnl_usd || 0) > 0).length;
+    const copyLosses = copyClosed.filter((p: any) => (p.pnl_usd || 0) < 0).length;
+
+    const totalPnl = aiUnrealized + aiRealized + copyUnrealized + copyRealized;
     const totalExposure = (allOpen || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
     const openCount = (allOpen || []).length;
 
-    // 6. Send Telegram if we have alerts
+    // 6. Always send Telegram status (even without new alerts, so user sees wins/losses)
+    const pnlSign = (v: number) => v >= 0 ? '+' : '';
+    const header = `🤖 <b>Polymarket Paper Trader ($${TOTAL_BALANCE})</b>\n\n`;
+
+    let statusLines = '';
     if (allAlerts.length > 0) {
-      const header = `🤖 <b>Polymarket Paper Trader ($${TOTAL_BALANCE})</b>\n\n`;
-      const footer = `\n\n📊 AI: $${AI_BALANCE} (${aiPositions.length} поз, P&L: ${aiPnl >= 0 ? '+' : ''}$${aiPnl.toFixed(2)})\n📊 Copy: $${COPY_BALANCE} (${copyPositions.length} поз, P&L: ${copyPnl >= 0 ? '+' : ''}$${copyPnl.toFixed(2)})\n💰 Общо P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)} | Отворени: ${openCount}`;
-      await sendTelegram(header + allAlerts.join('\n\n') + footer);
+      statusLines = allAlerts.join('\n\n') + '\n\n';
+    }
+
+    const footer =
+      `📊 <b>AI стратегия ($${AI_BALANCE})</b>\n` +
+      `   Отворени: ${aiOpen.length} | P&L: ${pnlSign(aiUnrealized)}$${aiUnrealized.toFixed(2)}\n` +
+      `   ✅ Победи: ${aiWins} | ❌ Загуби: ${aiLosses} | Realized: ${pnlSign(aiRealized)}$${aiRealized.toFixed(2)}\n\n` +
+      `📊 <b>Copy ImJustKen ($${COPY_BALANCE})</b>\n` +
+      `   Отворени: ${copyOpen.length} | P&L: ${pnlSign(copyUnrealized)}$${copyUnrealized.toFixed(2)}\n` +
+      `   ✅ Победи: ${copyWins} | ❌ Загуби: ${copyLosses} | Realized: ${pnlSign(copyRealized)}$${copyRealized.toFixed(2)}\n\n` +
+      `💰 <b>Общо P&L: ${pnlSign(totalPnl)}$${totalPnl.toFixed(2)}</b> | Експозиция: $${totalExposure.toFixed(0)} | Отворени: ${openCount}`;
+
+    // Send only if there are alerts OR every 4 hours for status update
+    const hour = new Date().getUTCHours();
+    const isStatusHour = (hour % 4 === 0) && new Date().getUTCMinutes() < 20;
+    if (allAlerts.length > 0 || isStatusHour) {
+      await sendTelegram(header + statusLines + footer);
     }
 
     const duration = Date.now() - startTime;
