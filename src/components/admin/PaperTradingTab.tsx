@@ -201,16 +201,49 @@ export function PaperTradingTab() {
   }
 
   const totalPnl = (stats?.unrealizedPnl ?? 0) + (stats?.realizedPnl ?? 0);
+  const balance = stats?.virtualBalance ?? 100;
+  const exposure = stats?.totalExposure ?? 0;
+  const available = Math.max(0, balance - exposure + totalPnl);
+  const betPerTrade = balance * 0.05; // 5% per trade
 
   return (
     <div className="space-y-6">
+      {/* Hero banner — balance overview */}
+      <div className="rounded-2xl border bg-card p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="text-sm text-muted-foreground mb-1">Paper Trading баланс</div>
+            <div className="flex items-baseline gap-3">
+              <span className="text-4xl font-bold">{balance.toFixed(0)}€</span>
+              <span className={`text-lg font-semibold ${totalPnl >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}€
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-6 text-sm">
+            <div>
+              <div className="text-muted-foreground">Свободни</div>
+              <div className="text-xl font-semibold">{available.toFixed(2)}€</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">В позиции</div>
+              <div className="text-xl font-semibold">{exposure.toFixed(2)}€</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Per trade</div>
+              <div className="text-xl font-semibold">{betPerTrade.toFixed(0)}€ <span className="text-xs text-muted-foreground">(5%)</span></div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">До live</div>
+              <div className="text-xl font-semibold text-amber-500">14 дни</div>
+              <div className="text-xs text-muted-foreground">paper test период</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        <StatCard
-          label="Виртуален баланс"
-          value={`${stats?.virtualBalance ?? 100}€`}
-          icon={Wallet}
-        />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           label="Общ P&L"
           value={`${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}€`}
