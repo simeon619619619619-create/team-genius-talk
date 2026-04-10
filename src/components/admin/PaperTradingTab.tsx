@@ -21,6 +21,27 @@ import { formatDistanceToNow } from "date-fns";
 import { bg } from "date-fns/locale";
 import { usePaperTrading, type PaperPosition, type WalletTrade } from "@/hooks/usePaperTrading";
 
+/** Safely parse a timestamp that could be ISO string, unix seconds, or unix ms */
+function safeDate(v: unknown): Date | null {
+  if (!v) return null;
+  if (typeof v === "number") {
+    // Unix seconds (< 2e10) vs milliseconds
+    return new Date(v < 2e10 ? v * 1000 : v);
+  }
+  const d = new Date(String(v));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function timeAgo(v: unknown): string {
+  const d = safeDate(v);
+  if (!d) return "—";
+  try {
+    return formatDistanceToNow(d, { addSuffix: true, locale: bg });
+  } catch {
+    return "—";
+  }
+}
+
 function StatCard({ label, value, subvalue, icon: Icon, trend }: {
   label: string;
   value: string;
@@ -106,7 +127,7 @@ function PositionsTable({ positions, showPnl }: { positions: PaperPosition[]; sh
                 </TableCell>
               )}
               <TableCell className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(p.opened_at), { addSuffix: true, locale: bg })}
+                {timeAgo(p.opened_at)}
               </TableCell>
             </TableRow>
           ))}
@@ -140,7 +161,7 @@ function TradesFeed({ trades, wallets }: { trades: WalletTrade[]; wallets: { add
           {trades.map((t) => (
             <TableRow key={t.id}>
               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true, locale: bg })}
+                {timeAgo(t.timestamp)}
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="text-xs">
@@ -251,7 +272,7 @@ export function PaperTradingTab() {
                 {w.last_checked_at && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {formatDistanceToNow(new Date(w.last_checked_at), { addSuffix: true, locale: bg })}
+                    {timeAgo(w.last_checked_at)}
                   </span>
                 )}
               </div>
