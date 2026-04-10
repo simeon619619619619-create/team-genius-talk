@@ -78,7 +78,7 @@ export function usePaperTrading() {
     setRecentTrades(tr);
 
     // Compute stats
-    const VIRTUAL_BALANCE = 2000;
+    const VIRTUAL_BALANCE = 3000;
     const totalExposure = op.reduce((s, p) => s + (p.size_usd || 0), 0);
     const unrealizedPnl = op.reduce((s, p) => s + (p.pnl_usd || 0), 0);
     const realizedPnl = cp.reduce((s, p) => s + (p.pnl_usd || 0), 0);

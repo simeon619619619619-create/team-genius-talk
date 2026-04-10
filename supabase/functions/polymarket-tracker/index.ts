@@ -13,14 +13,15 @@ const TELEGRAM_CHAT = '1755421488';
 const DATA_API = 'https://data-api.polymarket.com';
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 
-// Paper trading config — $2000 total, split 50/50
-const TOTAL_BALANCE = 2000;
-const AI_BALANCE = 1000;    // AI strategy picks
-const COPY_BALANCE = 1000;  // copy ImJustKen
-const VIRTUAL_BALANCE = TOTAL_BALANCE; // for backward compat in stats
-const AI_BET_SIZE = 50;     // $50 per AI bet (5% of $1000)
-const COPY_BET_SIZE = 50;   // $50 per copy trade (5% of $1000)
-const POSITION_SIZE_PCT = 5; // backward compat
+// Paper trading config — $3000 total, 3 portfolios
+const TOTAL_BALANCE = 3000;
+const AI_BALANCE = 1000;       // AI strategy (value + Kelly)
+const COPY1_BALANCE = 1000;    // copy ImJustKen (high volume, 63% WR)
+const COPY2_BALANCE = 1000;    // copy geniusMC (selective, 74.7% WR)
+const VIRTUAL_BALANCE = TOTAL_BALANCE;
+const AI_BET_SIZE = 50;        // $50 per AI bet (5% of $1000)
+const COPY_BET_SIZE = 50;      // $50 per copy trade
+const POSITION_SIZE_PCT = 5;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -161,16 +162,17 @@ async function processTrades(walletName: string, walletAddress: string, trades: 
     const positionSize = COPY_BET_SIZE;
     const shares = positionSize / price;
 
-    // Budget check: sum current COPY exposure only
+    // Budget check: per-wallet copy budget
+    const walletBudget = walletName === 'geniusMC' ? COPY2_BALANCE : COPY1_BALANCE;
     const { data: copyCheck } = await supabase
       .from('paper_positions')
       .select('size_usd')
       .eq('status', 'open')
-      .neq('wallet_source', 'AI_STRATEGY');
+      .eq('wallet_source', walletName);
     const copyExposure = (copyCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
 
-    if (side === 'BUY' && copyExposure + positionSize > COPY_BALANCE) {
-      alerts.push(`⏸️ <b>${walletName}</b> купи ${outcome} @ ${(price * 100).toFixed(1)}¢ — <i>SKIP (copy бюджет: $${copyExposure.toFixed(0)}/$${COPY_BALANCE})</i>`);
+    if (side === 'BUY' && copyExposure + positionSize > walletBudget) {
+      alerts.push(`⏸️ <b>${walletName}</b> купи ${outcome} @ ${(price * 100).toFixed(1)}¢ — <i>SKIP (бюджет: $${copyExposure.toFixed(0)}/$${walletBudget})</i>`);
       continue;
     }
 
@@ -479,27 +481,35 @@ Deno.serve(async (req: Request) => {
       .select('pnl_usd, wallet_source')
       .neq('status', 'open');
 
-    const aiOpen = (allOpen || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
-    const copyOpen = (allOpen || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
-    const aiClosed = (allClosed || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
-    const copyClosed = (allClosed || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
+    // Split by 3 portfolios
+    const bySource = (src: string) => ({
+      open: (allOpen || []).filter((p: any) => p.wallet_source === src),
+      closed: (allClosed || []).filter((p: any) => p.wallet_source === src),
+    });
 
-    const aiUnrealized = aiOpen.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
-    const copyUnrealized = copyOpen.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
-    const aiRealized = aiClosed.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
-    const copyRealized = copyClosed.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const ai = bySource('AI_STRATEGY');
+    const copy1 = bySource('ImJustKen');
+    const copy2 = bySource('geniusMC');
 
-    const aiWins = aiClosed.filter((p: any) => (p.pnl_usd || 0) > 0).length;
-    const aiLosses = aiClosed.filter((p: any) => (p.pnl_usd || 0) < 0).length;
-    const copyWins = copyClosed.filter((p: any) => (p.pnl_usd || 0) > 0).length;
-    const copyLosses = copyClosed.filter((p: any) => (p.pnl_usd || 0) < 0).length;
+    const stats = (s: { open: any[]; closed: any[] }) => {
+      const unrealized = s.open.reduce((a: number, p: any) => a + (p.pnl_usd || 0), 0);
+      const realized = s.closed.reduce((a: number, p: any) => a + (p.pnl_usd || 0), 0);
+      const wins = s.closed.filter((p: any) => (p.pnl_usd || 0) > 0).length;
+      const losses = s.closed.filter((p: any) => (p.pnl_usd || 0) < 0).length;
+      return { unrealized, realized, wins, losses, openCount: s.open.length };
+    };
 
-    const totalPnl = aiUnrealized + aiRealized + copyUnrealized + copyRealized;
+    const aiS = stats(ai), c1S = stats(copy1), c2S = stats(copy2);
+    const totalPnl = aiS.unrealized + aiS.realized + c1S.unrealized + c1S.realized + c2S.unrealized + c2S.realized;
     const totalExposure = (allOpen || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
     const openCount = (allOpen || []).length;
 
-    // 6. Always send Telegram status (even without new alerts, so user sees wins/losses)
     const pnlSign = (v: number) => v >= 0 ? '+' : '';
+    const portfolioLine = (name: string, budget: number, s: ReturnType<typeof stats>) =>
+      `📊 <b>${name} ($${budget})</b>\n` +
+      `   Отворени: ${s.openCount} | P&L: ${pnlSign(s.unrealized)}$${s.unrealized.toFixed(2)}\n` +
+      `   ✅ ${s.wins} | ❌ ${s.losses} | Realized: ${pnlSign(s.realized)}$${s.realized.toFixed(2)}`;
+
     const header = `🤖 <b>Polymarket Paper Trader ($${TOTAL_BALANCE})</b>\n\n`;
 
     let statusLines = '';
@@ -508,12 +518,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const footer =
-      `📊 <b>AI стратегия ($${AI_BALANCE})</b>\n` +
-      `   Отворени: ${aiOpen.length} | P&L: ${pnlSign(aiUnrealized)}$${aiUnrealized.toFixed(2)}\n` +
-      `   ✅ Победи: ${aiWins} | ❌ Загуби: ${aiLosses} | Realized: ${pnlSign(aiRealized)}$${aiRealized.toFixed(2)}\n\n` +
-      `📊 <b>Copy ImJustKen ($${COPY_BALANCE})</b>\n` +
-      `   Отворени: ${copyOpen.length} | P&L: ${pnlSign(copyUnrealized)}$${copyUnrealized.toFixed(2)}\n` +
-      `   ✅ Победи: ${copyWins} | ❌ Загуби: ${copyLosses} | Realized: ${pnlSign(copyRealized)}$${copyRealized.toFixed(2)}\n\n` +
+      portfolioLine('AI Value+Kelly', AI_BALANCE, aiS) + '\n\n' +
+      portfolioLine('Copy ImJustKen', COPY1_BALANCE, c1S) + '\n\n' +
+      portfolioLine('Copy geniusMC', COPY2_BALANCE, c2S) + '\n\n' +
       `💰 <b>Общо P&L: ${pnlSign(totalPnl)}$${totalPnl.toFixed(2)}</b> | Експозиция: $${totalExposure.toFixed(0)} | Отворени: ${openCount}`;
 
     // Send only if there are alerts OR every 4 hours for status update
@@ -529,8 +536,9 @@ Deno.serve(async (req: Request) => {
       wallets_checked: wallets.length,
       new_alerts: allAlerts.length,
       open_positions: openCount,
-      ai: { open: aiOpen.length, wins: aiWins, losses: aiLosses, unrealized: aiUnrealized, realized: aiRealized },
-      copy: { open: copyOpen.length, wins: copyWins, losses: copyLosses, unrealized: copyUnrealized, realized: copyRealized },
+      ai: { open: aiS.openCount, wins: aiS.wins, losses: aiS.losses, unrealized: aiS.unrealized, realized: aiS.realized },
+      copy1: { open: c1S.openCount, wins: c1S.wins, losses: c1S.losses, unrealized: c1S.unrealized, realized: c1S.realized },
+      copy2: { open: c2S.openCount, wins: c2S.wins, losses: c2S.losses, unrealized: c2S.unrealized, realized: c2S.realized },
       total_pnl: totalPnl,
       total_exposure: totalExposure,
       duration_ms: duration,
