@@ -274,118 +274,108 @@ async function updateOpenPositions() {
   }
 }
 
-// ── Active betting: scan markets, pick best odds, place paper bets ──
+// ── Active betting: VALUE + KELLY strategy ──
+// Rules based on research of 95M+ Polymarket transactions:
+// 1. Max 3 uncorrelated positions at a time
+// 2. Quarter Kelly sizing (25% of full Kelly), hard cap 5% of bankroll
+// 3. Only VALUE zone: 15-33¢ (underdog value) or 67-90¢ (strong favorite value)
+// 4. DEATH ZONE 51-67¢ — skip (worst risk/reward)
+// 5. Skip resolved (>95¢), longshots (<10¢), joke markets
+// 6. Only politics, sports, finance, crypto, geopolitics
 
 async function placeLiveBets(): Promise<{ alerts: string[]; positions: number }> {
   const alerts: string[] = [];
 
-  // Check AI budget (only count AI_STRATEGY positions)
-  const { data: openCheck } = await supabase.from('paper_positions').select('size_usd').eq('status', 'open').eq('wallet_source', 'AI_STRATEGY');
+  // Check AI budget + open position count
+  const { data: openCheck } = await supabase.from('paper_positions').select('size_usd, condition_id').eq('status', 'open').eq('wallet_source', 'AI_STRATEGY');
   const aiExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+  const openCount = (openCheck || []).length;
   const available = AI_BALANCE - aiExposure;
-  const positionSize = AI_BET_SIZE;
 
-  if (available < positionSize) {
-    alerts.push(`⏸️ AI бюджет изчерпан: $${aiExposure.toFixed(0)}/$${AI_BALANCE} в позиции`);
-    return { alerts, positions: 0 };
-  }
+  // RULE: max 3 uncorrelated positions
+  if (openCount >= 3) return { alerts, positions: 0 };
+  if (available < 20) return { alerts, positions: 0 };
 
-  // Fetch active markets sorted by volume
-  const markets = await fetchJSON(`${GAMMA_API}/markets?closed=false&active=true&order=volume24hr&ascending=false&limit=20`);
-  if (!Array.isArray(markets) || markets.length === 0) {
-    alerts.push('⚠️ Няма активни пазари');
-    return { alerts, positions: 0 };
-  }
+  const markets = await fetchJSON(`${GAMMA_API}/markets?closed=false&active=true&order=volume24hr&ascending=false&limit=30`);
+  if (!Array.isArray(markets) || markets.length === 0) return { alerts, positions: 0 };
 
-  // Strategy: find markets with strong edge (price < 0.35 or > 0.65 — clear favorite)
-  // Bet on the likely outcome (YES if > 0.65, NO if < 0.35)
-  // Skip 50/50 markets (no edge)
   let placed = 0;
-  const maxBets = Math.min(3, Math.floor(available / positionSize));
+  const maxNew = 3 - openCount;
 
   for (const m of markets) {
-    if (placed >= maxBets) break;
+    if (placed >= maxNew) break;
 
     let prices: number[];
-    try {
-      prices = JSON.parse(m.outcomePrices || '[]').map(Number);
-    } catch { continue; }
-
+    try { prices = JSON.parse(m.outcomePrices || '[]').map(Number); } catch { continue; }
     if (prices.length < 2) continue;
+
     const yesPrice = prices[0];
     const noPrice = prices[1];
 
-    // Skip resolved markets (price at 0 or 1 = already decided)
+    // Skip resolved or near-resolved
     if (yesPrice >= 0.95 || yesPrice <= 0.05) continue;
-    // Skip if no clear edge (between 0.35 and 0.65 = coin flip)
-    if (yesPrice > 0.35 && yesPrice < 0.65) continue;
+    // DEATH ZONE: 51-67¢ on either side
+    if (yesPrice > 0.51 && yesPrice < 0.67) continue;
+    if (noPrice > 0.51 && noPrice < 0.67) continue;
+    // Skip longshots under 10¢
+    if (yesPrice < 0.10 && noPrice < 0.10) continue;
 
-    // Skip joke/absurd/religious markets
+    // Skip joke markets
     const q = (m.question || m.title || '').toLowerCase();
-    const skipWords = ['jesus', 'god ', 'alien', 'ufo', 'rapture', 'zombie', 'flat earth', 'simulation', 'bigfoot', 'loch ness', 'santa', 'unicorn'];
+    const skipWords = ['jesus', 'god ', 'alien', 'ufo', 'rapture', 'zombie', 'flat earth', 'simulation', 'bigfoot', 'loch ness', 'santa', 'unicorn', 'will i ', 'my wife', 'girlfriend'];
     if (skipWords.some(w => q.includes(w))) continue;
 
-    // Only allow: politics, sports, finance, crypto, geopolitics, elections
-    const tags = (m.tags || []).map((t: any) => (typeof t === 'string' ? t : t?.label || '').toLowerCase());
-    const slug = (m.slug || '').toLowerCase();
-    const allowedCategories = ['politics', 'sports', 'crypto', 'finance', 'elections', 'geopolitics', 'world', 'nba', 'nfl', 'mlb', 'soccer', 'tennis', 'golf', 'economy', 'fed', 'trump', 'biden', 'war', 'ceasefire', 'president', 'nato'];
-    const hasAllowedTag = tags.some((t: string) => allowedCategories.some(c => t.includes(c)));
-    const hasAllowedSlug = allowedCategories.some(c => q.includes(c) || slug.includes(c));
-    if (!hasAllowedTag && !hasAllowedSlug) continue;
+    // Only serious categories
+    const allowedWords = ['president', 'election', 'trump', 'biden', 'congress', 'senate', 'fed', 'rate', 'gdp', 'inflation', 'bitcoin', 'btc', 'eth', 'crypto', 'price', 'nba', 'nfl', 'mlb', 'premier league', 'champions', 'masters', 'war', 'ceasefire', 'nato', 'china', 'russia', 'ukraine', 'iran', 'tariff', 'minister', 'governor', 'recession', 'oscar', 'grammy'];
+    if (!allowedWords.some(w => q.includes(w))) continue;
 
-    // Skip if already have position in this market
+    // Skip if already positioned
     const conditionId = m.conditionId || m.condition_id || '';
-    const { data: existingPos } = await supabase
-      .from('paper_positions')
-      .select('id')
-      .eq('condition_id', conditionId)
-      .eq('status', 'open')
-      .limit(1);
-    if (existingPos && existingPos.length > 0) continue;
+    if ((openCheck || []).some((p: any) => p.condition_id === conditionId)) continue;
 
-    // Decide: bet on the favorite
-    const outcome = yesPrice > 0.5 ? 'YES' : 'NO';
-    const price = outcome === 'YES' ? yesPrice : noPrice;
+    // ── VALUE ZONE + KELLY ──
+    let outcome: string;
+    let price: number;
+    let modelProb: number;
+
+    if (yesPrice >= 0.67 && yesPrice <= 0.90) {
+      outcome = 'YES'; price = yesPrice;
+      modelProb = Math.min(0.93, yesPrice + 0.05);
+    } else if (yesPrice >= 0.10 && yesPrice <= 0.33) {
+      outcome = 'NO'; price = noPrice;
+      modelProb = Math.min(0.93, noPrice + 0.05);
+    } else { continue; }
+
+    // Quarter Kelly
+    const b = (1 / price) - 1;
+    const kellyFull = (b * modelProb - (1 - modelProb)) / b;
+    const kellyQ = kellyFull * 0.25;
+    if (kellyQ <= 0) continue;
+
+    const positionSize = Math.min(Math.max(10, Math.round(AI_BALANCE * kellyQ)), AI_BET_SIZE, available);
     const shares = positionSize / price;
-
+    const ev = (modelProb * (1 / price - 1) * positionSize) - ((1 - modelProb) * positionSize);
     const question = m.question || m.title || 'Unknown';
-    const slug = m.slug || '';
 
-    // Place paper bet at LIVE price
     await supabase.from('paper_positions').insert({
-      wallet_source: 'AI_STRATEGY',
-      market_slug: slug,
-      market_question: question,
-      outcome,
-      side: 'BUY',
-      entry_price: price,
-      current_price: price,
-      size_usd: positionSize,
-      shares,
-      status: 'open',
-      condition_id: conditionId,
+      wallet_source: 'AI_STRATEGY', market_slug: m.slug || '', market_question: question,
+      outcome, side: 'BUY', entry_price: price, current_price: price,
+      size_usd: positionSize, shares, status: 'open', condition_id: conditionId,
     });
 
-    // Also log as trade
     await supabase.from('wallet_trades').insert({
-      wallet_address: 'AI_STRATEGY',
-      trade_id: `ai-${Date.now()}-${placed}`,
-      market_slug: slug,
-      market_question: question,
-      outcome,
-      side: 'BUY',
-      price,
-      size: positionSize,
-      timestamp: new Date().toISOString(),
+      wallet_address: 'AI_STRATEGY', trade_id: `ai-${Date.now()}-${placed}`,
+      market_slug: m.slug || '', market_question: question, outcome, side: 'BUY',
+      price, size: positionSize, timestamp: new Date().toISOString(),
       condition_id: conditionId,
-      raw_json: { strategy: 'favorite_edge', market_volume_24h: m.volume24hr },
+      raw_json: { strategy: 'value_kelly', kelly_pct: kellyQ, model_prob: modelProb, ev, volume_24h: m.volume24hr },
     });
 
     placed++;
     alerts.push(
       `🎯 <b>AI залог</b>: ${outcome} @ ${(price * 100).toFixed(1)}¢\n` +
       `   📋 ${question.slice(0, 80)}\n` +
-      `   💰 ${positionSize.toFixed(2)}€ (${shares.toFixed(1)} shares)`
+      `   💰 $${positionSize} (${shares.toFixed(1)} sh) | Kelly: ${(kellyQ * 100).toFixed(1)}% | EV: ${ev >= 0 ? '+' : ''}$${ev.toFixed(2)}`
     );
   }
 
