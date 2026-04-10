@@ -13,9 +13,14 @@ const TELEGRAM_CHAT = '1755421488';
 const DATA_API = 'https://data-api.polymarket.com';
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 
-// Paper trading config
-const VIRTUAL_BALANCE = 100; // start with 100€ virtual
-const POSITION_SIZE_PCT = 5; // 5% of balance per copy trade = 5€
+// Paper trading config — $2000 total, split 50/50
+const TOTAL_BALANCE = 2000;
+const AI_BALANCE = 1000;    // AI strategy picks
+const COPY_BALANCE = 1000;  // copy ImJustKen
+const VIRTUAL_BALANCE = TOTAL_BALANCE; // for backward compat in stats
+const AI_BET_SIZE = 50;     // $50 per AI bet (5% of $1000)
+const COPY_BET_SIZE = 50;   // $50 per copy trade (5% of $1000)
+const POSITION_SIZE_PCT = 5; // backward compat
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -152,20 +157,21 @@ async function processTrades(walletName: string, walletAddress: string, trades: 
       raw_json: t,
     });
 
-    // Simulate paper trade — but first check budget
-    const positionSize = VIRTUAL_BALANCE * (POSITION_SIZE_PCT / 100);
+    // Simulate paper trade — $50 per copy trade
+    const positionSize = COPY_BET_SIZE;
     const shares = positionSize / price;
 
-    // Budget check: sum current open exposure, skip if over balance
-    const { data: openCheck } = await supabase
+    // Budget check: sum current COPY exposure only
+    const { data: copyCheck } = await supabase
       .from('paper_positions')
       .select('size_usd')
-      .eq('status', 'open');
-    const currentExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+      .eq('status', 'open')
+      .neq('wallet_source', 'AI_STRATEGY');
+    const copyExposure = (copyCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
 
-    if (side === 'BUY' && currentExposure + positionSize > VIRTUAL_BALANCE) {
-      alerts.push(`⏸️ <b>${walletName}</b> купи ${outcome} @ ${(price * 100).toFixed(1)}¢ — <i>SKIP (бюджет изчерпан: ${currentExposure.toFixed(0)}€/${VIRTUAL_BALANCE}€)</i>`);
-      continue; // skip this trade, no budget
+    if (side === 'BUY' && copyExposure + positionSize > COPY_BALANCE) {
+      alerts.push(`⏸️ <b>${walletName}</b> купи ${outcome} @ ${(price * 100).toFixed(1)}¢ — <i>SKIP (copy бюджет: $${copyExposure.toFixed(0)}/$${COPY_BALANCE})</i>`);
+      continue;
     }
 
     if (side === 'BUY') {
@@ -273,14 +279,14 @@ async function updateOpenPositions() {
 async function placeLiveBets(): Promise<{ alerts: string[]; positions: number }> {
   const alerts: string[] = [];
 
-  // Check budget
-  const { data: openCheck } = await supabase.from('paper_positions').select('size_usd').eq('status', 'open');
-  const currentExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
-  const available = VIRTUAL_BALANCE - currentExposure;
-  const positionSize = VIRTUAL_BALANCE * (POSITION_SIZE_PCT / 100);
+  // Check AI budget (only count AI_STRATEGY positions)
+  const { data: openCheck } = await supabase.from('paper_positions').select('size_usd').eq('status', 'open').eq('wallet_source', 'AI_STRATEGY');
+  const aiExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+  const available = AI_BALANCE - aiExposure;
+  const positionSize = AI_BET_SIZE;
 
   if (available < positionSize) {
-    alerts.push(`⏸️ Бюджет изчерпан: ${currentExposure.toFixed(0)}€/${VIRTUAL_BALANCE}€ в позиции`);
+    alerts.push(`⏸️ AI бюджет изчерпан: $${aiExposure.toFixed(0)}/$${AI_BALANCE} в позиции`);
     return { alerts, positions: 0 };
   }
 
@@ -448,23 +454,36 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 3. Update prices on open positions
+    // 3. AI strategy — auto place bets too (runs every poll)
+    try {
+      const { alerts: aiAlerts } = await placeLiveBets();
+      allAlerts.push(...aiAlerts);
+    } catch (e) {
+      allAlerts.push(`⚠️ AI Strategy: ${(e as Error).message}`);
+    }
+
+    // 4. Update prices on open positions
     await updateOpenPositions();
 
-    // 4. Get current P&L summary
-    const { data: openPositions } = await supabase
+    // 5. Get current P&L summary (split by source)
+    const { data: allOpen } = await supabase
       .from('paper_positions')
-      .select('pnl_usd, size_usd')
+      .select('pnl_usd, size_usd, wallet_source')
       .eq('status', 'open');
 
-    const totalUnrealizedPnl = (openPositions || []).reduce((s, p) => s + (p.pnl_usd || 0), 0);
-    const totalExposure = (openPositions || []).reduce((s, p) => s + (p.size_usd || 0), 0);
-    const openCount = (openPositions || []).length;
+    const aiPositions = (allOpen || []).filter((p: any) => p.wallet_source === 'AI_STRATEGY');
+    const copyPositions = (allOpen || []).filter((p: any) => p.wallet_source !== 'AI_STRATEGY');
 
-    // 5. Send Telegram if we have alerts
+    const aiPnl = aiPositions.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const copyPnl = copyPositions.reduce((s: number, p: any) => s + (p.pnl_usd || 0), 0);
+    const totalPnl = aiPnl + copyPnl;
+    const totalExposure = (allOpen || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+    const openCount = (allOpen || []).length;
+
+    // 6. Send Telegram if we have alerts
     if (allAlerts.length > 0) {
-      const header = `🤖 <b>Polymarket Paper Trader</b>\n\n`;
-      const footer = `\n\n📊 Баланс: ${VIRTUAL_BALANCE}€ | Експозиция: ${totalExposure.toFixed(2)}€ | P&L: ${totalUnrealizedPnl >= 0 ? '+' : ''}${totalUnrealizedPnl.toFixed(2)}€ | Отворени: ${openCount}`;
+      const header = `🤖 <b>Polymarket Paper Trader ($${TOTAL_BALANCE})</b>\n\n`;
+      const footer = `\n\n📊 AI: $${AI_BALANCE} (${aiPositions.length} поз, P&L: ${aiPnl >= 0 ? '+' : ''}$${aiPnl.toFixed(2)})\n📊 Copy: $${COPY_BALANCE} (${copyPositions.length} поз, P&L: ${copyPnl >= 0 ? '+' : ''}$${copyPnl.toFixed(2)})\n💰 Общо P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)} | Отворени: ${openCount}`;
       await sendTelegram(header + allAlerts.join('\n\n') + footer);
     }
 
@@ -474,7 +493,10 @@ Deno.serve(async (req: Request) => {
       wallets_checked: wallets.length,
       new_alerts: allAlerts.length,
       open_positions: openCount,
-      unrealized_pnl: totalUnrealizedPnl,
+      ai_pnl: aiPnl,
+      copy_pnl: copyPnl,
+      total_pnl: totalPnl,
+      total_exposure: totalExposure,
       duration_ms: duration,
     }), { headers: { 'Content-Type': 'application/json' } });
 
