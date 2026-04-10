@@ -268,12 +268,138 @@ async function updateOpenPositions() {
   }
 }
 
+// ── Active betting: scan markets, pick best odds, place paper bets ──
+
+async function placeLiveBets(): Promise<{ alerts: string[]; positions: number }> {
+  const alerts: string[] = [];
+
+  // Check budget
+  const { data: openCheck } = await supabase.from('paper_positions').select('size_usd').eq('status', 'open');
+  const currentExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+  const available = VIRTUAL_BALANCE - currentExposure;
+  const positionSize = VIRTUAL_BALANCE * (POSITION_SIZE_PCT / 100);
+
+  if (available < positionSize) {
+    alerts.push(`⏸️ Бюджет изчерпан: ${currentExposure.toFixed(0)}€/${VIRTUAL_BALANCE}€ в позиции`);
+    return { alerts, positions: 0 };
+  }
+
+  // Fetch active markets sorted by volume
+  const markets = await fetchJSON(`${GAMMA_API}/markets?closed=false&active=true&order=volume24hr&ascending=false&limit=20`);
+  if (!Array.isArray(markets) || markets.length === 0) {
+    alerts.push('⚠️ Няма активни пазари');
+    return { alerts, positions: 0 };
+  }
+
+  // Strategy: find markets with strong edge (price < 0.35 or > 0.65 — clear favorite)
+  // Bet on the likely outcome (YES if > 0.65, NO if < 0.35)
+  // Skip 50/50 markets (no edge)
+  let placed = 0;
+  const maxBets = Math.min(3, Math.floor(available / positionSize));
+
+  for (const m of markets) {
+    if (placed >= maxBets) break;
+
+    let prices: number[];
+    try {
+      prices = JSON.parse(m.outcomePrices || '[]').map(Number);
+    } catch { continue; }
+
+    if (prices.length < 2) continue;
+    const yesPrice = prices[0];
+    const noPrice = prices[1];
+
+    // Skip if no clear edge (between 0.35 and 0.65)
+    if (yesPrice > 0.35 && yesPrice < 0.65) continue;
+
+    // Skip if already have position in this market
+    const conditionId = m.conditionId || m.condition_id || '';
+    const { data: existingPos } = await supabase
+      .from('paper_positions')
+      .select('id')
+      .eq('condition_id', conditionId)
+      .eq('status', 'open')
+      .limit(1);
+    if (existingPos && existingPos.length > 0) continue;
+
+    // Decide: bet on the favorite
+    const outcome = yesPrice > 0.5 ? 'YES' : 'NO';
+    const price = outcome === 'YES' ? yesPrice : noPrice;
+    const shares = positionSize / price;
+
+    const question = m.question || m.title || 'Unknown';
+    const slug = m.slug || '';
+
+    // Place paper bet at LIVE price
+    await supabase.from('paper_positions').insert({
+      wallet_source: 'AI_STRATEGY',
+      market_slug: slug,
+      market_question: question,
+      outcome,
+      side: 'BUY',
+      entry_price: price,
+      current_price: price,
+      size_usd: positionSize,
+      shares,
+      status: 'open',
+      condition_id: conditionId,
+    });
+
+    // Also log as trade
+    await supabase.from('wallet_trades').insert({
+      wallet_address: 'AI_STRATEGY',
+      trade_id: `ai-${Date.now()}-${placed}`,
+      market_slug: slug,
+      market_question: question,
+      outcome,
+      side: 'BUY',
+      price,
+      size: positionSize,
+      timestamp: new Date().toISOString(),
+      condition_id: conditionId,
+      raw_json: { strategy: 'favorite_edge', market_volume_24h: m.volume24hr },
+    });
+
+    placed++;
+    alerts.push(
+      `🎯 <b>AI залог</b>: ${outcome} @ ${(price * 100).toFixed(1)}¢\n` +
+      `   📋 ${question.slice(0, 80)}\n` +
+      `   💰 ${positionSize.toFixed(2)}€ (${shares.toFixed(1)} shares)`
+    );
+  }
+
+  return { alerts, positions: placed };
+}
+
 // ── Main handler ──
 
 Deno.serve(async (req: Request) => {
   const startTime = Date.now();
 
   try {
+    // Check for action mode
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    // MODE: place_bets — scan markets and place live paper bets
+    if (body?.action === 'place_bets') {
+      const { alerts, positions } = await placeLiveBets();
+
+      // Update prices on all open positions
+      await updateOpenPositions();
+
+      // Telegram
+      if (alerts.length > 0) {
+        const msg = `🤖 <b>Polymarket AI Trader</b>\n\n${alerts.join('\n\n')}`;
+        await sendTelegram(msg);
+      }
+
+      return new Response(JSON.stringify({ ok: true, bets_placed: positions, alerts }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // DEFAULT MODE: copy-trade polling
     // 1. Get active wallets
     const { data: wallets } = await supabase
       .from('tracked_wallets')
