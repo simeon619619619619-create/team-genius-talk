@@ -61,19 +61,38 @@ async function resolveWalletAddress(name: string): Promise<string | null> {
 // ── Fetch new trades for a wallet ──
 
 async function fetchNewTrades(wallet: { name: string; address: string; last_trade_id: string | null }) {
-  const url = `${DATA_API}/trades?user=${wallet.address}&limit=50`;
+  const url = `${DATA_API}/trades?user=${wallet.address}&limit=20`;
   const trades = await fetchJSON(url);
 
   if (!Array.isArray(trades) || trades.length === 0) return [];
 
+  // If RESET or first run — just set the bookmark, don't process old trades
+  if (!wallet.last_trade_id || wallet.last_trade_id === 'RESET') {
+    // Return empty — we only want to set the bookmark for next poll
+    return []; // caller will still update last_trade_id from latest
+  }
+
   // Filter to only new trades (after last_trade_id)
   const newTrades = [];
   for (const t of trades) {
-    if (wallet.last_trade_id && t.id === wallet.last_trade_id) break;
+    const tid = t.id || `${t.transactionHash}-${t.tradeIndex}`;
+    if (tid === wallet.last_trade_id) break;
     newTrades.push(t);
   }
 
-  return newTrades;
+  // Cap at 10 trades per poll to avoid budget explosion
+  return newTrades.slice(0, 10);
+}
+
+/** Get the latest trade ID for bookmarking (even if we don't process it) */
+async function getLatestTradeId(walletAddress: string): Promise<string | null> {
+  try {
+    const trades = await fetchJSON(`${DATA_API}/trades?user=${walletAddress}&limit=1`);
+    if (Array.isArray(trades) && trades.length > 0) {
+      return trades[0].id || `${trades[0].transactionHash}-${trades[0].tradeIndex}`;
+    }
+  } catch { /* skip */ }
+  return null;
 }
 
 // ── Get market info for a condition ID ──
@@ -133,9 +152,21 @@ async function processTrades(walletName: string, walletAddress: string, trades: 
       raw_json: t,
     });
 
-    // Simulate paper trade (copy at same price, scaled to our position size)
+    // Simulate paper trade — but first check budget
     const positionSize = VIRTUAL_BALANCE * (POSITION_SIZE_PCT / 100);
     const shares = positionSize / price;
+
+    // Budget check: sum current open exposure, skip if over balance
+    const { data: openCheck } = await supabase
+      .from('paper_positions')
+      .select('size_usd')
+      .eq('status', 'open');
+    const currentExposure = (openCheck || []).reduce((s: number, p: any) => s + (p.size_usd || 0), 0);
+
+    if (side === 'BUY' && currentExposure + positionSize > VIRTUAL_BALANCE) {
+      alerts.push(`⏸️ <b>${walletName}</b> купи ${outcome} @ ${(price * 100).toFixed(1)}¢ — <i>SKIP (бюджет изчерпан: ${currentExposure.toFixed(0)}€/${VIRTUAL_BALANCE}€)</i>`);
+      continue; // skip this trade, no budget
+    }
 
     if (side === 'BUY') {
       await supabase.from('paper_positions').insert({
@@ -276,6 +307,13 @@ Deno.serve(async (req: Request) => {
         if (trades.length > 0) {
           const alerts = await processTrades(w.name, w.address, trades);
           allAlerts.push(...alerts);
+        }
+        // Always update bookmark (even on first/RESET run where trades==[])
+        const latestId = await getLatestTradeId(w.address);
+        if (latestId && latestId !== w.last_trade_id) {
+          await supabase.from('tracked_wallets')
+            .update({ last_trade_id: latestId, last_checked_at: new Date().toISOString() })
+            .eq('id', w.id);
         }
       } catch (e) {
         allAlerts.push(`⚠️ ${w.name}: ${(e as Error).message}`);
