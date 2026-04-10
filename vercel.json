@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/polymarket",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -14,6 +20,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
