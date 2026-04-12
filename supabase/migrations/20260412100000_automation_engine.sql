@@ -108,25 +108,25 @@ ALTER TABLE workflow_learning ENABLE ROW LEVEL SECURITY;
 
 -- Workflows: owner or admin
 CREATE POLICY "workflows_owner" ON workflows
-  FOR ALL USING (owner_id = auth.uid() OR is_admin());
+  FOR ALL USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Nodes: via workflow ownership
 CREATE POLICY "workflow_nodes_owner" ON workflow_nodes
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM workflows w WHERE w.id = workflow_id AND (w.owner_id = auth.uid() OR is_admin()))
+    EXISTS (SELECT 1 FROM workflows w WHERE w.id = workflow_id AND (w.owner_id = auth.uid() OR public.is_admin(auth.uid())))
   );
 
 -- Executions: owner or admin
 CREATE POLICY "workflow_executions_owner" ON workflow_executions
-  FOR ALL USING (owner_id = auth.uid() OR is_admin());
+  FOR ALL USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Events: owner or admin
 CREATE POLICY "workflow_events_owner" ON workflow_events
-  FOR ALL USING (owner_id = auth.uid() OR is_admin());
+  FOR ALL USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Learning: owner or admin
 CREATE POLICY "workflow_learning_owner" ON workflow_learning
-  FOR ALL USING (owner_id = auth.uid() OR is_admin());
+  FOR ALL USING (owner_id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Enable realtime for workflow_events (live mind map updates)
 ALTER PUBLICATION supabase_realtime ADD TABLE workflow_events;

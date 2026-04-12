@@ -23,7 +23,7 @@ CREATE TRIGGER user_memory_updated_at
 ALTER TABLE user_memory ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "user_memory_owner" ON user_memory
-  FOR ALL USING (user_id = auth.uid() OR is_admin());
+  FOR ALL USING (user_id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Auto-create user_memory row when a new user signs up
 CREATE OR REPLACE FUNCTION create_user_memory()
