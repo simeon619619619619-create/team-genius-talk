@@ -8,8 +8,12 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { MindMapEditor } from "@/components/workflows/MindMapEditor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Play, Square, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Play, Square, Eye, Pencil, Sparkles } from "lucide-react";
 import { useState, useCallback } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import type { Workflow, MindMapData, WorkflowEvent } from "@/types/workflow";
 
 export default function WorkflowEditorPage() {
@@ -20,6 +24,9 @@ export default function WorkflowEditorPage() {
   const { updateWorkflow } = useWorkflows();
   const { executions, events, activeExecution, startExecution, cancelExecution } = useWorkflowExecution(id || null);
   const [mode, setMode] = useState<"edit" | "view">("edit");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGoal, setAiGoal] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const { data: workflow, isLoading } = useQuery({
     queryKey: ["workflow", id],
@@ -61,6 +68,27 @@ export default function WorkflowEditorPage() {
     },
     [id, updateWorkflow]
   );
+
+  const handleAiGenerate = async () => {
+    if (!aiGoal || !id) return;
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("workflow-generate", {
+        body: { goal: aiGoal, workflow_id: id },
+      });
+      if (error) throw error;
+      if (data?.mind_map_json) {
+        toast.success("Симеон генерира workflow!");
+        queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      }
+    } catch (err: any) {
+      toast.error(`Грешка: ${err.message}`);
+    } finally {
+      setAiLoading(false);
+      setAiOpen(false);
+      setAiGoal("");
+    }
+  };
 
   const isRunning = activeExecution?.status === "running";
 
@@ -108,6 +136,33 @@ export default function WorkflowEditorPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Sparkles className="h-4 w-4 mr-1" /> Симеон AI
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Генерирай workflow с Симеон</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <Label>Опиши целта</Label>
+                    <Textarea
+                      placeholder="напр. Когато дойде нов клиент, изпрати welcome имейл, след 3 дни follow-up, ако не отвори — SMS"
+                      value={aiGoal}
+                      onChange={(e) => setAiGoal(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                  <Button className="w-full" onClick={handleAiGenerate} disabled={!aiGoal || aiLoading}>
+                    {aiLoading ? "Симеон мисли..." : "Генерирай"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Button
               variant="outline"
               size="sm"
