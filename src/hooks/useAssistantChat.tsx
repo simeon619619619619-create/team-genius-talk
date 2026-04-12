@@ -181,6 +181,20 @@ export function useAssistantChat(
     }
   }, [messages, projectId, context, moduleSystemPrompt, user?.id, saveMessage]);
 
+  const extractMemory = useCallback(async (moduleKey: string) => {
+    if (!user) return;
+    try {
+      await supabase.functions.invoke("memory-extract", {
+        body: {
+          module_key: moduleKey,
+          chat_messages: messages.filter(m => m.content.length > 10).slice(-50),
+        },
+      });
+    } catch (err) {
+      console.error("Memory extraction failed:", err);
+    }
+  }, [user, messages]);
+
   const clearChat = useCallback(async () => {
     setMessages([getInitialMsg()]);
 
@@ -201,5 +215,6 @@ export function useAssistantChat(
     isLoading,
     sendMessage,
     clearChat,
+    extractMemory,
   };
 }
