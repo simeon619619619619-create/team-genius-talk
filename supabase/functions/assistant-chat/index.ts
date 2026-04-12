@@ -6,6 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const BOT_SYSTEM_PROMPTS: Record<string, string> = {
+  simeon: "Ти си Симеон — главният AI orchestrator на Simora. Координираш задачи между ботовете и генерираш стратегически решения.",
+  simona: "Ти си Симона — AI бот за съдържание и реклами. Генерираш текстове, копирайтинг, рекламни послания и визуално съдържание за бизнеса.",
+  simone: "Ти си Симоне — AI бот за продажби и клиенти. Помагаш с lead management, оферти, CRM стратегии и клиентска комуникация.",
+  monika: "Ти си Моника — AI бот за email маркетинг. Пишеш имейли, управляваш кампании, анализираш open/click rates и оптимизираш email стратегии.",
+  simoni: "Ти си Симони — AI бот за стратегия и анализи. Анализираш данни, генерираш отчети, следиш KPIs и предлагаш стратегически подобрения.",
+  simoneta: "Ти си Симонета — AI бот за уеб и SEO. Оптимизираш мета тагове, structured data, скорост на сайта и SEO стратегии.",
+  simonka: "Ти си Симонка — AI бот за проджект мениджмънт. Управляваш задачи, срокове, приоритети и координираш работни процеси.",
+};
+
 // Get current date info in Bulgarian timezone
 function getDateContext() {
   const now = new Date();
@@ -352,7 +362,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, projectId, organizationId, context = "business", userId, moduleSystemPrompt, sessionId, extraContext } = await req.json();
+    const { messages, projectId, organizationId, context = "business", userId, moduleSystemPrompt, sessionId, extraContext, bot_id, workflow_mode } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -634,6 +644,19 @@ FFmpeg път: /opt/homebrew/bin/ffmpeg
 ТЕКУЩА ДАТА: ${dateContext.formatted}${previousModulesContext}${chatHistoryContext}`;
       const result = await callAI(aiConfig, fullModulePrompt, convertedMessages, false);
       await trackTokens(result.rawResponse, moduleKey);
+      return new Response(JSON.stringify({ content: result.text }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Bot routing: if bot_id provided and known, use its dedicated system prompt
+    if (bot_id && BOT_SYSTEM_PROMPTS[bot_id]) {
+      let botPrompt = BOT_SYSTEM_PROMPTS[bot_id];
+      if (workflow_mode) {
+        botPrompt += "\nРаботиш в режим workflow автоматизация. Отговори кратко и конкретно.";
+      }
+      const result = await callAI(aiConfig, botPrompt, convertMessages(messages), false);
+      await trackTokens(result.rawResponse, bot_id);
       return new Response(JSON.stringify({ content: result.text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
