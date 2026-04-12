@@ -27,6 +27,7 @@ import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import VideoPage from "./pages/VideoPage";
 import AutomationsPage from "./pages/AutomationsPage";
+import WorkflowEditorPage from "./pages/WorkflowEditorPage";
 import StartupPage from "./pages/StartupPage";
 import ModulesPage from "./pages/ModulesPage";
 import MindMapPage from "./pages/MindMapPage";
@@ -62,6 +63,7 @@ const App = () => (
                     <Route path="/business-plan" element={<ProtectedRoute><BusinessPlanPage /></ProtectedRoute>} />
                     <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
                     <Route path="/automations" element={<ProtectedRoute><AutomationsPage /></ProtectedRoute>} />
+                    <Route path="/workflow/:id" element={<ProtectedRoute><WorkflowEditorPage /></ProtectedRoute>} />
                     <Route path="/startup" element={<ProtectedRoute><StartupPage /></ProtectedRoute>} />
                     <Route path="/modules" element={<ProtectedRoute><ModulesPage /></ProtectedRoute>} />
                     <Route path="/mindmap" element={<ProtectedRoute><MindMapPage /></ProtectedRoute>} />
